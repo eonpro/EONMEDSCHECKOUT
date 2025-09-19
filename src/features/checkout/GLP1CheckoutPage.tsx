@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { computeAddonPrice, computeTotals } from '../../lib/pricing';
 import { InjectionIcon, PillIcon, FlameIcon, ShieldCheckIcon, UserIcon, TruckIcon, MapPinIcon, CheckIcon, MessageCircleIcon, PhoneIcon, MailIcon, ZapIcon } from '../../icons/icons';
+import { StripeElementsPlaceholder } from '../payments/StripeElementsPlaceholder';
 
 export type ShippingAddress = { street: string; city: string; state: string; zip: string; country: string };
 
@@ -489,7 +490,8 @@ export function GLP1CheckoutPage() {
             </div>
 
             <div className="bg-gray-50 rounded-xl p-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+              <StripeElementsPlaceholder />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 mt-4">
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Card Number</label><input disabled placeholder="4242 4242 4242 4242" className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white" /></div>
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Expiry</label><input disabled placeholder="MM / YY" className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white" /></div>
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Name on Card</label><input disabled placeholder="John Smith" className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white" /></div>
