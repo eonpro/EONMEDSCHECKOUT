@@ -1,8 +1,6 @@
-import { loadStripe } from '@stripe/stripe-js';
-import React from 'react';
-
 const publishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as string | undefined;
-const stripePromise = publishableKey ? loadStripe(publishableKey) : null;
+// Intentionally avoiding Elements mounting until backend is wired
+// const stripePromise = publishableKey ? loadStripe(publishableKey) : null;
 
 export function StripeElementsPlaceholder() {
   if (!publishableKey) {
