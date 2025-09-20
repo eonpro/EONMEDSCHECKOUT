@@ -269,91 +269,191 @@ export function GLP1CheckoutPageImproved() {
 
   // Order Summary Sidebar Component
   const OrderSummary = () => (
-    <div className="bg-white rounded-xl p-6 sticky top-4">
-      <h3 className="text-xl font-medium mb-4">{t.orderSummary}</h3>
+    <div className="bg-white rounded-xl shadow-sm sticky top-4">
+      {/* Header */}
+      <div className="p-6 pb-4">
+        <h3 className="text-lg font-semibold text-gray-900">{t.orderSummary}</h3>
+      </div>
+      
+      {/* Order Items */}
       {selectedMed && selectedPlanData && (
-        <div className="space-y-3">
-          <div className="flex justify-between">
-            <div>
-              <p className="font-medium">{selectedMed.name}</p>
-              <p className="text-sm text-gray-600">{selectedPlanData.type}</p>
-            </div>
-            <span className="font-medium">${selectedPlanData.price}</span>
-          </div>
-          {selectedAddons.map((addonId) => {
-            const addon = addons.find(a => a.id === addonId);
-            if (!addon) return null;
-            const price = addon.getDynamicPrice ? addon.getDynamicPrice(fatBurnerDuration, selectedPlanData) : addon.price;
-            return (
-              <div key={addonId} className="flex justify-between">
-                <span className="text-gray-600">{addon.name}</span>
-                <span>${price}</span>
+        <div className="px-6 pb-4">
+          <div className="space-y-4">
+            {/* Main Product */}
+            <div className="flex justify-between items-start">
+              <div className="flex-1">
+                <p className="font-medium text-gray-900">{selectedMed.name}</p>
+                <p className="text-sm text-gray-500 mt-0.5">{selectedPlanData.type}</p>
               </div>
-            );
-          })}
-          {expeditedShipping && (
-            <div className="flex justify-between">
-              <span className="text-gray-600">{t.expeditedShipping}</span>
-              <span>$25</span>
+              <span className="font-medium text-gray-900">${selectedPlanData.price}</span>
             </div>
-          )}
-          <div className="border-t pt-3">
-            <div className="flex justify-between text-sm">
-              <span>{t.subtotal}</span>
-              <span>${subtotal.toFixed(2)}</span>
+            
+            {/* Add-ons */}
+            {selectedAddons.map((addonId) => {
+              const addon = addons.find(a => a.id === addonId);
+              if (!addon) return null;
+              const price = addon.getDynamicPrice ? addon.getDynamicPrice(fatBurnerDuration, selectedPlanData) : addon.price;
+              return (
+                <div key={addonId} className="flex justify-between items-start">
+                  <span className="text-gray-600">{addon.name}</span>
+                  <span className="text-gray-900">${price}</span>
+                </div>
+              );
+            })}
+            
+            {/* Expedited Shipping */}
+            {expeditedShipping && (
+              <div className="flex justify-between items-start">
+                <span className="text-gray-600">{t.expeditedShipping}</span>
+                <span className="text-gray-900">$25</span>
+              </div>
+            )}
+          </div>
+          
+          {/* Totals */}
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">{t.subtotal}</span>
+                <span className="text-gray-900">${subtotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">{t.shipping}</span>
+                <span className={`font-medium ${expeditedShipping ? 'text-gray-900' : 'text-green-600'}`}>
+                  {expeditedShipping ? `$${shippingCost}.00` : 'FREE'}
+                </span>
+              </div>
             </div>
-            <div className="flex justify-between text-sm">
-              <span>{t.shipping}</span>
-              <span>{expeditedShipping ? `$${shippingCost}` : 'FREE'}</span>
-            </div>
-            <div className="border-t mt-2 pt-2">
-              <div className="flex justify-between font-semibold text-lg">
-                <span>{t.total}</span>
-                <span>${total.toFixed(2)} USD</span>
+            
+            <div className="mt-3 pt-3 border-t border-gray-200">
+              <div className="flex justify-between items-center">
+                <span className="text-base font-semibold text-gray-900">{t.total}</span>
+                <span className="text-xl font-bold text-gray-900">${total.toFixed(2)} USD</span>
               </div>
             </div>
           </div>
         </div>
       )}
       
-      {/* Trust Badges */}
-      <div className="mt-6 space-y-3 text-sm text-gray-600">
-        <div className="flex items-start gap-2">
-          <svg className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-          </svg>
-          <span>{language === 'es' ? 'Pago seguro y encriptado • PCI DSS' : 'Encrypted & secure • PCI DSS'}</span>
-        </div>
-        <div className="flex items-start gap-2">
-          <svg className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <span>{language === 'es' ? 'Cumplimiento LegitScript' : 'LegitScript-style compliance ready'}</span>
-        </div>
-        <div className="flex items-start gap-2">
-          <svg className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-          </svg>
-          <span>{language === 'es' ? 'Miles de reseñas de 5 estrellas' : 'Thousands of 5-star patient reviews'}</span>
-        </div>
-        <div className="flex items-start gap-2">
-          <svg className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <span>{language === 'es' ? 'Checkout de 30 segundos • Móvil primero' : '30-second checkout • Mobile-first'}</span>
+      {/* Trust Badges Section */}
+      <div className="bg-gray-50 px-6 py-4 border-t">
+        <div className="space-y-2.5">
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+              <svg className="w-3 h-3 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <span className="text-xs text-gray-600">{language === 'es' ? 'Pago seguro y encriptado • PCI DSS' : 'Encrypted & secure • PCI DSS'}</span>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+              <svg className="w-3 h-3 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <span className="text-xs text-gray-600">{language === 'es' ? 'Cumplimiento LegitScript' : 'LegitScript-style compliance ready'}</span>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 rounded-full bg-yellow-100 flex items-center justify-center flex-shrink-0">
+              <svg className="w-3 h-3 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+              </svg>
+            </div>
+            <span className="text-xs text-gray-600">{language === 'es' ? 'Miles de reseñas de 5 estrellas' : 'Thousands of 5-star patient reviews'}</span>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+              <svg className="w-3 h-3 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <span className="text-xs text-gray-600">{language === 'es' ? 'Checkout de 30 segundos • Móvil primero' : '30-second checkout • Mobile-first'}</span>
+          </div>
         </div>
       </div>
       
       {/* Payment Methods */}
-      <div className="mt-4 pt-4 border-t">
-        <p className="text-xs text-gray-500 text-center mb-2">{language === 'es' ? 'Aceptamos' : 'We accept'}</p>
-        <div className="flex justify-center gap-2">
-          {/* Card Icons */}
-          <div className="w-10 h-6 bg-gray-100 rounded flex items-center justify-center text-xs font-semibold text-gray-600">VISA</div>
-          <div className="w-10 h-6 bg-gray-100 rounded flex items-center justify-center text-xs font-semibold text-gray-600">MC</div>
-          <div className="w-10 h-6 bg-gray-100 rounded flex items-center justify-center text-xs font-semibold text-gray-600">AMEX</div>
+      <div className="px-6 py-4 border-t">
+        <p className="text-xs text-gray-500 text-center mb-3">{language === 'es' ? 'Aceptamos' : 'We accept'}</p>
+        
+        {/* Payment Icons Grid */}
+        <div className="grid grid-cols-4 gap-2 mb-3">
+          {/* Visa */}
+          <div className="bg-white border border-gray-200 rounded p-1.5 flex items-center justify-center h-8">
+            <svg className="h-5" viewBox="0 0 48 16" fill="none">
+              <path d="M21.2 1l-3.8 14h-4.5L16.7 1h4.5zm17.4 9c0-.8-.5-1.4-1.6-1.8-1.8-.6-4-1.6-4-3.5 0-2.4 2-4 5.1-4 1.5 0 2.8.3 3.6.6l-.5 2.3c-.8-.4-1.9-.7-3.2-.7-1.4 0-2 .5-2 1.2 0 .8.7 1.2 2 1.7 2 .6 3.7 1.6 3.7 3.6 0 2.5-2.1 4-5.5 4-1.6 0-3.2-.4-4-.8l.5-2.4c1 .6 2.5.9 3.9.9 1.4 0 2.2-.4 2.2-1.3zm7.6-9h3.3l4.4 14h-3.9l-.8-2.8h-5.3l-.8 2.8h-3.8l5-14zm1.5 4.5l-1.3 4.3h3.5l-1.2-4.3c-.2-.7-.4-1.6-.5-2.2h-.1c-.1.6-.3 1.5-.5 2.2zM8 1l-3 10.3L4.1 6c-.1-.5-.5-.9-1-.9H0l-.1.5c.8.2 1.7.5 2.3.8.3.2.5.4.6.8L5.3 15h4.5L14.5 1H10z" fill="#1434CB"/>
+            </svg>
+          </div>
+          
+          {/* Mastercard */}
+          <div className="bg-white border border-gray-200 rounded p-1.5 flex items-center justify-center h-8">
+            <svg className="h-5" viewBox="0 0 32 20" fill="none">
+              <circle cx="12" cy="10" r="7" fill="#EA001B"/>
+              <circle cx="20" cy="10" r="7" fill="#FFA200" opacity="0.8"/>
+            </svg>
+          </div>
+          
+          {/* Amex */}
+          <div className="bg-white border border-gray-200 rounded p-1.5 flex items-center justify-center h-8">
+            <svg className="h-5" viewBox="0 0 40 16" fill="none">
+              <rect width="40" height="16" rx="2" fill="#016FD0"/>
+              <path d="M8 6h2l1 3 1-3h2l-2 4 2 4h-2l-1-3-1 3H8l2-4-2-4zm10 0h3l1 2 1-2h3v8h-2V9l-1.5 3h-1L20 9v5h-2V6zm12 0h5v2h-3v1h3v2h-3v1h3v2h-5V6z" fill="white"/>
+            </svg>
+          </div>
+          
+          {/* Discover */}
+          <div className="bg-white border border-gray-200 rounded p-1.5 flex items-center justify-center h-8">
+            <svg className="h-5" viewBox="0 0 40 24" fill="none">
+              <circle cx="28" cy="12" r="8" fill="#FF6000"/>
+              <path d="M8 9h3c2.2 0 4 1.3 4 3s-1.8 3-4 3H8V9z" fill="#FF6000"/>
+            </svg>
+          </div>
         </div>
-        <p className="text-xs text-gray-500 text-center mt-2">{language === 'es' ? 'Tarjetas HSA/FSA aceptadas' : 'HSA/FSA cards accepted'}</p>
+        
+        {/* BNPL Options */}
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          {/* Affirm */}
+          <div className="bg-white border border-gray-200 rounded p-1.5 flex items-center justify-center h-8">
+            <span className="text-xs font-bold text-gray-700">affirm</span>
+          </div>
+          
+          {/* Klarna */}
+          <div className="bg-white border border-gray-200 rounded p-1.5 flex items-center justify-center h-8">
+            <span className="text-xs font-bold text-pink-500">Klarna</span>
+          </div>
+        </div>
+        
+        {/* Digital Wallets */}
+        <div className="grid grid-cols-3 gap-2">
+          {/* Apple Pay */}
+          <div className="bg-white border border-gray-200 rounded p-1.5 flex items-center justify-center h-8">
+            <svg className="h-4" viewBox="0 0 40 16" fill="none">
+              <path d="M7.5 5.5c.3-.4.5-.9.4-1.5-.4 0-.9.3-1.2.6-.3.3-.5.8-.4 1.3.5.1.9-.2 1.2-.4zm.4.2c-.7 0-1.3.4-1.6.4-.3 0-.8-.4-1.4-.4C4 5.8 3.2 6.3 2.7 7c-.9 1.5-.2 3.8.7 5 .4.6.9 1.3 1.6 1.3.6 0 .9-.4 1.4-.4.5 0 .8.4 1.4.4.7 0 1.1-.6 1.5-1.2.5-.7.7-1.3.7-1.3s-1.3-.5-1.3-2c0-1.3 1-1.9 1.1-1.9-.6-1-1.5-1-1.9-1.1z" fill="black"/>
+              <path d="M14 4h2c1.5 0 2.5 1 2.5 2.5S17.5 9 16 9h-1v3h-1V4zm1 1v3h1c1 0 1.5-.5 1.5-1.5S17 5 16 5h-1zm5 0c-.8 0-1.3.6-1.3 1.4 0 .8.5 1.4 1.3 1.4.8 0 1.3-.6 1.3-1.4 0-.8-.5-1.4-1.3-1.4zm5 2l-2 5h1l.5-1.5h1.8l.5 1.5h1l-2-5h-1zm.5 1l.7 2h-1.4l.7-2zm4 1v3h1V9l2-3h-1l-1.5 2.3L29.5 6h-1l2 3z" fill="black"/>
+            </svg>
+          </div>
+          
+          {/* Google Pay */}
+          <div className="bg-white border border-gray-200 rounded p-1.5 flex items-center justify-center h-8">
+            <svg className="h-4" viewBox="0 0 40 16" fill="none">
+              <path d="M20 8.5V12h-1.2V4h3c.9 0 1.6.3 2.1.8s.8 1.2.8 2c0 .8-.3 1.5-.8 2s-1.2.8-2.1.8H20zm0-3.5v2.5h1.8c.5 0 .9-.2 1.2-.5.3-.3.4-.7.4-1.2s-.1-.9-.4-1.2c-.3-.3-.7-.5-1.2-.5H20z" fill="#4285F4"/>
+              <path d="M26 7c.8 0 1.4.2 1.8.7.4.5.6 1.1.6 1.9V12h-1.1v-.5c-.3.4-.8.6-1.4.6-.6 0-1-.2-1.3-.5-.3-.3-.5-.7-.5-1.1 0-.5.2-.9.5-1.2.3-.3.8-.4 1.4-.4h1.3v-.1c0-.3-.1-.6-.3-.8-.2-.2-.5-.3-.9-.3-.6 0-1 .2-1.3.7l-1-.6c.5-.7 1.3-1 2.2-1z" fill="#34A853"/>
+              <path d="M12 8c0-.6-.2-1.1-.7-1.5-.4-.4-1-.6-1.6-.6-.8 0-1.5.3-2 .8-.5.5-.7 1.2-.7 2.1s.2 1.6.7 2.1c.5.5 1.2.8 2 .8.7 0 1.3-.2 1.7-.6l.8.8c-.6.6-1.5.9-2.5.9-1.1 0-2-.4-2.7-1.1-.7-.7-1-1.7-1-2.8s.3-2.1 1-2.8C7.7 5.4 8.6 5 9.7 5c1 0 1.9.3 2.5.9.7.6 1 1.5 1 2.6H8c0 .4.1.7.4 1 .3.3.6.4 1 .4.6 0 1-.3 1.2-.8H12z" fill="#EA4335"/>
+              <path d="M32 7h1.2l-2.3 6c-.4 1-1 1.5-1.9 1.5-.3 0-.6 0-.8-.1v-1c.2.1.4.1.6.1.3 0 .5-.1.6-.2.1-.1.3-.4.4-.7l.1-.3L28 7h1.3l1.3 3.5L32 7z" fill="#FBBC04"/>
+            </svg>
+          </div>
+          
+          {/* PayPal */}
+          <div className="bg-white border border-gray-200 rounded p-1.5 flex items-center justify-center h-8">
+            <span className="text-xs font-bold text-blue-600">PayPal</span>
+          </div>
+        </div>
+        
+        <p className="text-xs text-gray-500 text-center mt-3">{language === 'es' ? 'Tarjetas HSA/FSA aceptadas' : 'HSA/FSA cards accepted'}</p>
       </div>
     </div>
   );
