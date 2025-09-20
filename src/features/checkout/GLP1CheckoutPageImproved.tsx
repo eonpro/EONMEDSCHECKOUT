@@ -203,19 +203,6 @@ export function GLP1CheckoutPageImproved() {
   const selectedMed = medications.find(m => m.id === selectedMedication);
   const selectedPlanData = selectedMed?.plans.find(p => p.id === selectedPlan);
 
-  // Helper function to format plan pricing display
-  const formatPlanPrice = (plan: Plan) => {
-    if (plan.id.includes('3month')) {
-      return `$${plan.price} total ($${Math.round(plan.price / 3)}/month)`;
-    } else if (plan.id.includes('6month')) {
-      return `$${plan.price} total ($${Math.round(plan.price / 6)}/month)`;
-    } else if (plan.billing === 'once') {
-      return `$${plan.price} one-time`;
-    } else {
-      return `$${plan.price}/month`;
-    }
-  };
-
   const { subtotal, total, shippingCost } = computeTotals({
     selectedPlanData,
     selectedAddons,
@@ -702,27 +689,88 @@ export function GLP1CheckoutPageImproved() {
                 {/* Plan Selection */}
                 <div className="mb-8">
                   <h3 className="text-xl font-semibold mb-4">{t.choosePlan}</h3>
-                  <div className="grid gap-4">
-                    {selectedMed.plans.map((plan) => (
-                      <div
-                        key={plan.id}
-                        onClick={() => setSelectedPlan(plan.id)}
-                        className={`bg-white border-2 rounded-xl p-4 cursor-pointer transition-all ${
-                          selectedPlan === plan.id ? 'border-[#13a97b] bg-[#f0fdf4]' : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h4 className="font-semibold">{plan.type}</h4>
-                            <p className="text-gray-600">{formatPlanPrice(plan)}</p>
-                            {plan.savings && <p className="text-green-600 text-sm">{t.save} ${plan.savings}</p>}
-                          </div>
-                          {plan.badge && (
-                            <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm">{plan.badge}</span>
+                  <div className="grid gap-3">
+                    {selectedMed.plans.map((plan, index) => {
+                      const isSelected = selectedPlan === plan.id;
+                      const isMaxSavings = index === 2; // 6-month plan has max savings
+                      
+                      // Calculate monthly price for display
+                      const monthlyPrice = plan.billing === 'monthly' ? plan.price : 
+                                         plan.type.includes('3') ? Math.round(plan.price / 3) :
+                                         plan.type.includes('6') ? Math.round(plan.price / 6) : plan.price;
+                      
+                      // Get total for multi-month plans
+                      const totalAmount = plan.billing === 'monthly' ? plan.price : plan.price;
+                      const originalPrice = plan.savings ? totalAmount + plan.savings : null;
+                      
+                      return (
+                        <div
+                          key={plan.id}
+                          onClick={() => setSelectedPlan(plan.id)}
+                          className={`relative border-2 rounded-2xl cursor-pointer transition-all ${
+                            isSelected ? 'border-[#13a97b]' : 'border-gray-200 hover:border-gray-300'
+                          } ${plan.billing === 'once' ? 'hidden' : ''}`}
+                        >
+                          {isMaxSavings && (
+                            <div className="absolute -top-3 left-4 bg-gray-500 text-white px-3 py-1 rounded-full text-xs font-semibold">
+                              Max savings
+                            </div>
                           )}
+                          
+                          <div className={`p-5 ${isSelected ? 'bg-[#f0fdf4]' : 'bg-white'} rounded-2xl`}>
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-3">
+                                <div className={`w-5 h-5 rounded-full border-2 ${isSelected ? 'border-[#13a97b]' : 'border-gray-300'} flex items-center justify-center`}>
+                                  {isSelected && <div className="w-3 h-3 bg-[#13a97b] rounded-full"></div>}
+                                </div>
+                                <h4 className="font-semibold text-lg">
+                                  {plan.type}
+                                </h4>
+                              </div>
+                              <div className="text-right">
+                                {originalPrice && (
+                                  <span className="text-gray-400 line-through text-sm mr-2">
+                                    ${Math.round(originalPrice / (plan.type.includes('3') ? 3 : plan.type.includes('6') ? 6 : 1))}/mo
+                                  </span>
+                                )}
+                                <span className={`font-bold text-lg ${isSelected ? 'text-[#13a97b]' : 'text-gray-900'}`}>
+                                  ${monthlyPrice}/mo*
+                                </span>
+                              </div>
+                            </div>
+                            
+                            {isSelected && (
+                              <div className="mt-4 pt-4 border-t border-gray-200">
+                                <p className="font-medium mb-3">Plan breakdown:</p>
+                                <ul className="space-y-2 text-sm text-gray-600">
+                                  <li className="flex items-start gap-2">
+                                    <span className="mt-1">•</span>
+                                    <span>
+                                      ${totalAmount} charged every {plan.type.includes('Monthly') ? 'month' : plan.type.includes('3') ? '3 months' : '6 months'}
+                                    </span>
+                                  </li>
+                                  <li className="flex items-start gap-2">
+                                    <span className="mt-1">•</span>
+                                    <span>
+                                      Ships every {plan.type.includes('Monthly') ? 'month' : plan.type.includes('3') ? '3 months' : '6 months'}
+                                    </span>
+                                  </li>
+                                  <li className="flex items-start gap-2">
+                                    <span className="mt-1">•</span>
+                                    <span>
+                                      Includes {plan.type.includes('Monthly') ? '1 month' : plan.type.includes('3') ? '3 months' : '6 months'} of medication and ongoing support
+                                    </span>
+                                  </li>
+                                </ul>
+                                <p className="text-xs text-gray-500 mt-3 italic">
+                                  *Paid upfront, in full. Cancel or change your plan any time in your online account.
+                                </p>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -917,6 +965,33 @@ export function GLP1CheckoutPageImproved() {
                       }}
                     />
                   </StripeProvider>
+                </div>
+
+                {/* Terms and Conditions */}
+                <div className="bg-blue-50 rounded-xl p-4 mb-6">
+                  <p className="text-xs text-blue-900 leading-relaxed">
+                    <span className="font-semibold">
+                      {language === 'es' 
+                        ? "Importante: Al hacer clic en 'Realizar pedido' usted acepta que:" 
+                        : "Important: By clicking 'Place Order' you agree that:"}
+                    </span>
+                    <br /><br />
+                    {selectedPlanData && selectedPlanData.billing !== 'once' ? (
+                      language === 'es' ? (
+                        `Si se prescribe, está comprando una suscripción que se renueva automáticamente y se le cobrará $${total} por los primeros ${selectedPlanData.type.includes('6') ? '6 meses' : selectedPlanData.type.includes('3') ? '3 meses' : 'mes'} y $${selectedPlanData.price} cada ${selectedPlanData.type.includes('6') ? '6 meses' : selectedPlanData.type.includes('3') ? '3 meses' : 'mes'} hasta que cancele. Como parte de su suscripción, recibirá un suministro de ${selectedPlanData.type.includes('6') ? '6 meses' : selectedPlanData.type.includes('3') ? '3 meses' : '1 mes'} del/los producto(s) recetado(s).
+
+El/los producto(s) recetado(s) asociado(s) con su suscripción se le enviarán cada ${selectedPlanData.type.includes('6') ? '6 meses' : selectedPlanData.type.includes('3') ? '3 meses' : 'mes'}. Una farmacia asociada volverá a surtir y enviar su(s) producto(s) recetado(s) de manera continua. El primer resurtido de su(s) producto(s) recetado(s) ocurrirá aproximadamente 10 días antes para evitar interrupciones en su tratamiento. Le notificaremos cualquier acción que necesite tomar para garantizar que el/los producto(s) recetado(s) asociado(s) con su suscripción permanezca(n) activo(s). Usted es responsable de completar estas acciones. A menos que haya cancelado, su suscripción se renovará automáticamente incluso si no ha tomado las acciones dirigidas necesarias para garantizar que el/los producto(s) recetado(s) asociado(s) con su suscripción permanezca(n) activo(s). Su suscripción se renovará a menos que cancele al menos 2 días antes de la próxima fecha de procesamiento. Puede ver su fecha de procesamiento y cancelar su(s) suscripción(es) a través de su cuenta en línea o contactando a soporte al cliente en support@eonmeds.com o 1-800-368-0038. La cancelación entrará en vigencia al final del período de suscripción actual. No ofrecemos reembolsos por períodos de suscripción parcialmente utilizados, aunque podemos proporcionar reembolsos caso por caso a nuestra sola y absoluta discreción.`
+                      ) : (
+                        `If prescribed, you are purchasing an automatically-renewing subscription and will be charged $${total} for the first ${selectedPlanData.type.includes('6') ? '6 months' : selectedPlanData.type.includes('3') ? '3 months' : 'month'} and $${selectedPlanData.price} every ${selectedPlanData.type.includes('6') ? '6 months' : selectedPlanData.type.includes('3') ? '3 months' : 'month'} until you cancel. As part of your subscription, you will receive a ${selectedPlanData.type.includes('6') ? '6-month' : selectedPlanData.type.includes('3') ? '3-month' : '1-month'} supply of the prescription product(s) prescribed to you.
+
+The prescription product(s) associated with your subscription will be shipped to you every ${selectedPlanData.type.includes('6') ? '6 months' : selectedPlanData.type.includes('3') ? '3 months' : 'month'}. A partner pharmacy will refill and ship your prescription product(s) on the same continuous basis. The first refill of your prescription product(s) will occur approximately 10 days earlier to prevent any gaps in your treatment. We will notify you of any actions you need to take to ensure that the prescription product(s) associated with your subscription remains active. You are responsible for completing these actions. Unless you have canceled, your subscription will automatically renew even if you have not taken the directed actions needed to ensure that the prescription product(s) associated with your subscription remains active. Your subscription will renew unless you cancel at least 2 days before the next processing date. You can view your processing date and cancel your subscription(s) through your online account or by contacting customer support at support@eonmeds.com or 1-800-368-0038. Cancellation will take effect at the end of the current subscription period. We do not offer refunds for partially used subscription periods, although we may provide refunds on a case-by-case basis in our sole and absolute discretion.`
+                      )
+                    ) : (
+                      language === 'es' 
+                        ? 'Está realizando una compra única. No se le cobrará de forma recurrente.'
+                        : 'You are making a one-time purchase. You will not be charged on a recurring basis.'
+                    )}
+                  </p>
                 </div>
 
                 <div className="flex justify-between">
