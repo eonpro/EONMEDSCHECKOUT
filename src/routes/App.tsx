@@ -1,10 +1,5 @@
-import { GLP1CheckoutPage } from '../features/checkout/GLP1CheckoutPage';
+import { GLP1CheckoutPageImproved } from '../features/checkout/GLP1CheckoutPageImproved';
 
 export function App() {
-  return (
-    <div>
-      <div className="p-3 text-xs text-gray-500">(Canvas preview) - If you see this line, the component mounted correctly.</div>
-      <GLP1CheckoutPage />
-    </div>
-  );
+  return <GLP1CheckoutPageImproved />;
 }

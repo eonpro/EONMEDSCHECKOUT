@@ -247,8 +247,6 @@ export function GLP1CheckoutPage() {
               </button>
             </div>
           </div>
-
-          <StripeElementsPlaceholder />
         </main>
       </div>
     );
