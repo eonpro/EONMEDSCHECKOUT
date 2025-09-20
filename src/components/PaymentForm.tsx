@@ -46,7 +46,17 @@ export function PaymentForm({ amount, onSuccess, onError, customerEmail, languag
   useEffect(() => {
     if (amount <= 0) return;
 
-    fetch('/api/payment/create-intent', {
+    // Determine if this is a subscription or one-time payment
+    const planId = orderData?.plan || '';
+    const isSubscription = planId && 
+      !planId.includes('onetime') && 
+      (planId.includes('monthly') || planId.includes('3month') || planId.includes('6month'));
+    
+    // For now, use regular payment intent for all payments
+    // Subscription setup will require additional Stripe configuration
+    const endpoint = '/api/payment/create-intent';
+    
+    fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -56,7 +66,11 @@ export function PaymentForm({ amount, onSuccess, onError, customerEmail, languag
         currency: 'usd',
         customer_email: customerEmail,
         shipping_address: shippingAddress,
-        order_data: orderData,
+        order_data: {
+          ...orderData,
+          payment_type: isSubscription ? 'subscription' : 'one-time',
+        },
+        plan_id: planId,
       }),
     })
       .then((res) => res.json())
@@ -71,7 +85,7 @@ export function PaymentForm({ amount, onSuccess, onError, customerEmail, languag
         console.error('Error creating payment intent:', error);
         setErrorMessage('Failed to initialize payment. Please try again.');
       });
-  }, [amount, customerEmail]);
+  }, [amount, customerEmail, orderData]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();

@@ -508,6 +508,20 @@ export function GLP1CheckoutPageImproved() {
         </div>
       </header>
 
+      {/* Promotional Banner */}
+      <div className="bg-gradient-to-r from-[#13a97b] to-[#0f8d63] text-white py-3 px-6">
+        <div className="max-w-7xl mx-auto flex items-center justify-center gap-2 text-sm font-medium">
+          <svg className="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.293l-3-3a1 1 0 00-1.414 1.414L10.586 9.5H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clipRule="evenodd"/>
+          </svg>
+          <span className="text-center">
+            {language === 'es' 
+              ? 'OFERTA LIMITADA: Ahorra hasta $360 en paquetes de 6 meses | Envío GRATIS en todos los pedidos'
+              : 'LIMITED OFFER: Save up to $360 on 6-month packages | FREE shipping on all orders'}
+          </span>
+        </div>
+      </div>
+
       {/* Progress Steps */}
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-6 py-4">
