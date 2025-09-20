@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { computeTotals } from '../../lib/pricing';
 import { InjectionIcon, PillIcon, FlameIcon, CheckIcon } from '../../icons/icons';
 import { StripeElementsPlaceholder } from '../payments/StripeElementsPlaceholder';
