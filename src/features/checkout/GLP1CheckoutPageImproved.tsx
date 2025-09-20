@@ -525,8 +525,15 @@ export function GLP1CheckoutPageImproved() {
       {/* Cold Shipping Banner */}
       <div className="py-4 px-6">
         <div className="max-w-3xl mx-auto">
-          <div className="bg-[#e9f990] rounded-2xl overflow-hidden flex items-center">
-            <div className="flex-1 p-6">
+          <div className="rounded-2xl overflow-hidden flex items-center">
+            <div className="bg-gray-200 h-24 w-32 flex-shrink-0 flex items-center justify-center">
+              <img 
+                src="https://static.wixstatic.com/media/c49a9b_51deb4cab3c04b1b8a4b679f7dd241a6~mv2.webp"
+                alt="Eonmeds Cold Pack"
+                className="w-full h-full object-contain p-2"
+              />
+            </div>
+            <div className="bg-[#e9f990] flex-1 p-6 h-24 flex flex-col justify-center">
               <h3 className="text-lg font-bold text-black">
                 {language === 'es' ? 'Envío Express Incluido' : 'Express Shipping Included'}
               </h3>
@@ -535,13 +542,6 @@ export function GLP1CheckoutPageImproved() {
                   ? 'Enviado en un paquete especial para mantener tu envío frío.'
                   : 'Shipped in special packaging to keep your medication cold.'}
               </p>
-            </div>
-            <div className="bg-gray-100 h-24 w-32 flex-shrink-0">
-              <img 
-                src="https://static.wixstatic.com/media/c49a9b_51deb4cab3c04b1b8a4b679f7dd241a6~mv2.webp"
-                alt="Eonmeds Cold Pack"
-                className="w-full h-full object-cover"
-              />
             </div>
           </div>
         </div>
