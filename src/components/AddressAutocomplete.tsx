@@ -3,18 +3,20 @@ import { loadGoogleMapsScript } from '../utils/loadGoogleMaps';
 
 export interface AddressAutocompleteProps {
   value: {
-    street: string;
+    addressLine1: string;
+    addressLine2?: string;
     city: string;
     state: string;
-    zip: string;
-    country: string;
+    zipCode: string;
+    country?: string;
   };
   onChange: (address: {
-    street: string;
+    addressLine1: string;
+    addressLine2?: string;
     city: string;
     state: string;
-    zip: string;
-    country: string;
+    zipCode: string;
+    country?: string;
   }) => void;
   language?: 'en' | 'es';
 }
@@ -81,10 +83,11 @@ export function AddressAutocomplete({ value, onChange, language = 'en' }: Addres
 
       // Update the address
       onChange({
-        street: `${streetNumber} ${route}`.trim(),
+        addressLine1: `${streetNumber} ${route}`.trim(),
+        addressLine2: '',
         city,
         state,
-        zip,
+        zipCode: zip,
         country
       });
     });
@@ -102,8 +105,8 @@ export function AddressAutocomplete({ value, onChange, language = 'en' }: Addres
         <input
           type="text"
           placeholder={language === 'es' ? "Dirección de calle" : "Street Address"}
-          value={value.street}
-          onChange={(e) => onChange({...value, street: e.target.value})}
+          value={value.addressLine1}
+          onChange={(e) => onChange({...value, addressLine1: e.target.value})}
           className="px-4 py-2 border rounded-lg w-full"
         />
         <div className="grid grid-cols-2 gap-4">
@@ -126,14 +129,14 @@ export function AddressAutocomplete({ value, onChange, language = 'en' }: Addres
           <input
             type="text"
             placeholder={language === 'es' ? "Código Postal" : "ZIP Code"}
-            value={value.zip}
-            onChange={(e) => onChange({...value, zip: e.target.value})}
+            value={value.zipCode}
+            onChange={(e) => onChange({...value, zipCode: e.target.value})}
             className="px-4 py-2 border rounded-lg"
           />
           <input
             type="text"
             placeholder={language === 'es' ? "País" : "Country"}
-            value={value.country}
+            value={value.country || 'US'}
             disabled
             className="px-4 py-2 border rounded-lg bg-gray-50"
           />
@@ -175,14 +178,14 @@ export function AddressAutocomplete({ value, onChange, language = 'en' }: Addres
         <input
           type="text"
           placeholder={language === 'es' ? "Código Postal" : "ZIP Code"}
-          value={value.zip}
-          onChange={(e) => onChange({...value, zip: e.target.value})}
+          value={value.zipCode}
+          onChange={(e) => onChange({...value, zipCode: e.target.value})}
           className="px-4 py-2 border rounded-lg"
         />
         <input
           type="text"
           placeholder={language === 'es' ? "País" : "Country"}
-          value={value.country}
+          value={value.country || 'US'}
           disabled
           className="px-4 py-2 border rounded-lg bg-gray-50"
         />

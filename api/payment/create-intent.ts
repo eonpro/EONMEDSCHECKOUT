@@ -16,12 +16,35 @@ export default async function handler(
   }
 
   try {
-    const { amount, currency, customer_email, metadata } = req.body;
+    const { amount, currency, customer_email, shipping_address, order_data, metadata } = req.body;
 
     // Validate amount
     if (!amount || amount < 50) {
       return res.status(400).json({ error: 'Invalid amount' });
     }
+
+    // Build metadata with order details
+    const orderMetadata = {
+      ...metadata,
+      customer_email,
+      timestamp: new Date().toISOString(),
+      medication: order_data?.medication || '',
+      plan: order_data?.plan || '',
+      addons: JSON.stringify(order_data?.addons || []),
+      expedited_shipping: order_data?.expeditedShipping ? 'yes' : 'no',
+      subtotal: order_data?.subtotal?.toString() || '',
+      shipping_cost: order_data?.shippingCost?.toString() || '',
+      total: order_data?.total?.toString() || '',
+      // Add shipping address to metadata
+      shipping_address: shipping_address ? JSON.stringify({
+        line1: shipping_address.addressLine1,
+        line2: shipping_address.addressLine2,
+        city: shipping_address.city,
+        state: shipping_address.state,
+        zip: shipping_address.zipCode,
+        country: shipping_address.country || 'US',
+      }) : '',
+    };
 
     // Create payment intent with Stripe
     const paymentIntent = await stripe.paymentIntents.create({
@@ -31,11 +54,19 @@ export default async function handler(
         enabled: true, // Enable all payment methods
       },
       receipt_email: customer_email,
-      metadata: {
-        ...metadata,
-        customer_email,
-        timestamp: new Date().toISOString(),
-      },
+      metadata: orderMetadata,
+      // Add shipping address to Stripe
+      shipping: shipping_address ? {
+        name: customer_email || 'Customer',
+        address: {
+          line1: shipping_address.addressLine1,
+          line2: shipping_address.addressLine2 || undefined,
+          city: shipping_address.city,
+          state: shipping_address.state,
+          postal_code: shipping_address.zipCode,
+          country: shipping_address.country || 'US',
+        },
+      } : undefined,
       // Enable specific payment methods
       payment_method_options: {
         card: {

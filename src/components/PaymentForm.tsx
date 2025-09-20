@@ -6,15 +6,36 @@ import {
 } from '@stripe/react-stripe-js';
 import { StripePaymentElementOptions } from '@stripe/stripe-js';
 
+interface ShippingAddress {
+  addressLine1: string;
+  addressLine2?: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  country?: string;
+}
+
+interface OrderData {
+  medication: string;
+  plan: string;
+  addons: string[];
+  expeditedShipping: boolean;
+  subtotal: number;
+  shippingCost: number;
+  total: number;
+}
+
 interface PaymentFormProps {
   amount: number;
   onSuccess: (paymentIntentId: string) => void;
   onError: (error: string) => void;
   customerEmail: string;
   language?: 'en' | 'es';
+  shippingAddress?: ShippingAddress;
+  orderData?: OrderData;
 }
 
-export function PaymentForm({ amount, onSuccess, onError, customerEmail, language = 'en' }: PaymentFormProps) {
+export function PaymentForm({ amount, onSuccess, onError, customerEmail, language = 'en', shippingAddress, orderData }: PaymentFormProps) {
   const stripe = useStripe();
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -34,6 +55,8 @@ export function PaymentForm({ amount, onSuccess, onError, customerEmail, languag
         amount: Math.round(amount * 100), // Convert to cents
         currency: 'usd',
         customer_email: customerEmail,
+        shipping_address: shippingAddress,
+        order_data: orderData,
       }),
     })
       .then((res) => res.json())

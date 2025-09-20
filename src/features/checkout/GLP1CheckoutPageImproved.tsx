@@ -3,9 +3,17 @@ import { computeTotals } from '../../lib/pricing';
 import { InjectionIcon, PillIcon, FlameIcon, CheckIcon } from '../../icons/icons';
 import { StripeProvider } from '../../components/StripeProvider';
 import { PaymentForm } from '../../components/PaymentForm';
+import { ThankYouPage } from '../../components/ThankYouPage';
 import { AddressAutocomplete } from '../../components/AddressAutocomplete';
 
-export type ShippingAddress = { street: string; city: string; state: string; zip: string; country: string };
+export type ShippingAddress = { 
+  addressLine1: string; 
+  addressLine2?: string; 
+  city: string; 
+  state: string; 
+  zipCode: string; 
+  country?: string; 
+};
 
 type Plan = { id: string; type: string; price: number; billing: string; savings?: number; badge?: string };
 
@@ -100,10 +108,11 @@ export function GLP1CheckoutPageImproved() {
   const [promoApplied] = useState<boolean>(false);
   const [language, setLanguage] = useState<'en' | 'es'>('en');
   const [shippingAddress, setShippingAddress] = useState<ShippingAddress>({
-    street: '',
+    addressLine1: '',
+    addressLine2: '',
     city: '',
     state: '',
-    zip: '',
+    zipCode: '',
     country: 'US',
   });
 
@@ -207,7 +216,7 @@ export function GLP1CheckoutPageImproved() {
     }
   };
 
-  const { subtotal } = computeTotals({
+  const { subtotal, total, shippingCost } = computeTotals({
     selectedPlanData,
     selectedAddons,
     addons,
@@ -226,16 +235,17 @@ export function GLP1CheckoutPageImproved() {
     return undefined;
   }, []);
 
-  async function handlePaymentSuccess(paymentIntentId: string) {
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [paymentIntentId, setPaymentIntentId] = useState<string>('');
+
+  async function handlePaymentSuccess(intentId: string) {
     // Payment successful! 
     // Save order to database and show success message
-    console.log('Payment successful! Payment Intent:', paymentIntentId);
+    console.log('Payment successful! Payment Intent:', intentId);
     
-    // Show success message
+    setPaymentIntentId(intentId);
+    setPaymentSuccess(true);
     setStatusBanner('success');
-    
-    // You could redirect to a success page or show order confirmation
-    // window.location.href = `/order-confirmation?payment_intent=${paymentIntentId}`;
   }
 
   function handlePaymentError(error: string) {
@@ -294,12 +304,12 @@ export function GLP1CheckoutPageImproved() {
             </div>
             <div className="flex justify-between text-sm">
               <span>{t.shipping}</span>
-              <span>{expeditedShipping ? '$25' : 'FREE'}</span>
+              <span>{expeditedShipping ? `$${shippingCost}` : 'FREE'}</span>
             </div>
             <div className="border-t mt-2 pt-2">
               <div className="flex justify-between font-semibold text-lg">
                 <span>{t.total}</span>
-                <span>${subtotal.toFixed(2)} USD</span>
+                <span>${total.toFixed(2)} USD</span>
               </div>
             </div>
           </div>
@@ -307,6 +317,22 @@ export function GLP1CheckoutPageImproved() {
       )}
     </div>
   );
+
+  // If payment is successful, show thank you page
+  if (paymentSuccess) {
+    return (
+      <ThankYouPage
+        paymentIntentId={paymentIntentId}
+        language={language}
+        medication={selectedMed?.name}
+        plan={selectedPlanData?.type}
+        addons={selectedAddons.map(id => addons.find(a => a.id === id)?.name || '').filter(Boolean)}
+        expeditedShipping={expeditedShipping}
+        total={total}
+        shippingAddress={shippingAddress}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#f5f5f5]" style={{ fontFamily: 'Poppins, sans-serif' }}>
@@ -590,13 +616,23 @@ export function GLP1CheckoutPageImproved() {
                 <div className="bg-white rounded-xl p-6 mb-6 border">
                   <h3 className="text-xl font-semibold mb-4">{t.payment}</h3>
                   {/* Native Stripe Payment Form */}
-                  <StripeProvider amount={subtotal}>
+                  <StripeProvider amount={total}>
                     <PaymentForm
-                      amount={subtotal}
+                      amount={total}
                       onSuccess={handlePaymentSuccess}
                       onError={handlePaymentError}
                       customerEmail={patientData.email}
                       language={language}
+                      shippingAddress={shippingAddress}
+                      orderData={{
+                        medication: selectedMed?.name || '',
+                        plan: selectedPlanData?.type || '',
+                        addons: selectedAddons.map(id => addons.find(a => a.id === id)?.name || '').filter(Boolean),
+                        expeditedShipping,
+                        subtotal,
+                        shippingCost,
+                        total
+                      }}
                     />
                   </StripeProvider>
                 </div>
