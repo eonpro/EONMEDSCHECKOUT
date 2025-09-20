@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { loadGoogleMapsScript } from '../utils/loadGoogleMaps';
 
 export interface AddressAutocompleteProps {
   value: {
@@ -21,13 +22,20 @@ export interface AddressAutocompleteProps {
 // Google Places Autocomplete Component
 export function AddressAutocomplete({ value, onChange, language = 'en' }: AddressAutocompleteProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [googleLoaded, setGoogleLoaded] = useState(false);
 
   useEffect(() => {
-    // Check if Google Maps is loaded
-    if (!window.google || !window.google.maps || !window.google.maps.places) {
-      console.warn('Google Maps JavaScript API not loaded. Add the script to your HTML.');
-      return;
-    }
+    loadGoogleMapsScript()
+      .then(() => {
+        setGoogleLoaded(true);
+      })
+      .catch(err => {
+        console.warn('Failed to load Google Maps:', err);
+      });
+  }, []);
+
+  useEffect(() => {
+    if (!googleLoaded) return;
 
     if (!inputRef.current) return;
 
@@ -85,10 +93,10 @@ export function AddressAutocomplete({ value, onChange, language = 'en' }: Addres
       // Cleanup
       google.maps.event.clearInstanceListeners(autocompleteInstance);
     };
-  }, [onChange]);
+  }, [onChange, googleLoaded]);
 
   // For fallback when Google Maps isn't loaded
-  if (!window.google || !window.google.maps) {
+  if (!googleLoaded) {
     return (
       <div className="grid gap-4">
         <input
