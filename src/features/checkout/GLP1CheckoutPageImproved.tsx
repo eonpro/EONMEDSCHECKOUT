@@ -270,7 +270,7 @@ export function GLP1CheckoutPageImproved() {
   // Order Summary Sidebar Component
   const OrderSummary = () => (
     <div className="bg-white rounded-xl p-6 sticky top-4">
-      <h3 className="text-xl font-semibold mb-4">{t.orderSummary}</h3>
+      <h3 className="text-xl font-medium mb-4">{t.orderSummary}</h3>
       {selectedMed && selectedPlanData && (
         <div className="space-y-3">
           <div className="flex justify-between">
@@ -315,6 +315,46 @@ export function GLP1CheckoutPageImproved() {
           </div>
         </div>
       )}
+      
+      {/* Trust Badges */}
+      <div className="mt-6 space-y-3 text-sm text-gray-600">
+        <div className="flex items-start gap-2">
+          <svg className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+          </svg>
+          <span>{language === 'es' ? 'Pago seguro y encriptado • PCI DSS' : 'Encrypted & secure • PCI DSS'}</span>
+        </div>
+        <div className="flex items-start gap-2">
+          <svg className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>{language === 'es' ? 'Cumplimiento LegitScript' : 'LegitScript-style compliance ready'}</span>
+        </div>
+        <div className="flex items-start gap-2">
+          <svg className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+          </svg>
+          <span>{language === 'es' ? 'Miles de reseñas de 5 estrellas' : 'Thousands of 5-star patient reviews'}</span>
+        </div>
+        <div className="flex items-start gap-2">
+          <svg className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>{language === 'es' ? 'Checkout de 30 segundos • Móvil primero' : '30-second checkout • Mobile-first'}</span>
+        </div>
+      </div>
+      
+      {/* Payment Methods */}
+      <div className="mt-4 pt-4 border-t">
+        <p className="text-xs text-gray-500 text-center mb-2">{language === 'es' ? 'Aceptamos' : 'We accept'}</p>
+        <div className="flex justify-center gap-2">
+          {/* Card Icons */}
+          <div className="w-10 h-6 bg-gray-100 rounded flex items-center justify-center text-xs font-semibold text-gray-600">VISA</div>
+          <div className="w-10 h-6 bg-gray-100 rounded flex items-center justify-center text-xs font-semibold text-gray-600">MC</div>
+          <div className="w-10 h-6 bg-gray-100 rounded flex items-center justify-center text-xs font-semibold text-gray-600">AMEX</div>
+        </div>
+        <p className="text-xs text-gray-500 text-center mt-2">{language === 'es' ? 'Tarjetas HSA/FSA aceptadas' : 'HSA/FSA cards accepted'}</p>
+      </div>
     </div>
   );
 
@@ -414,7 +454,7 @@ export function GLP1CheckoutPageImproved() {
             {currentStep === 1 && (
               <div>
                 <div className="mb-6">
-                  <h2 className="text-3xl font-bold text-gray-900 mb-2">{t.chooseMedication}</h2>
+                  <h2 className="text-2xl font-semibold text-gray-900 mb-2">{t.chooseMedication}</h2>
                   <p className="text-gray-600">{t.medicationSubtitle}</p>
                 </div>
 
@@ -437,7 +477,7 @@ export function GLP1CheckoutPageImproved() {
                             <InjectionIcon className="w-8 h-8" style={{ color: '#13a97b' }} />
                           </div>
                           <div className="flex-1">
-                            <h3 className="text-xl font-bold text-gray-900">{med.name}</h3>
+                            <h3 className="text-xl font-semibold text-gray-900">{med.name}</h3>
                             <p className="text-gray-600 mb-2">{med.strength} • {med.description}</p>
                             <div className="text-lg font-semibold text-gray-900">
                               {t.startingAt} ${med.plans[0].price}/month
@@ -479,7 +519,7 @@ export function GLP1CheckoutPageImproved() {
             {currentStep === 2 && selectedMed && (
               <div>
                 <div className="mb-6">
-                  <h2 className="text-3xl font-bold text-gray-900 mb-2">{t.selectPlan}</h2>
+                  <h2 className="text-2xl font-semibold text-gray-900 mb-2">{t.selectPlan}</h2>
                   <p className="text-gray-600">{t.planSubtitle}</p>
                 </div>
 
@@ -588,33 +628,89 @@ export function GLP1CheckoutPageImproved() {
             {currentStep === 3 && (
               <div>
                 <div className="mb-6">
-                  <h2 className="text-3xl font-bold text-gray-900 mb-2">{t.shippingPayment}</h2>
+                  <h2 className="text-2xl font-semibold text-gray-900 mb-2">{t.shippingPayment}</h2>
                   <p className="text-gray-600">{t.shippingSubtitle}</p>
                 </div>
 
                 {/* Shipping Address */}
                 <div className="bg-white rounded-xl p-6 mb-6 border">
-                  <h3 className="text-xl font-semibold mb-4">{t.shippingAddress}</h3>
+                  <h3 className="text-xl font-medium mb-4">{t.shippingAddress}</h3>
                   <AddressAutocomplete
                     value={shippingAddress}
                     onChange={setShippingAddress}
                     language={language}
                   />
-                  <div className="mt-4">
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={expeditedShipping}
-                        onChange={(e) => setExpeditedShipping(e.target.checked)}
-                      />
-                      <span className="text-sm">{t.expeditedShipping} (+$25)</span>
+                </div>
+
+                {/* Delivery Method */}
+                <div className="bg-white rounded-xl p-6 mb-6 border">
+                  <h3 className="text-xl font-medium mb-4">{language === 'es' ? 'Método de Envío' : 'Delivery Method'}</h3>
+                  <div className="space-y-3">
+                    {/* Standard Shipping Option */}
+                    <label className="block cursor-pointer">
+                      <div className={`relative rounded-lg border-2 p-4 transition-all hover:border-gray-300 ${
+                        !expeditedShipping ? 'border-[#13a97b] bg-green-50' : 'border-gray-200 bg-white'
+                      }`}>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="radio"
+                              name="shipping"
+                              checked={!expeditedShipping}
+                              onChange={() => setExpeditedShipping(false)}
+                              className="h-5 w-5 text-[#13a97b] focus:ring-[#13a97b]"
+                            />
+                            <div>
+                              <p className="font-medium text-gray-900">
+                                {language === 'es' ? 'Estándar (5-7 días hábiles)' : 'Standard (5-7 business days)'}
+                              </p>
+                              <p className="text-sm text-gray-500">
+                                {language === 'es' ? 'Envío gratuito' : 'Free shipping'}
+                              </p>
+                            </div>
+                          </div>
+                          <span className="font-semibold text-gray-900">
+                            {language === 'es' ? 'GRATIS' : 'FREE'}
+                          </span>
+                        </div>
+                      </div>
+                    </label>
+
+                    {/* Expedited Shipping Option */}
+                    <label className="block cursor-pointer">
+                      <div className={`relative rounded-lg border-2 p-4 transition-all hover:border-gray-300 ${
+                        expeditedShipping ? 'border-[#13a97b] bg-green-50' : 'border-gray-200 bg-white'
+                      }`}>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="radio"
+                              name="shipping"
+                              checked={expeditedShipping}
+                              onChange={() => setExpeditedShipping(true)}
+                              className="h-5 w-5 text-[#13a97b] focus:ring-[#13a97b]"
+                            />
+                            <div>
+                              <p className="font-medium text-gray-900">
+                                {language === 'es' ? 'Rápido (3-5 días hábiles)' : 'Expedited (3-5 business days)'}
+                              </p>
+                              <p className="text-sm text-gray-500">
+                                {language === 'es' ? 'Recíbelo más rápido' : 'Get it faster'}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <span className="font-semibold text-gray-900">$25.00</span>
+                          </div>
+                        </div>
+                      </div>
                     </label>
                   </div>
                 </div>
 
                 {/* Payment Section */}
                 <div className="bg-white rounded-xl p-6 mb-6 border">
-                  <h3 className="text-xl font-semibold mb-4">{t.payment}</h3>
+                  <h3 className="text-xl font-medium mb-4">{t.payment}</h3>
                   {/* Native Stripe Payment Form */}
                   <StripeProvider amount={total}>
                     <PaymentForm
