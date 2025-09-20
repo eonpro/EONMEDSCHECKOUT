@@ -165,7 +165,7 @@ export function PaymentForm({ amount, onSuccess, onError, customerEmail, languag
       processing: 'Processing...',
       billingAddress: 'Billing Address',
       sameAsShipping: 'Same as shipping address',
-      securePayment: '🔒 Secure payment powered by Stripe',
+      securePayment: 'Secure payment powered by Stripe',
       acceptedCards: 'We accept all major credit cards and payment methods',
     },
     es: {
@@ -174,7 +174,7 @@ export function PaymentForm({ amount, onSuccess, onError, customerEmail, languag
       processing: 'Procesando...',
       billingAddress: 'Dirección de Facturación',
       sameAsShipping: 'Igual que la dirección de envío',
-      securePayment: '🔒 Pago seguro con tecnología de Stripe',
+      securePayment: 'Pago seguro con tecnología de Stripe',
       acceptedCards: 'Aceptamos todas las tarjetas de crédito principales y métodos de pago',
     }
   };
@@ -204,7 +204,12 @@ export function PaymentForm({ amount, onSuccess, onError, customerEmail, languag
 
         {/* Security badge */}
         <div className="mt-4 text-sm text-gray-600 text-center">
-          <p>{t.securePayment}</p>
+          <p className="flex items-center justify-center gap-1">
+            <svg className="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd"/>
+            </svg>
+            <span>{t.securePayment}</span>
+          </p>
           <p className="text-xs mt-1">{t.acceptedCards}</p>
         </div>
 

@@ -429,10 +429,12 @@ export function GLP1CheckoutPageImproved() {
         <div className="grid grid-cols-3 gap-2">
           {/* Apple Pay */}
           <div className="bg-black border border-gray-200 rounded p-1.5 flex items-center justify-center h-8">
-            <span className="text-white text-xs font-medium flex items-center gap-0.5">
-              <span className="text-[10px]">🍎</span>
-              <span>Pay</span>
-            </span>
+            <div className="flex items-center gap-1">
+              <svg className="w-3 h-3" viewBox="0 0 16 20" fill="white">
+                <path d="M13.5 5.5c-.3.3-.8.5-1.2.5-.1-.5 0-1 .3-1.4.3-.4.8-.7 1.2-.7.1.5 0 1-.3 1.6zm.3.6c-.7 0-1.2.4-1.6.4-.4 0-.9-.4-1.5-.4-.8 0-1.5.5-1.9 1.2-.8 1.5-.2 3.7.6 4.9.4.6.8 1.3 1.5 1.3.6 0 .8-.4 1.5-.4.7 0 .9.4 1.5.4.6 0 1.1-.6 1.5-1.2.4-.7.6-1.4.6-1.4-.1 0-1.2-.5-1.2-1.9 0-1.2 1-1.8 1-1.8-.6-.9-1.4-.9-1.7-.9l-.3-.2z"/>
+              </svg>
+              <span className="text-white text-xs font-medium">Pay</span>
+            </div>
           </div>
           
           {/* Google Pay */}
@@ -512,14 +514,22 @@ export function GLP1CheckoutPageImproved() {
           <div className="flex items-center justify-between max-w-2xl mx-auto">
             <div className={`flex items-center gap-2 ${currentStep === 1 ? 'text-[#13a97b] font-semibold' : currentStep > 1 ? 'text-gray-600' : 'text-gray-400'}`}>
               <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep >= 1 ? 'bg-[#13a97b] text-white' : 'bg-gray-200'}`}>
-                {currentStep > 1 ? '✓' : '1'}
+                {currentStep > 1 ? (
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+                  </svg>
+                ) : '1'}
               </div>
               <span className="hidden sm:inline">{language === 'es' ? 'Medicamento' : 'Medication'}</span>
             </div>
             <div className="flex-1 h-1 mx-2 sm:mx-4" style={{ backgroundColor: currentStep >= 2 ? '#13a97b' : '#e5e7eb' }} />
             <div className={`flex items-center gap-2 ${currentStep === 2 ? 'text-[#13a97b] font-semibold' : currentStep > 2 ? 'text-gray-600' : 'text-gray-400'}`}>
               <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep >= 2 ? 'bg-[#13a97b] text-white' : 'bg-gray-200'}`}>
-                {currentStep > 2 ? '✓' : '2'}
+                {currentStep > 2 ? (
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+                  </svg>
+                ) : '2'}
               </div>
               <span className="hidden sm:inline">{language === 'es' ? 'Plan' : 'Plan'}</span>
             </div>
