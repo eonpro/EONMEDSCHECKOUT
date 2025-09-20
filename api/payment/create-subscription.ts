@@ -9,14 +9,16 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
 // Define price IDs for different plans - these should be created in Stripe Dashboard
 const STRIPE_PRICE_IDS: Record<string, string> = {
   // Semaglutide plans
-  'sema_monthly': process.env.STRIPE_PRICE_SEMA_MONTHLY || 'price_sema_monthly',
-  'sema_3month': process.env.STRIPE_PRICE_SEMA_3MONTH || 'price_sema_3month',
-  'sema_6month': process.env.STRIPE_PRICE_SEMA_6MONTH || 'price_sema_6month',
+  'sema_monthly': process.env.STRIPE_PRICE_SEMAGLUTIDE_MONTHLY || '',
+  'sema_3month': process.env.STRIPE_PRICE_SEMAGLUTIDE_3MONTH || '',
+  'sema_6month': process.env.STRIPE_PRICE_SEMAGLUTIDE_6MONTH || '',
+  'sema_onetime': process.env.STRIPE_PRICE_SEMAGLUTIDE_SINGLEMONTH || '',
   
   // Tirzepatide plans
-  'tirz_monthly': process.env.STRIPE_PRICE_TIRZ_MONTHLY || 'price_tirz_monthly',
-  'tirz_3month': process.env.STRIPE_PRICE_TIRZ_3MONTH || 'price_tirz_3month',
-  'tirz_6month': process.env.STRIPE_PRICE_TIRZ_6MONTH || 'price_tirz_6month',
+  'tirz_monthly': process.env.STRIPE_PRICE_TIRZEPATIDE_MONTHLY || '',
+  'tirz_3month': process.env.STRIPE_PRICE_TIRZEPATIDE_3MONTH || '',
+  'tirz_6month': process.env.STRIPE_PRICE_TIRZEPATIDE_6MONTH || '',
+  'tirz_onetime': process.env.STRIPE_PRICE_TIRZEPATIDE_SINGLEMONTH || '',
 };
 
 export default async function handler(
