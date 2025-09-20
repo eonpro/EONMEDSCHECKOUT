@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { computeTotals } from '../../lib/pricing';
-import { InjectionIcon, PillIcon, FlameIcon, CheckIcon } from '../../icons/icons';
+import { PillIcon, FlameIcon, CheckIcon } from '../../icons/icons';
 import { StripeProvider } from '../../components/StripeProvider';
 import { PaymentForm } from '../../components/PaymentForm';
 import { ThankYouPage } from '../../components/ThankYouPage';
@@ -681,8 +681,17 @@ export function GLP1CheckoutPageImproved() {
 
                 {/* Selected Medication Info */}
                 <div className="bg-white rounded-xl p-4 mb-6 border">
-                  <div className="flex items-center gap-3">
-                    <InjectionIcon className="w-6 h-6" style={{ color: '#13a97b' }} />
+                  <div className="flex items-center gap-4">
+                    <div className="flex-shrink-0">
+                      <img 
+                        src={selectedMed.id === 'semaglutide' 
+                          ? 'https://static.wixstatic.com/media/c49a9b_7adb19325cea4ad8b15d6845977fc42a~mv2.png'
+                          : 'https://static.wixstatic.com/media/c49a9b_00c1ff5076814c8e93e3c53a132b962e~mv2.png'
+                        }
+                        alt={selectedMed.name}
+                        className="w-16 h-16 object-contain"
+                      />
+                    </div>
                     <div>
                       <h4 className="font-semibold">{selectedMed.name}</h4>
                       <p className="text-sm text-gray-600">{selectedMed.description}</p>
