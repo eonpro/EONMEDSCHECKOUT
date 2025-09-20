@@ -109,6 +109,13 @@ export function AddressAutocomplete({ value, onChange, language = 'en' }: Addres
           onChange={(e) => onChange({...value, addressLine1: e.target.value})}
           className="px-4 py-2 border rounded-lg w-full"
         />
+        <input
+          type="text"
+          placeholder={language === 'es' ? "Apto/Suite (opcional)" : "Apt/Suite (optional)"}
+          value={value.addressLine2 || ''}
+          onChange={(e) => onChange({...value, addressLine2: e.target.value})}
+          className="px-4 py-2 border rounded-lg w-full"
+        />
         <div className="grid grid-cols-2 gap-4">
           <input
             type="text"
@@ -158,6 +165,13 @@ export function AddressAutocomplete({ value, onChange, language = 'en' }: Addres
           {language === 'es' ? "Seleccione una dirección de las sugerencias" : "Select an address from the suggestions"}
         </p>
       </div>
+      <input
+        type="text"
+        placeholder={language === 'es' ? "Apto/Suite (opcional)" : "Apt/Suite (optional)"}
+        value={value.addressLine2 || ''}
+        onChange={(e) => onChange({...value, addressLine2: e.target.value})}
+        className="px-4 py-2 border rounded-lg w-full"
+      />
       <div className="grid grid-cols-2 gap-4">
         <input
           type="text"
