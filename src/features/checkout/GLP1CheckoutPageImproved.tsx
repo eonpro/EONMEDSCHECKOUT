@@ -583,8 +583,15 @@ export function GLP1CheckoutPageImproved() {
                         }`}
                       >
                         <div className="flex items-start gap-4">
-                          <div className="p-3 rounded-lg" style={{ backgroundColor: '#e6f7f1' }}>
-                            <InjectionIcon className="w-8 h-8" style={{ color: '#13a97b' }} />
+                          <div className="flex-shrink-0">
+                            <img 
+                              src={med.id === 'semaglutide' 
+                                ? 'https://static.wixstatic.com/media/c49a9b_7adb19325cea4ad8b15d6845977fc42a~mv2.png'
+                                : 'https://static.wixstatic.com/media/c49a9b_00c1ff5076814c8e93e3c53a132b962e~mv2.png'
+                              }
+                              alt={med.name}
+                              className="w-24 h-24 object-contain"
+                            />
                           </div>
                           <div className="flex-1">
                             <h3 className="text-xl font-semibold text-gray-900">{med.name}</h3>
