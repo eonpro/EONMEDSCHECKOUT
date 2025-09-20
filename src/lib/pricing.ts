@@ -33,7 +33,7 @@ export function computeTotals({
     const addon = addons.find(a => a.id === id);
     return sum + computeAddonPrice(addon, fatBurnerDuration, selectedPlanData as any);
   }, 0);
-  const shippingCost = expeditedShipping ? 19.99 : 0;
+  const shippingCost = expeditedShipping ? 25 : 0;
   const subtotal = planPrice + addonTotal;
   const discount = promoApplied ? 25 : 0;
   const total = subtotal + shippingCost - discount;
@@ -51,14 +51,14 @@ function runSelfChecks() {
     let res = computeTotals({ selectedPlanData: { id: 'sem-monthly', price: 229 }, selectedAddons: [], addons, fatBurnerDuration: '1', expeditedShipping: false, promoApplied: false });
     console.assert(res.total.toFixed(2) === '229.00', 'pricing: Test1 failed', res);
 
-    res = computeTotals({ selectedPlanData: { id: 'sem-3month', price: 549 }, selectedAddons: ['fat-burner'], addons, fatBurnerDuration: '3', expeditedShipping: true, promoApplied: true });
-    console.assert(res.total.toFixed(2) === '840.99', 'pricing: Test2 failed', res);
+    res = computeTotals({ selectedPlanData: { id: 'sem-3month', price: 567 }, selectedAddons: ['fat-burner'], addons, fatBurnerDuration: '3', expeditedShipping: true, promoApplied: true });
+    console.assert(res.total.toFixed(2) === '864.00', 'pricing: Test2 failed', res);
 
     res = computeTotals({ selectedPlanData: { id: 'sem-monthly', price: 229 }, selectedAddons: ['fat-burner', 'nausea-rx'], addons, fatBurnerDuration: '1', expeditedShipping: false, promoApplied: true });
     console.assert(res.total.toFixed(2) === '342.00', 'pricing: Test3 failed', res);
 
-    res = computeTotals({ selectedPlanData: { id: 'tir-6month', price: 1499 }, selectedAddons: ['fat-burner'], addons, fatBurnerDuration: '6', expeditedShipping: true, promoApplied: true });
-    console.assert(res.total.toFixed(2) === '2087.99', 'pricing: Test4 failed', res);
+    res = computeTotals({ selectedPlanData: { id: 'tir-6month', price: 1674 }, selectedAddons: ['fat-burner'], addons, fatBurnerDuration: '6', expeditedShipping: true, promoApplied: true });
+    console.assert(res.total.toFixed(2) === '2268.00', 'pricing: Test4 failed', res);
 
     res = computeTotals({ selectedPlanData: { id: 'sem-onetime', price: 0 }, selectedAddons: ['nausea-rx'], addons, fatBurnerDuration: '1', expeditedShipping: false, promoApplied: false });
     console.assert(res.total.toFixed(2) === '39.00', 'pricing: Test5 failed', res);
@@ -66,11 +66,11 @@ function runSelfChecks() {
     res = computeTotals({ selectedPlanData: { id: 'tir-monthly', price: 329 }, selectedAddons: [], addons, fatBurnerDuration: '1', expeditedShipping: false, promoApplied: true });
     console.assert(res.total.toFixed(2) === '304.00', 'pricing: Test6 failed', res);
 
-    res = computeTotals({ selectedPlanData: { id: 'sem-3month', price: 549 }, selectedAddons: [], addons, fatBurnerDuration: '1', expeditedShipping: true, promoApplied: false });
-    console.assert(res.total.toFixed(2) === '568.99', 'pricing: Test7 failed', res);
+    res = computeTotals({ selectedPlanData: { id: 'sem-3month', price: 567 }, selectedAddons: [], addons, fatBurnerDuration: '1', expeditedShipping: true, promoApplied: false });
+    console.assert(res.total.toFixed(2) === '592.00', 'pricing: Test7 failed', res);
 
     res = computeTotals({ selectedPlanData: { id: 'sem-monthly', price: 229 }, selectedAddons: [], addons, fatBurnerDuration: '1', expeditedShipping: true, promoApplied: true });
-    console.assert(res.total.toFixed(2) === '223.99', 'pricing: Test8 failed', res);
+    console.assert(res.total.toFixed(2) === '229.00', 'pricing: Test8 failed', res);
 
     res = computeTotals({ selectedPlanData: { id: 'custom', price: 100 }, selectedAddons: undefined, addons, fatBurnerDuration: '1', expeditedShipping: false, promoApplied: false });
     console.assert(res.total.toFixed(2) === '100.00', 'pricing: Test9 failed', res);

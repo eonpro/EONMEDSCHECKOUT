@@ -7,15 +7,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <title>EONMeds Checkout</title>
-    <!-- Google Maps API for Address Autocomplete -->
-    <script>
-      // Load Google Maps dynamically with API key from environment
-      const googleMapsScript = document.createElement('script');
-      googleMapsScript.src = `https://maps.googleapis.com/maps/api/js?key=${import.meta.env.VITE_GOOGLE_PLACES_KEY || ''}&libraries=places`;
-      googleMapsScript.async = true;
-      googleMapsScript.defer = true;
-      document.head.appendChild(googleMapsScript);
-    </script>
   </head>
   <body>
     <div id="root"></div>

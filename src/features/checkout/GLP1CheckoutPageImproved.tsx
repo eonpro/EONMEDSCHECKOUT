@@ -132,9 +132,9 @@ export function GLP1CheckoutPageImproved() {
       efficacy: '15-20% weight loss',
       plans: [
         { id: 'sema_monthly', type: t.monthlyRecurring, price: 229, billing: 'monthly' },
-        { id: 'sema_3month', type: t.package3Month, price: 189, billing: 'monthly', savings: 120, badge: t.save + ' $120' },
-        { id: 'sema_6month', type: t.package6Month, price: 169, billing: 'monthly', savings: 360, badge: t.bestValue },
-        { id: 'sema_onetime', type: t.oneTimePurchase, price: 249, billing: 'once' },
+        { id: 'sema_3month', type: t.package3Month, price: 567, billing: 'total', savings: 120, badge: t.save + ' $120' }, // $189 x 3 months
+        { id: 'sema_6month', type: t.package6Month, price: 1014, billing: 'total', savings: 360, badge: t.bestValue }, // $169 x 6 months
+        { id: 'sema_onetime', type: t.oneTimePurchase, price: 299, billing: 'once' },
       ],
     },
     {
@@ -146,9 +146,9 @@ export function GLP1CheckoutPageImproved() {
       isAdvanced: true,
       plans: [
         { id: 'tirz_monthly', type: t.monthlyRecurring, price: 329, billing: 'monthly' },
-        { id: 'tirz_3month', type: t.package3Month, price: 297, billing: 'monthly', savings: 96, badge: t.save + ' $96' },
-        { id: 'tirz_6month', type: t.package6Month, price: 279, billing: 'monthly', savings: 300, badge: t.bestValue },
-        { id: 'tirz_onetime', type: t.oneTimePurchase, price: 349, billing: 'once' },
+        { id: 'tirz_3month', type: t.package3Month, price: 891, billing: 'total', savings: 96, badge: t.save + ' $96' }, // $297 x 3 months
+        { id: 'tirz_6month', type: t.package6Month, price: 1674, billing: 'total', savings: 300, badge: t.bestValue }, // $279 x 6 months
+        { id: 'tirz_onetime', type: t.oneTimePurchase, price: 399, billing: 'once' }, // Updated to $399
       ],
     },
   ];
@@ -158,9 +158,18 @@ export function GLP1CheckoutPageImproved() {
       { 
         id: 'nausea-rx', 
         name: language === 'es' ? 'Prescripción para Alivio de Náuseas' : 'Nausea Relief Prescription', 
-        price: 39, 
+        price: 39,
+        basePrice: 39,
         description: language === 'es' ? 'Medicamento recetado para manejar los efectos secundarios de GLP-1' : 'Prescription medication to manage GLP-1 side effects', 
-        icon: PillIcon 
+        icon: PillIcon,
+        hasDuration: true,
+        getDynamicPrice: (_duration?: string, selectedPlanData?: { id: string }) => {
+          if (selectedPlanData) {
+            if (selectedPlanData.id.includes('3month')) return 39 * 3;
+            if (selectedPlanData.id.includes('6month')) return 39 * 6;
+          }
+          return 39;
+        }
       },
       {
         id: 'fat-burner',
@@ -184,6 +193,19 @@ export function GLP1CheckoutPageImproved() {
 
   const selectedMed = medications.find(m => m.id === selectedMedication);
   const selectedPlanData = selectedMed?.plans.find(p => p.id === selectedPlan);
+
+  // Helper function to format plan pricing display
+  const formatPlanPrice = (plan: Plan) => {
+    if (plan.id.includes('3month')) {
+      return `$${plan.price} total ($${Math.round(plan.price / 3)}/month)`;
+    } else if (plan.id.includes('6month')) {
+      return `$${plan.price} total ($${Math.round(plan.price / 6)}/month)`;
+    } else if (plan.billing === 'once') {
+      return `$${plan.price} one-time`;
+    } else {
+      return `$${plan.price}/month`;
+    }
+  };
 
   const { subtotal } = computeTotals({
     selectedPlanData,
@@ -457,7 +479,7 @@ export function GLP1CheckoutPageImproved() {
                         <div className="flex items-center justify-between">
                           <div>
                             <h4 className="font-semibold">{plan.type}</h4>
-                            <p className="text-gray-600">${plan.price}/month</p>
+                            <p className="text-gray-600">{formatPlanPrice(plan)}</p>
                             {plan.savings && <p className="text-green-600 text-sm">{t.save} ${plan.savings}</p>}
                           </div>
                           {plan.badge && (
