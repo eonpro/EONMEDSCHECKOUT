@@ -526,11 +526,11 @@ export function GLP1CheckoutPageImproved() {
       <div className="py-4 px-6">
         <div className="max-w-3xl mx-auto">
           <div className="rounded-2xl overflow-hidden flex items-center">
-            <div className="bg-gray-200 h-24 w-32 flex-shrink-0 flex items-center justify-center">
+            <div className="bg-gray-200 h-24 w-32 flex-shrink-0">
               <img 
                 src="https://static.wixstatic.com/media/c49a9b_51deb4cab3c04b1b8a4b679f7dd241a6~mv2.webp"
                 alt="Eonmeds Cold Pack"
-                className="w-full h-full object-contain p-2"
+                className="w-full h-full object-cover"
               />
             </div>
             <div className="bg-[#e9f990] flex-1 p-6 h-24 flex flex-col justify-center">
