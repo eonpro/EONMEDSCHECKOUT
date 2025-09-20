@@ -523,22 +523,29 @@ export function GLP1CheckoutPageImproved() {
       </div>
 
       {/* Cold Shipping Banner */}
-      <div className="bg-[#e8f5e9] py-4 px-6 border-b border-[#c8e6c9]">
-        <div className="max-w-7xl mx-auto flex items-center justify-center gap-4">
-          <img 
-            src="https://static.wixstatic.com/media/c49a9b_36829f5b0ccb44c68077ca94b040cf8b~mv2.webp"
-            alt="Cold Shipping"
-            className="w-16 h-16 object-contain"
-          />
-          <div className="text-center">
-            <h3 className="text-lg font-semibold text-gray-900">
-              {language === 'es' ? 'Envío Express Incluido' : 'Express Cold Shipping Included'}
-            </h3>
-            <p className="text-sm text-gray-600">
-              {language === 'es' 
-                ? 'Enviado en un paquete especial para mantener tu envío frío.'
-                : 'Shipped in special packaging to keep your medication cold.'}
-            </p>
+      <div className="py-4 px-6">
+        <div className="max-w-5xl mx-auto">
+          <div className="relative bg-[#e9f990] rounded-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-8 py-6">
+              <div className="flex-1">
+                <h3 className="text-2xl font-bold text-black mb-1">
+                  {language === 'es' ? 'Envío Express Incluido' : 'Express Shipping Included'}
+                </h3>
+                <p className="text-base text-black">
+                  {language === 'es' 
+                    ? 'Enviado en un paquete especial para mantener tu envío frío.'
+                    : 'Shipped in special packaging to keep your medication cold.'}
+                </p>
+              </div>
+              <div className="flex-shrink-0 ml-6">
+                <img 
+                  src="https://static.wixstatic.com/media/c49a9b_36829f5b0ccb44c68077ca94b040cf8b~mv2.webp"
+                  alt="Eonmeds Cold Pack"
+                  className="w-32 h-32 object-contain"
+                  style={{ filter: 'drop-shadow(2px 4px 6px rgba(0,0,0,0.1))' }}
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -860,23 +867,25 @@ export function GLP1CheckoutPageImproved() {
                   </div>
 
                   {/* Cold Shipping Info */}
-                  <div className="mt-4 p-4 bg-[#e8f5e9] rounded-lg border border-[#c8e6c9] flex items-center gap-3">
-                    <img 
-                      src="https://static.wixstatic.com/media/c49a9b_36829f5b0ccb44c68077ca94b040cf8b~mv2.webp"
-                      alt="Cold Shipping"
-                      className="w-12 h-12 object-contain flex-shrink-0"
-                    />
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">
-                        {language === 'es' 
-                          ? 'Empaque con Control de Temperatura' 
-                          : 'Temperature-Controlled Packaging'}
-                      </p>
-                      <p className="text-xs text-gray-600">
-                        {language === 'es'
-                          ? 'Tu medicamento será enviado en un paquete especial con refrigerante para mantenerlo a la temperatura adecuada durante el tránsito.'
-                          : 'Your medication will be shipped in special packaging with cooling packs to maintain proper temperature during transit.'}
-                      </p>
+                  <div className="mt-4 bg-[#e9f990] rounded-xl overflow-hidden">
+                    <div className="flex items-center gap-4 p-4">
+                      <img 
+                        src="https://static.wixstatic.com/media/c49a9b_36829f5b0ccb44c68077ca94b040cf8b~mv2.webp"
+                        alt="Eonmeds Cold Pack"
+                        className="w-16 h-16 object-contain flex-shrink-0"
+                      />
+                      <div className="flex-1">
+                        <p className="text-sm font-bold text-black">
+                          {language === 'es' 
+                            ? 'Empaque con Control de Temperatura' 
+                            : 'Temperature-Controlled Packaging'}
+                        </p>
+                        <p className="text-xs text-black/80 mt-1">
+                          {language === 'es'
+                            ? 'Tu medicamento será enviado en un paquete especial con refrigerante para mantenerlo a la temperatura adecuada durante el tránsito.'
+                            : 'Your medication will be shipped in special packaging with cooling packs to maintain proper temperature during transit.'}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
