@@ -88,6 +88,7 @@ export function PaymentForm({ amount, onSuccess, onError, customerEmail, languag
         elements,
         confirmParams: {
           return_url: `${window.location.origin}/payment-success`,
+          receipt_email: customerEmail,
         },
       });
       
@@ -115,9 +116,14 @@ export function PaymentForm({ amount, onSuccess, onError, customerEmail, languag
     ],
     fields: {
       billingDetails: {
-        email: 'never', // We already have the email
+        email: 'auto', // Let Stripe handle email collection (pre-filled if provided)
         phone: 'auto',
         address: 'auto'
+      }
+    },
+    defaultValues: {
+      billingDetails: {
+        email: customerEmail, // Pre-fill with customer email
       }
     },
     wallets: {
