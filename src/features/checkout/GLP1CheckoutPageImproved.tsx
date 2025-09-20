@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { computeTotals } from '../../lib/pricing';
 import { InjectionIcon, PillIcon, FlameIcon, CheckIcon } from '../../icons/icons';
-import { StripeElementsPlaceholder } from '../payments/StripeElementsPlaceholder';
-import { createCheckoutSession } from '../../integrations/stripe';
+import { StripeProvider } from '../../components/StripeProvider';
+import { PaymentForm } from '../../components/PaymentForm';
 import { AddressAutocomplete } from '../../components/AddressAutocomplete';
 
 export type ShippingAddress = { street: string; city: string; state: string; zip: string; country: string };
@@ -226,17 +226,21 @@ export function GLP1CheckoutPageImproved() {
     return undefined;
   }, []);
 
-  async function handleStripeCheckout() {
-    if (!selectedPlanData || !selectedMed) return;
-    const items = [
-      { name: `${selectedMed.name} - ${selectedPlanData.type}`, amount: Math.round(subtotal * 100), quantity: 1 },
-    ];
-    const result = await createCheckoutSession({ lineItems: items, customerEmail: patientData.email } as any);
-    if ('error' in result) {
-      alert(result.error);
-      return;
-    }
-    window.location.href = result.url;
+  async function handlePaymentSuccess(paymentIntentId: string) {
+    // Payment successful! 
+    // Save order to database and show success message
+    console.log('Payment successful! Payment Intent:', paymentIntentId);
+    
+    // Show success message
+    setStatusBanner('success');
+    
+    // You could redirect to a success page or show order confirmation
+    // window.location.href = `/order-confirmation?payment_intent=${paymentIntentId}`;
+  }
+
+  function handlePaymentError(error: string) {
+    console.error('Payment error:', error);
+    alert(`Payment failed: ${error}`);
   }
 
   function handleNextStep() {
@@ -585,7 +589,16 @@ export function GLP1CheckoutPageImproved() {
                 {/* Payment Section */}
                 <div className="bg-white rounded-xl p-6 mb-6 border">
                   <h3 className="text-xl font-semibold mb-4">{t.payment}</h3>
-                  <StripeElementsPlaceholder />
+                  {/* Native Stripe Payment Form */}
+                  <StripeProvider amount={subtotal}>
+                    <PaymentForm
+                      amount={subtotal}
+                      onSuccess={handlePaymentSuccess}
+                      onError={handlePaymentError}
+                      customerEmail={patientData.email}
+                      language={language}
+                    />
+                  </StripeProvider>
                 </div>
 
                 <div className="flex justify-between">
@@ -594,13 +607,6 @@ export function GLP1CheckoutPageImproved() {
                     className="px-5 py-2 rounded-lg border border-gray-300 font-semibold"
                   >
                     {t.back}
-                  </button>
-                  <button
-                    onClick={handleStripeCheckout}
-                    className="px-6 py-3 rounded-lg text-white font-semibold bg-blue-600 hover:bg-blue-700"
-                    disabled={!shippingAddress.street || !shippingAddress.city || !shippingAddress.state || !shippingAddress.zip}
-                  >
-                    {t.completePurchase} - ${subtotal.toFixed(2)}
                   </button>
                 </div>
               </div>

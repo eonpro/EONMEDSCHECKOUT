@@ -12,10 +12,13 @@
     "stripe:trigger:succeeded": "stripe trigger payment_intent.succeeded"
   },
   "dependencies": {
+    "@stripe/react-stripe-js": "^4.0.2",
     "@stripe/stripe-js": "^7.9.0",
+    "@types/micro": "^7.3.7",
+    "micro": "^10.0.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "stripe": "^14.0.0"
+    "stripe": "^14.25.0"
   },
   "devDependencies": {
     "@types/google.maps": "^3.58.1",
