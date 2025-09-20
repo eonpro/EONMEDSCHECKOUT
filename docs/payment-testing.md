@@ -16,14 +16,16 @@ The error "You specified 'never' for fields.billing_details.email" was caused by
 Go to Vercel Dashboard → Settings → Environment Variables and add:
 
 ```env
-# Test Mode Keys
-STRIPE_SECRET_KEY=sk_test_xxx
-VITE_STRIPE_PUBLISHABLE_KEY=pk_test_xxx
+# Test Mode Keys (replace with your actual test keys)
+STRIPE_SECRET_KEY=sk_test_YOUR_TEST_SECRET_KEY_HERE
+VITE_STRIPE_PUBLISHABLE_KEY=pk_test_YOUR_TEST_PUBLISHABLE_KEY_HERE
 
-# Production Keys (when ready)
-STRIPE_SECRET_KEY=sk_live_xxx  
-VITE_STRIPE_PUBLISHABLE_KEY=pk_live_xxx
+# Production Keys (when ready - replace with your actual live keys)
+STRIPE_SECRET_KEY=sk_live_YOUR_LIVE_SECRET_KEY_HERE
+VITE_STRIPE_PUBLISHABLE_KEY=pk_live_YOUR_LIVE_PUBLISHABLE_KEY_HERE
 ```
+
+🔒 **Security Note**: Never commit actual API keys to version control. Always use environment variables and obtain your keys from the [Stripe Dashboard](https://dashboard.stripe.com/apikeys).
 
 ⚠️ **Important**: After adding environment variables, you need to redeploy:
 ```bash
