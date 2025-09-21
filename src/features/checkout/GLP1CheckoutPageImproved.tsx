@@ -1206,7 +1206,7 @@ The prescription product(s) associated with your subscription will be shipped to
 
           {/* Sidebar - Order Summary (Hidden on Step 2 as it has its own) */}
           {currentStep !== 2 && (
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-1 mt-6 lg:mt-0">
             <OrderSummary />
           </div>
           )}
