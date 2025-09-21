@@ -644,14 +644,14 @@ export function GLP1CheckoutPageImproved() {
       <div className="py-4 px-6">
         <div className="max-w-3xl mx-auto">
           <div className="rounded-2xl overflow-hidden flex items-center">
-            <div className="bg-gray-200 h-24 w-32 flex-shrink-0">
+            <div className="bg-gray-200 h-16 w-24 sm:h-20 sm:w-28 flex-shrink-0">
               <img 
                 src="https://static.wixstatic.com/media/c49a9b_51deb4cab3c04b1b8a4b679f7dd241a6~mv2.webp"
                 alt="Eonmeds Cold Pack"
                 className="w-full h-full object-cover"
               />
             </div>
-            <div className="bg-[#e9f990] flex-1 py-1.5 px-4 sm:p-6 h-24 flex flex-col justify-center items-center text-center">
+            <div className="bg-[#e9f990] flex-1 py-1.5 px-4 sm:p-4 h-16 sm:h-20 flex flex-col justify-center items-center text-center">
               <h3 className="text-sm sm:text-base font-semibold text-black whitespace-nowrap">
                 {language === 'es' ? 'Envío Express Incluido' : 'Express Shipping Included'}
               </h3>
