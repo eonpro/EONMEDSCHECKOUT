@@ -714,7 +714,7 @@ export function GLP1CheckoutPageImproved() {
 
       {/* Main Content with Sidebar Layout */}
       <div className={`${currentStep === 2 ? '' : 'max-w-7xl mx-auto'} ${currentStep === 2 ? '' : 'px-4 sm:px-6'} py-8`}>
-        <div className={`${currentStep === 2 ? 'relative' : 'grid grid-cols-1 lg:grid-cols-3 gap-3 max-w-7xl mx-auto px-4 sm:px-6'}`}>
+        <div className={`${currentStep === 2 ? 'relative' : 'grid grid-cols-1 lg:grid-cols-3 gap-1 max-w-7xl mx-auto px-4 sm:px-6'}`}>
           {/* Main Content Area */}
           <div className={`${currentStep === 2 ? '' : 'lg:col-span-2'} px-[10px] sm:px-0`}>
             {/* Step 1: Medication Selection */}
@@ -801,7 +801,7 @@ export function GLP1CheckoutPageImproved() {
                 paddingBottom: '2rem'
               }}>
                 <div className="max-w-7xl mx-auto px-[10px] sm:px-6 lg:px-8">
-                  <div className="lg:grid lg:grid-cols-3 lg:gap-3">
+                  <div className="lg:grid lg:grid-cols-3 lg:gap-1">
                     {/* Main Content */}
                     <div className="lg:col-span-2">
                       <div className="lg:max-w-xl">
