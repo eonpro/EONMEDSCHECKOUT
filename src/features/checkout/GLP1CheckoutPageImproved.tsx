@@ -714,12 +714,12 @@ export function GLP1CheckoutPageImproved() {
 
       {/* Main Content with Sidebar Layout */}
       <div className={`${currentStep === 2 ? '' : 'max-w-7xl mx-auto'} ${currentStep === 2 ? '' : 'px-4 sm:px-6'} py-8`}>
-        <div className={`${currentStep === 2 ? 'relative' : 'grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-7xl mx-auto px-4 sm:px-6'}`}>
+        <div className={`${currentStep === 2 ? 'relative' : 'grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-7xl mx-auto px-4 sm:px-6'}`}>
           {/* Main Content Area */}
           <div className={`${currentStep === 2 ? '' : 'lg:col-span-2'} px-[10px] sm:px-0`}>
             {/* Step 1: Medication Selection */}
             {currentStep === 1 && (
-              <div className="lg:max-w-2xl lg:mx-auto">
+              <div className="lg:max-w-xl lg:mx-auto">
                 <div className="mb-6">
                   <h2 className="text-xl font-medium text-gray-900 mb-2">{t.chooseMedication}</h2>
                   <p className="text-gray-600">{t.medicationSubtitle}</p>
@@ -801,10 +801,10 @@ export function GLP1CheckoutPageImproved() {
                 paddingBottom: '2rem'
               }}>
                 <div className="max-w-7xl mx-auto px-[10px] sm:px-6 lg:px-8">
-                  <div className="lg:grid lg:grid-cols-3 lg:gap-8">
+                  <div className="lg:grid lg:grid-cols-3 lg:gap-6">
                     {/* Main Content */}
-                    <div className="lg:col-span-2 lg:pr-8">
-                      <div className="lg:max-w-2xl">
+                    <div className="lg:col-span-2 lg:pr-6">
+                      <div className="lg:max-w-xl">
                   {/* Title Section */}
                   <div className="mb-4">
                     <h2 className="text-xl font-semibold text-gray-900 mb-1">{t.selectPlan}</h2>
@@ -934,7 +934,7 @@ export function GLP1CheckoutPageImproved() {
                               </div>
                             )}
                             {plan.savings && plan.savings > 0 && (
-                              <div className="absolute -top-2 -right-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-md">
+                              <div className="absolute -top-2 -right-2 bg-orange-500 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-md">
                                 {language === 'es' ? 'Ahorra' : 'Save'} ${plan.savings}
                           </div>
                             )}
@@ -1023,7 +1023,7 @@ export function GLP1CheckoutPageImproved() {
 
             {/* Step 3: Shipping & Payment */}
             {currentStep === 3 && (
-              <div className="lg:max-w-2xl lg:mx-auto">
+              <div className="lg:max-w-xl lg:mx-auto">
                 <div className="mb-6">
                   <h2 className="text-xl font-medium text-gray-900 mb-2">{t.shippingPayment}</h2>
                   <p className="text-gray-600">{t.shippingSubtitle}</p>
