@@ -803,7 +803,7 @@ export function GLP1CheckoutPageImproved() {
                 <div className="max-w-7xl mx-auto px-[10px] sm:px-6 lg:px-8">
                   <div className="lg:grid lg:grid-cols-3 lg:gap-3">
                     {/* Main Content */}
-                    <div className="lg:col-span-2 lg:pr-3">
+                    <div className="lg:col-span-2">
                       <div className="lg:max-w-xl">
                   {/* Title Section */}
                   <div className="mb-4">
