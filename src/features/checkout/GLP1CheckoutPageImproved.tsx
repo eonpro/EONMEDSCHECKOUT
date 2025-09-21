@@ -967,7 +967,21 @@ export function GLP1CheckoutPageImproved() {
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                                <AddonIcon className="w-5 h-5" style={{ color: isSelected ? '#13a97b' : '#6b7280' }} />
+                                {addon.id === 'fat-burner' ? (
+                                  <img 
+                                    src="https://static.wixstatic.com/media/c49a9b_7cf96a7c6da041d2ae156b2f0436343d~mv2.png"
+                                    alt="Fat Burner"
+                                    className="w-8 h-8 object-contain"
+                                  />
+                                ) : addon.id === 'nausea-rx' ? (
+                                  <img 
+                                    src="https://static.wixstatic.com/media/c49a9b_6c1b30c9e184401cbc20788d869fccdf~mv2.png"
+                                    alt="Nausea Relief"
+                                    className="w-8 h-8 object-contain"
+                                  />
+                                ) : (
+                                  <AddonIcon className="w-5 h-5" style={{ color: isSelected ? '#13a97b' : '#6b7280' }} />
+                                )}
                               <div>
                                   <h4 className="font-medium text-sm">{addon.name}</h4>
                                   <p className="text-xs text-gray-600">{addon.description}</p>
