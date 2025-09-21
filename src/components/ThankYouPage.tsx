@@ -17,8 +17,6 @@ interface ThankYouPageProps {
     zipCode: string;
     country?: string;
   };
-  subtotal?: number;
-  shippingCost?: number;
 }
 
 export function ThankYouPage({
@@ -30,8 +28,6 @@ export function ThankYouPage({
   expeditedShipping,
   total,
   shippingAddress,
-  subtotal = 0,
-  shippingCost = 0,
 }: ThankYouPageProps) {
   const receiptRef = useRef<HTMLDivElement>(null);
 
@@ -51,7 +47,6 @@ export function ThankYouPage({
   };
 
   const planPrice = getPlanPrice();
-  const addonsTotal = addons.reduce((sum, addon) => sum + getAddonPrice(addon), 0);
   const actualShippingCost = expeditedShipping ? 25.00 : 0;
 
   const t = language === 'es' ? {
