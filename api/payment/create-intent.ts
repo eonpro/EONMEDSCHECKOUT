@@ -67,7 +67,7 @@ async function getOrCreateCustomer(email: string, metadata?: any) {
 }
 
 // Helper function to get product price ID
-function getPriceId(medication: string, planType: string, isOneTime: boolean) {
+function getPriceId(medication: string, planType: string) {
   if (!medication || !planType) {
     return null;
   }
@@ -124,7 +124,7 @@ export default async function handler(
     const isSubscription = planType && !planType.toLowerCase().includes('one time');
     
     // Get product price IDs
-    const mainPriceId = getPriceId(medicationId, planType, !isSubscription);
+    const mainPriceId = getPriceId(medicationId, planType);
     
     // Build addon price IDs
     const addonPriceIds: string[] = [];
