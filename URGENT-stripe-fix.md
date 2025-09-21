@@ -1,12 +1,13 @@
 # ⚠️ URGENT: Switch to Stripe TEST Mode
 
 ## Current Issue
+
 Your checkout is using LIVE Stripe keys, preventing testing!
 
 ## Required Actions in Vercel Dashboard
 
 ### 1. Go to Vercel Environment Variables
-https://vercel.com/eonpro1s-projects/eonmeds-checkout/settings/environment-variables
+<https://vercel.com/eonpro1s-projects/eonmeds-checkout/settings/environment-variables>
 
 ### 2. Update These Variables
 
@@ -19,7 +20,7 @@ https://vercel.com/eonpro1s-projects/eonmeds-checkout/settings/environment-varia
 
 ### 3. Get Your TEST Keys from Stripe
 
-1. Go to: https://dashboard.stripe.com/test/apikeys
+1. Go to: <https://dashboard.stripe.com/test/apikeys>
 2. Make sure you're in **TEST MODE** (toggle in Stripe Dashboard)
 3. Copy the **TEST** keys:
    - Publishable key: `pk_test_...`
@@ -35,6 +36,7 @@ https://vercel.com/eonpro1s-projects/eonmeds-checkout/settings/environment-varia
 ## How to Verify Fix
 
 After updating and redeploying:
+
 1. The test card `4242 4242 4242 4242` will work
 2. No more "live mode" errors
 3. Payments will appear in Stripe TEST dashboard
@@ -49,6 +51,7 @@ After updating and redeploying:
 ## Quick Check
 
 In your checkout page, open browser console and type:
+
 ```javascript
 console.log(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY)
 ```

@@ -63,6 +63,7 @@ VITE_STRIPE_PRICE_EXPEDITED_SHIPPING=price_xxxxxxxxxxxxx
 ### With Checkout Sessions (Current Implementation)
 
 When a customer completes checkout:
+
 1. All products appear as **line items** in Stripe
 2. Customer information is **automatically created** in Stripe
 3. All charges are **grouped together** under one checkout session

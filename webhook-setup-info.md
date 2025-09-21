@@ -10,14 +10,16 @@ https://eonmeds-checkout-5l45t9aba-eonpro1s-projects.vercel.app/api/payment/webh
 
 Select these events in the Stripe webhook configuration:
 
-### Essential Events:
+### Essential Events
+
 - ✅ `payment_intent.succeeded` - When a payment is successful
 - ✅ `payment_intent.payment_failed` - When a payment fails
 - ✅ `customer.subscription.created` - When a subscription starts
 - ✅ `customer.subscription.updated` - When subscription changes
 - ✅ `customer.subscription.deleted` - When subscription ends
 
-### Optional but Recommended:
+### Optional but Recommended
+
 - `charge.succeeded` - Successful charge
 - `charge.failed` - Failed charge
 - `invoice.payment_succeeded` - Recurring payment success
@@ -42,6 +44,7 @@ EonMeds Checkout - Payment and Subscription Events Handler
    - Copy this secret
 
 3. **Add to Vercel Environment Variables:**
+
    ```
    STRIPE_WEBHOOK_SECRET=whsec_test_xxxxxxxxxxxxx
    ```
@@ -61,6 +64,7 @@ After setup, you can test by:
 ## Webhook Response Format
 
 Your endpoint returns:
+
 ```json
 {
   "received": true
@@ -70,6 +74,7 @@ Your endpoint returns:
 ## Troubleshooting
 
 If webhooks fail:
+
 - Check the webhook logs in Stripe Dashboard
 - Verify the endpoint URL is correct
 - Ensure STRIPE_WEBHOOK_SECRET is set in Vercel
@@ -78,6 +83,7 @@ If webhooks fail:
 ## Current Implementation
 
 Your webhook handler at `/api/payment/webhook.ts`:
+
 - Verifies the webhook signature
 - Handles payment_intent.succeeded events
 - Logs metadata for order processing

@@ -1,9 +1,11 @@
 # Stripe Native Payment Integration Setup Guide
 
 ## Overview
+
 This checkout now uses native Stripe Payment Element integration, allowing customers to pay directly on the EONMeds website without redirecting to Stripe Checkout.
 
 ## Supported Payment Methods
+
 - ✅ Credit/Debit Cards (Visa, Mastercard, Amex, etc.)
 - ✅ Apple Pay
 - ✅ Google Pay  
@@ -33,6 +35,7 @@ DATABASE_URL=postgresql://username:password@host:5432/dbname
 ## Stripe Dashboard Configuration
 
 ### 1. Enable Payment Methods
+
 1. Go to Stripe Dashboard → Settings → Payment Methods
 2. Enable:
    - Cards ✅
@@ -43,6 +46,7 @@ DATABASE_URL=postgresql://username:password@host:5432/dbname
    - Afterpay ✅
 
 ### 2. Configure Webhooks
+
 1. Go to Stripe Dashboard → Developers → Webhooks
 2. Add endpoint: `https://your-domain.vercel.app/api/payment/webhook`
 3. Select events to listen for:
@@ -52,12 +56,15 @@ DATABASE_URL=postgresql://username:password@host:5432/dbname
 4. Copy the webhook signing secret to `STRIPE_WEBHOOK_SECRET`
 
 ### 3. Set Up Apple Pay
+
 1. Register your domain in Stripe Dashboard → Settings → Apple Pay
 2. Add: `eonmeds-checkout.vercel.app`
 3. Download and host the domain verification file
 
 ### 4. Configure Buy Now, Pay Later Options
+
 For Affirm, Klarna, Afterpay:
+
 1. Go to each payment method's settings
 2. Configure minimum/maximum amounts
 3. Set merchant category
@@ -66,6 +73,7 @@ For Affirm, Klarna, Afterpay:
 ## Testing
 
 ### Test Card Numbers
+
 ```
 # Successful payment
 4242 4242 4242 4242  (Any future expiry, any CVC)
@@ -81,6 +89,7 @@ Use test phone: +1 (888) 888-8888
 ```
 
 ### Test Payment Flow
+
 1. Select medication and plan
 2. Fill shipping address
 3. On payment page, you'll see Payment Element
@@ -90,6 +99,7 @@ Use test phone: +1 (888) 888-8888
 ## API Endpoints
 
 ### Create Payment Intent
+
 ```
 POST /api/payment/create-intent
 {
@@ -101,6 +111,7 @@ POST /api/payment/create-intent
 ```
 
 ### Webhook Handler
+
 ```
 POST /api/payment/webhook
 (Stripe will send events here)
@@ -108,10 +119,11 @@ POST /api/payment/webhook
 
 ## Database Integration
 
-The webhook handler is prepared to save orders to AWS RDS. 
+The webhook handler is prepared to save orders to AWS RDS.
 See `/docs/database/schema.sql` for the database schema.
 
 To connect the database:
+
 1. Set up AWS RDS instance
 2. Run the schema SQL
 3. Add DATABASE_URL to Vercel env vars
@@ -128,16 +140,19 @@ To connect the database:
 ## Troubleshooting
 
 ### Payment Element Not Showing
+
 - Check browser console for errors
 - Verify VITE_STRIPE_PUBLISHABLE_KEY is set
 - Ensure amount > $0.50 (Stripe minimum)
 
 ### Webhook Errors
+
 - Check Stripe Dashboard → Webhooks → Logs
 - Verify STRIPE_WEBHOOK_SECRET is correct
 - Check Vercel Functions logs
 
 ### 3D Secure Issues
+
 - Test with card 4000 0027 6000 3184
 - Ensure return_url is set correctly
 - Check for popup blockers
@@ -156,6 +171,7 @@ To connect the database:
 ## Support
 
 For issues:
+
 1. Check Stripe Dashboard logs
 2. Review Vercel Function logs
 3. Test in Stripe's test mode first

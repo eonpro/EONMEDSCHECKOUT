@@ -29,6 +29,7 @@
     "@vercel/node": "^3.2.10",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.20",
+    "markdownlint-cli": "^0.45.0",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.13",
     "typescript": "^5.6.2",

@@ -3,6 +3,7 @@
 ## Test Payment Details
 
 ### Credit Card
+
 ```
 Card Number: 4242 4242 4242 4242
 Expiry: 12/25
@@ -11,12 +12,14 @@ ZIP: 10001
 ```
 
 ### Test Customer
+
 ```
 Email: test@eonmeds.com
 Phone: (555) 123-4567
 ```
 
 ### Test Address
+
 ```
 Street: 123 Main Street
 City: New York
@@ -27,7 +30,7 @@ ZIP: 10001
 ## Quick Test URLs
 
 ### English Version
-https://eonmeds-checkout-5l45t9aba-eonpro1s-projects.vercel.app
+<https://eonmeds-checkout-5l45t9aba-eonpro1s-projects.vercel.app>
 
 ### Test Each Flow
 
@@ -61,12 +64,14 @@ https://eonmeds-checkout-5l45t9aba-eonpro1s-projects.vercel.app
 ## What to Check
 
 ✅ **Successful Payment Signs:**
+
 - "Payment Successful" message
 - Thank You page appears
 - Transaction ID displayed
 - Order details shown
 
 ❌ **Common Issues:**
+
 - "Processing..." stuck = Check browser console
 - Payment declined = Try different test card
 - Form won't submit = Check all fields filled
@@ -74,9 +79,10 @@ https://eonmeds-checkout-5l45t9aba-eonpro1s-projects.vercel.app
 ## Stripe Dashboard Links
 
 **Test Mode Dashboard:**
-https://dashboard.stripe.com/test/payments
+<https://dashboard.stripe.com/test/payments>
 
 **Look For:**
+
 - Payment amount matches
 - Customer email saved
 - Metadata has order details

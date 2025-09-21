@@ -1,16 +1,19 @@
 # Stripe Subscription Setup Guide
 
 ## Overview
+
 This document outlines how to set up Stripe products and prices for the GLP-1 medication subscription plans.
 
 ## Products to Create in Stripe Dashboard
 
 ### 1. Semaglutide Product
+
 - **Name**: Semaglutide GLP-1 Weight Management
 - **Description**: Weekly GLP-1 injection for weight management
 - **Product ID**: `prod_semaglutide`
 
 ### 2. Tirzepatide Product  
+
 - **Name**: Tirzepatide Dual-Action Weight Management
 - **Description**: Dual-action GLP-1/GIP injection for superior results
 - **Product ID**: `prod_tirzepatide`
@@ -25,7 +28,7 @@ This document outlines how to set up Stripe products and prices for the GLP-1 me
    - Price ID: `price_sema_monthly`
    - Type: Recurring
 
-2. **3-Month Package** 
+2. **3-Month Package**
    - Price: $567 (one-time)
    - Billing: One-time payment for 3 months
    - Price ID: `price_sema_3month`
@@ -94,7 +97,7 @@ STRIPE_PRICE_TIRZ_ONETIME=price_8234567890abcdef
 ## Setup Instructions
 
 1. **Create Products in Stripe Dashboard**
-   - Go to https://dashboard.stripe.com/products
+   - Go to <https://dashboard.stripe.com/products>
    - Click "Add product"
    - Create both Semaglutide and Tirzepatide products
 
@@ -125,6 +128,7 @@ STRIPE_PRICE_TIRZ_ONETIME=price_8234567890abcdef
 ## Payment Flow
 
 ### For Subscriptions (Monthly)
+
 1. Customer selects monthly plan
 2. System creates Stripe subscription
 3. Customer enters payment details
@@ -132,12 +136,14 @@ STRIPE_PRICE_TIRZ_ONETIME=price_8234567890abcdef
 5. Automatic monthly billing
 
 ### For Packages (3-month, 6-month)
+
 1. Customer selects package plan
 2. System creates one-time payment
 3. Customer pays full amount upfront
 4. Order fulfilled for the package duration
 
 ### For One-Time Purchases
+
 1. Customer selects one-time option
 2. System creates one-time payment
 3. Customer pays $299/$399
@@ -146,6 +152,7 @@ STRIPE_PRICE_TIRZ_ONETIME=price_8234567890abcdef
 ## Testing
 
 Use these test cards:
+
 - Success: `4242 4242 4242 4242`
 - Requires authentication: `4000 0025 0000 3155`
 - Declined: `4000 0000 0000 9995`

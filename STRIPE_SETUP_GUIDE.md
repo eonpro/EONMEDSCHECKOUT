@@ -6,23 +6,27 @@ Go to your [Stripe Dashboard](https://dashboard.stripe.com/products) and create 
 
 ### Main Medication Products
 
-#### Semaglutide Plans:
+#### Semaglutide Plans
+
 - **Monthly Recurring** - $229/month (subscription)
 - **3-Month Supply** - $567 (one-time)
 - **6-Month Supply** - $1074 (one-time)  
 - **One-time Purchase** - $299 (one-time)
 
-#### Tirzepatide Plans:
+#### Tirzepatide Plans
+
 - **Monthly Recurring** - $329/month (subscription)
 - **3-Month Supply** - $867 (one-time)
 - **6-Month Supply** - $1674 (one-time)
 - **One-time Purchase** - $399 (one-time)
 
 ### Add-on Products
+
 - **Nausea Relief Prescription** - $39 (recurring monthly or one-time based on main plan)
 - **Fat Burner (L-Carnitine + B Complex)** - $99 (recurring monthly or one-time based on main plan)
 
 ### Shipping
+
 - **Expedited Shipping** - $25 (one-time)
 
 ## 2. Get Price IDs
@@ -79,12 +83,14 @@ NEXT_PUBLIC_SITE_URL=https://your-domain.com
 ## 5. Implementation Options
 
 ### Option A: Using Checkout Sessions (Recommended for subscriptions)
+
 - Best for handling subscriptions and complex pricing
 - Hosted checkout page by Stripe
 - Handles SCA/3DS automatically
 - Use the `/api/payment/create-checkout-session` endpoint
 
 ### Option B: Using Payment Elements (Current implementation)
+
 - Embedded payment form
 - More control over UI
 - Good for one-time payments
@@ -93,6 +99,7 @@ NEXT_PUBLIC_SITE_URL=https://your-domain.com
 ## 6. Testing
 
 Use test mode keys first:
+
 - Test keys start with `sk_test_` and `pk_test_`
 - Use test card numbers from [Stripe Testing](https://stripe.com/docs/testing)
 - Common test card: `4242 4242 4242 4242`
@@ -116,5 +123,6 @@ Use test mode keys first:
 ## Support
 
 For Stripe integration support:
+
 - [Stripe Documentation](https://stripe.com/docs)
 - [Stripe Support](https://support.stripe.com)
