@@ -492,6 +492,8 @@ export function GLP1CheckoutPageImproved() {
         expeditedShipping={expeditedShipping}
         total={total}
         shippingAddress={shippingAddress}
+        subtotal={subtotal}
+        shippingCost={shippingCost}
       />
     );
   }
