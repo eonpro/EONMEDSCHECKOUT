@@ -735,11 +735,16 @@ export function GLP1CheckoutPageImproved() {
                       <div
                         key={med.id}
                         onClick={handleClick}
-                        className={`bg-white rounded-xl p-6 cursor-pointer transition-all border-2 ${
-                          selectedMedication === med.id ? 'border-[#13a97b]' : 'border-gray-200 hover:border-gray-300'
+                        className={`bg-white rounded-xl p-6 cursor-pointer transition-all border-2 relative overflow-hidden ${
+                          selectedMedication === med.id 
+                            ? 'border-[#13a97b] shadow-lg ring-2 ring-[#13a97b] ring-opacity-30' 
+                            : 'border-gray-200 hover:border-gray-300'
                         }`}
                       >
-                        <div className="flex items-start gap-4">
+                        {selectedMedication === med.id && (
+                          <div className="absolute inset-0 bg-gradient-to-br from-green-50/50 to-transparent pointer-events-none" />
+                        )}
+                        <div className="flex items-start gap-4 relative">
                           <div className="flex-shrink-0">
                             <img 
                               src={med.id === 'semaglutide' 
@@ -768,13 +773,6 @@ export function GLP1CheckoutPageImproved() {
                             </div>
                           </div>
                         </div>
-                        {selectedMedication === med.id && (
-                          <div className="mt-4 py-2.5 px-4 rounded-full bg-black text-center">
-                            <span className="text-white font-medium text-sm">
-                              {t.selected}
-                            </span>
-                          </div>
-                        )}
                       </div>
                     );
                   })}
