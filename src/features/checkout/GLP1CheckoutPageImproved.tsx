@@ -971,13 +971,13 @@ export function GLP1CheckoutPageImproved() {
                                   <img 
                                     src="https://static.wixstatic.com/media/c49a9b_7cf96a7c6da041d2ae156b2f0436343d~mv2.png"
                                     alt="Fat Burner"
-                                    className="w-8 h-8 object-contain"
+                                    className="w-10 h-10 object-contain"
                                   />
                                 ) : addon.id === 'nausea-rx' ? (
                                   <img 
                                     src="https://static.wixstatic.com/media/c49a9b_6c1b30c9e184401cbc20788d869fccdf~mv2.png"
                                     alt="Nausea Relief"
-                                    className="w-8 h-8 object-contain"
+                                    className="w-10 h-10 object-contain"
                                   />
                                 ) : (
                                   <AddonIcon className="w-5 h-5" style={{ color: isSelected ? '#13a97b' : '#6b7280' }} />
