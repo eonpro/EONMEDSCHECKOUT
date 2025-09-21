@@ -1,6 +1,35 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import Stripe from 'stripe';
-import { stripeProductPrices, getSubscriptionPriceId, getOneTimePriceId } from '../../src/config/stripeProducts';
+
+// Stripe Product Configuration for API (using process.env)
+const STRIPE_PRODUCTS = {
+  // Semaglutide Products
+  semaglutide: {
+    monthly: process.env.VITE_STRIPE_PRICE_SEMAGLUTIDE_MONTHLY || 'price_semaglutide_monthly',
+    threeMonth: process.env.VITE_STRIPE_PRICE_SEMAGLUTIDE_3MONTH || 'price_semaglutide_3month',
+    sixMonth: process.env.VITE_STRIPE_PRICE_SEMAGLUTIDE_6MONTH || 'price_semaglutide_6month',
+    oneTime: process.env.VITE_STRIPE_PRICE_SEMAGLUTIDE_ONETIME || 'price_semaglutide_onetime',
+  },
+  
+  // Tirzepatide Products
+  tirzepatide: {
+    monthly: process.env.VITE_STRIPE_PRICE_TIRZEPATIDE_MONTHLY || 'price_tirzepatide_monthly',
+    threeMonth: process.env.VITE_STRIPE_PRICE_TIRZEPATIDE_3MONTH || 'price_tirzepatide_3month',
+    sixMonth: process.env.VITE_STRIPE_PRICE_TIRZEPATIDE_6MONTH || 'price_tirzepatide_6month',
+    oneTime: process.env.VITE_STRIPE_PRICE_TIRZEPATIDE_ONETIME || 'price_tirzepatide_onetime',
+  },
+  
+  // Add-on Products
+  addons: {
+    nauseaRelief: process.env.VITE_STRIPE_PRICE_NAUSEA_RELIEF || 'price_nausea_relief',
+    fatBurner: process.env.VITE_STRIPE_PRICE_FAT_BURNER || 'price_fat_burner',
+  },
+  
+  // Shipping
+  shipping: {
+    expedited: process.env.VITE_STRIPE_PRICE_EXPEDITED_SHIPPING || 'price_expedited_shipping',
+  },
+};
 
 // Initialize Stripe with secret key
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
@@ -39,19 +68,30 @@ async function getOrCreateCustomer(email: string, metadata?: any) {
 
 // Helper function to get product price ID
 function getPriceId(medication: string, planType: string, isOneTime: boolean) {
-  if (isOneTime) {
-    return getSubscriptionPriceId(medication, 'One-time purchase');
+  if (!medication || !planType) {
+    return null;
   }
+
+  const med = medication.toLowerCase().replace(/\s+/g, '');
+  const medKey = med.includes('semaglutide') ? 'semaglutide' : 'tirzepatide';
   
   // Map plan types to price IDs
   const planMapping: { [key: string]: string } = {
     'Monthly': 'monthly',
-    '3-month plan': '3-month',
-    '6-month plan': '6-month',
+    '3-month plan': 'threeMonth',
+    '6-month plan': 'sixMonth',
+    'One-time purchase': 'oneTime',
   };
   
-  const mappedPlan = planMapping[planType] || planType;
-  return getSubscriptionPriceId(medication, mappedPlan);
+  const mappedPlan = planMapping[planType] || 'monthly';
+  
+  // Get the correct price ID from STRIPE_PRODUCTS
+  const medProducts = STRIPE_PRODUCTS[medKey as keyof typeof STRIPE_PRODUCTS];
+  if (!medProducts || typeof medProducts === 'string') {
+    return null;
+  }
+  
+  return medProducts[mappedPlan as keyof typeof medProducts] || null;
 }
 
 export default async function handler(
@@ -91,10 +131,10 @@ export default async function handler(
     if (order_data?.addons) {
       order_data.addons.forEach((addon: string) => {
         if (addon.toLowerCase().includes('nausea')) {
-          const priceId = getOneTimePriceId('nauseaRelief');
+          const priceId = STRIPE_PRODUCTS.addons.nauseaRelief;
           if (priceId) addonPriceIds.push(priceId);
         } else if (addon.toLowerCase().includes('fat burner')) {
-          const priceId = getOneTimePriceId('fatBurner');
+          const priceId = STRIPE_PRODUCTS.addons.fatBurner;
           if (priceId) addonPriceIds.push(priceId);
         }
       });
@@ -102,7 +142,7 @@ export default async function handler(
     
     // Add expedited shipping if selected
     if (order_data?.expeditedShipping) {
-      const shippingPriceId = getOneTimePriceId('expeditedShipping');
+      const shippingPriceId = STRIPE_PRODUCTS.shipping.expedited;
       if (shippingPriceId) addonPriceIds.push(shippingPriceId);
     }
 
