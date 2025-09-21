@@ -804,11 +804,12 @@ export function GLP1CheckoutPageImproved() {
                   <div className="lg:grid lg:grid-cols-3 lg:gap-8">
                     {/* Main Content */}
                     <div className="lg:col-span-2 lg:pr-8">
+                      <div className="lg:max-w-2xl">
                   {/* Title Section */}
                   <div className="mb-4">
                     <h2 className="text-xl font-semibold text-gray-900 mb-1">{t.selectPlan}</h2>
                     <p className="text-sm text-gray-600">{t.planSubtitle}</p>
-                </div>
+                  </div>
 
                   {/* HSA/FSA Badge */}
                   <div className="mb-3 bg-black text-white px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 w-fit">
@@ -1003,6 +1004,7 @@ export function GLP1CheckoutPageImproved() {
                     {t.continueShipping}
                   </button>
                       </div>
+                      </div>
                     </div>
 
                     {/* Order Summary - Desktop Only, Right Side */}
@@ -1021,7 +1023,7 @@ export function GLP1CheckoutPageImproved() {
 
             {/* Step 3: Shipping & Payment */}
             {currentStep === 3 && (
-              <div>
+              <div className="lg:max-w-2xl lg:mx-auto">
                 <div className="mb-6">
                   <h2 className="text-xl font-medium text-gray-900 mb-2">{t.shippingPayment}</h2>
                   <p className="text-gray-600">{t.shippingSubtitle}</p>
