@@ -518,7 +518,7 @@ export function GLP1CheckoutPage() {
           {/* Payment Section */}
           <div className="bg-white rounded-xl p-6 mb-6 border">
             <h3 className="text-xl font-semibold mb-4">Payment</h3>
-            <StripeElementsPlaceholder />
+          <StripeElementsPlaceholder />
           </div>
 
           {/* Navigation Buttons */}

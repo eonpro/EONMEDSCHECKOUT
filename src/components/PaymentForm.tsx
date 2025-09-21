@@ -41,6 +41,8 @@ export function PaymentForm({ amount, onSuccess, onError, customerEmail, languag
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string>('');
+  const [isSubscription, setIsSubscription] = useState(false);
+  // const [customerId, setCustomerId] = useState<string>(''); // Will be used for future features
 
   // Fetch payment intent from backend
   useEffect(() => {
@@ -48,9 +50,12 @@ export function PaymentForm({ amount, onSuccess, onError, customerEmail, languag
 
     // Determine if this is a subscription or one-time payment
     const planId = orderData?.plan || '';
-    const isSubscription = planId && 
-      !planId.includes('onetime') && 
-      (planId.includes('monthly') || planId.includes('3month') || planId.includes('6month'));
+    const subscription = Boolean(planId && 
+      !planId.toLowerCase().includes('one time') && 
+      !planId.toLowerCase().includes('once') &&
+      (planId.toLowerCase().includes('month') || planId.toLowerCase().includes('plan')));
+    
+    setIsSubscription(subscription);
     
     // For now, use regular payment intent for all payments
     // Subscription setup will require additional Stripe configuration
@@ -77,6 +82,13 @@ export function PaymentForm({ amount, onSuccess, onError, customerEmail, languag
       .then((data) => {
         if (data.clientSecret) {
           setClientSecret(data.clientSecret);
+          // if (data.customerId) {
+          //   setCustomerId(data.customerId);
+          // }
+          // Confirm subscription status from backend
+          if (data.isSubscription !== undefined) {
+            setIsSubscription(data.isSubscription);
+          }
         } else {
           throw new Error('Failed to create payment intent');
         }
@@ -139,8 +151,10 @@ export function PaymentForm({ amount, onSuccess, onError, customerEmail, languag
 
   const paymentElementOptions: StripePaymentElementOptions = {
     layout: {
-      type: 'tabs',
+      type: 'accordion',
       defaultCollapsed: false,
+      radios: true,
+      spacedAccordionItems: true
     },
     paymentMethodOrder: [
       'card',
@@ -181,6 +195,10 @@ export function PaymentForm({ amount, onSuccess, onError, customerEmail, languag
       sameAsShipping: 'Same as shipping address',
       securePayment: 'Secure payment powered by Stripe',
       acceptedCards: 'We accept all major credit cards and payment methods',
+      subscriptionInfo: 'Subscription Details',
+      subscriptionNote: `You are starting a ${orderData?.plan || 'subscription'} that will automatically renew. Your card will be saved for future payments.`,
+      oneTimeNote: 'This is a one-time purchase. You will not be charged on a recurring basis.',
+      cardSaved: 'Your card will be securely saved for future subscription payments',
     },
     es: {
       paymentTitle: 'Información de Pago',
@@ -190,6 +208,10 @@ export function PaymentForm({ amount, onSuccess, onError, customerEmail, languag
       sameAsShipping: 'Igual que la dirección de envío',
       securePayment: 'Pago seguro con tecnología de Stripe',
       acceptedCards: 'Aceptamos todas las tarjetas de crédito principales y métodos de pago',
+      subscriptionInfo: 'Detalles de Suscripción',
+      subscriptionNote: `Está iniciando una suscripción de ${orderData?.plan || 'suscripción'} que se renovará automáticamente. Su tarjeta será guardada para futuros pagos.`,
+      oneTimeNote: 'Esta es una compra única. No se le cobrará de forma recurrente.',
+      cardSaved: 'Su tarjeta será guardada de forma segura para futuros pagos de suscripción',
     }
   };
 
@@ -208,13 +230,38 @@ export function PaymentForm({ amount, onSuccess, onError, customerEmail, languag
       <div>
         <h3 className="text-lg font-semibold mb-4">{t.paymentTitle}</h3>
         
+        {/* Subscription Information */}
+        {isSubscription ? (
+          <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-start gap-2">
+              <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+              <div className="text-sm">
+                <p className="font-medium text-blue-900 mb-1">{t.subscriptionInfo}</p>
+                <p className="text-blue-800">{t.subscriptionNote}</p>
+                <p className="text-blue-700 mt-2 text-xs">{t.cardSaved}</p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <div className="flex items-start gap-2">
+              <svg className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              <div className="text-sm">
+                <p className="text-green-800">{t.oneTimeNote}</p>
+              </div>
+            </div>
+          </div>
+        )}
+        
         {/* Payment Element - handles all payment methods */}
-        <div className="border rounded-lg p-4 bg-gray-50">
-          <PaymentElement 
-            options={paymentElementOptions}
-            className="mb-4"
-          />
-        </div>
+        <PaymentElement 
+          options={paymentElementOptions}
+          className="mb-4"
+        />
 
         {/* Security badge */}
         <div className="mt-4 text-sm text-gray-600 text-center">
@@ -238,10 +285,10 @@ export function PaymentForm({ amount, onSuccess, onError, customerEmail, languag
         <button
           type="submit"
           disabled={!stripe || isProcessing}
-          className={`mt-6 w-full py-3 px-4 rounded-lg text-white font-semibold transition-all ${
+          className={`mt-6 w-full py-4 px-6 rounded-full text-white font-semibold transition-all ${
             isProcessing || !stripe
               ? 'bg-gray-400 cursor-not-allowed'
-              : 'bg-blue-600 hover:bg-blue-700'
+              : 'bg-black hover:bg-gray-800'
           }`}
         >
           {isProcessing ? (

@@ -132,22 +132,13 @@ export function AddressAutocomplete({ value, onChange, language = 'en' }: Addres
             className="px-4 py-2 border rounded-lg"
           />
         </div>
-        <div className="grid grid-cols-2 gap-4">
-          <input
-            type="text"
-            placeholder={language === 'es' ? "Código Postal" : "ZIP Code"}
-            value={value.zipCode}
-            onChange={(e) => onChange({...value, zipCode: e.target.value})}
-            className="px-4 py-2 border rounded-lg"
-          />
-          <input
-            type="text"
-            placeholder={language === 'es' ? "País" : "Country"}
-            value={value.country || 'US'}
-            disabled
-            className="px-4 py-2 border rounded-lg bg-gray-50"
-          />
-        </div>
+        <input
+          type="text"
+          placeholder={language === 'es' ? "Código Postal" : "ZIP Code"}
+          value={value.zipCode}
+          onChange={(e) => onChange({...value, zipCode: e.target.value})}
+          className="px-4 py-2 border rounded-lg w-full"
+        />
       </div>
     );
   }
@@ -188,22 +179,13 @@ export function AddressAutocomplete({ value, onChange, language = 'en' }: Addres
           className="px-4 py-2 border rounded-lg"
         />
       </div>
-      <div className="grid grid-cols-2 gap-4">
-        <input
-          type="text"
-          placeholder={language === 'es' ? "Código Postal" : "ZIP Code"}
-          value={value.zipCode}
-          onChange={(e) => onChange({...value, zipCode: e.target.value})}
-          className="px-4 py-2 border rounded-lg"
-        />
-        <input
-          type="text"
-          placeholder={language === 'es' ? "País" : "Country"}
-          value={value.country || 'US'}
-          disabled
-          className="px-4 py-2 border rounded-lg bg-gray-50"
-        />
-      </div>
+      <input
+        type="text"
+        placeholder={language === 'es' ? "Código Postal" : "ZIP Code"}
+        value={value.zipCode}
+        onChange={(e) => onChange({...value, zipCode: e.target.value})}
+        className="px-4 py-2 border rounded-lg w-full"
+      />
     </div>
   );
 }
