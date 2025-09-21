@@ -651,8 +651,8 @@ export function GLP1CheckoutPageImproved() {
                 className="w-full h-full object-cover"
               />
             </div>
-            <div className="bg-[#e9f990] flex-1 p-6 h-24 flex flex-col justify-center">
-              <h3 className="text-base font-semibold text-black">
+            <div className="bg-[#e9f990] flex-1 py-1.5 px-4 sm:p-6 h-24 flex flex-col justify-center items-center text-center">
+              <h3 className="text-sm sm:text-base font-semibold text-black whitespace-nowrap">
                 {language === 'es' ? 'Envío Express Incluido' : 'Express Shipping Included'}
               </h3>
               <p className="text-xs text-black mt-0.5">
