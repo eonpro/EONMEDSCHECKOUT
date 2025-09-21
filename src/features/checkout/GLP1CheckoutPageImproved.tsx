@@ -719,7 +719,7 @@ export function GLP1CheckoutPageImproved() {
           <div className={`${currentStep === 2 ? '' : 'lg:col-span-2'} px-[10px] sm:px-0`}>
             {/* Step 1: Medication Selection */}
             {currentStep === 1 && (
-              <div>
+              <div className="lg:max-w-2xl lg:mx-auto">
                 <div className="mb-6">
                   <h2 className="text-xl font-medium text-gray-900 mb-2">{t.chooseMedication}</h2>
                   <p className="text-gray-600">{t.medicationSubtitle}</p>
