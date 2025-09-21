@@ -195,10 +195,10 @@ export function PaymentForm({ amount, onSuccess, onError, customerEmail, languag
       sameAsShipping: 'Same as shipping address',
       securePayment: 'Secure payment powered by Stripe',
       acceptedCards: 'We accept all major credit cards and payment methods',
-      subscriptionInfo: 'Subscription Details',
-      subscriptionNote: `You are starting a ${orderData?.plan || 'subscription'} that will automatically renew. Your card will be saved for future payments.`,
+      subscriptionInfo: 'Continuous Treatment Plan',
+      subscriptionNote: `To ensure no gaps in your treatment, your medication will automatically renew after ${orderData?.plan?.includes('3') ? '3 months' : orderData?.plan?.includes('6') ? '6 months' : 'each month'} using the payment information provided.`,
       oneTimeNote: 'This is a one-time purchase. You will not be charged on a recurring basis.',
-      cardSaved: 'Your card will be securely saved for future subscription payments',
+      cardSaved: 'To modify or cancel your treatment plan, visit www.eonmeds.com/cancellations',
     },
     es: {
       paymentTitle: 'Información de Pago',
@@ -208,10 +208,10 @@ export function PaymentForm({ amount, onSuccess, onError, customerEmail, languag
       sameAsShipping: 'Igual que la dirección de envío',
       securePayment: 'Pago seguro con tecnología de Stripe',
       acceptedCards: 'Aceptamos todas las tarjetas de crédito principales y métodos de pago',
-      subscriptionInfo: 'Detalles de Suscripción',
-      subscriptionNote: `Está iniciando una suscripción de ${orderData?.plan || 'suscripción'} que se renovará automáticamente. Su tarjeta será guardada para futuros pagos.`,
+      subscriptionInfo: 'Plan de Tratamiento Continuo',
+      subscriptionNote: `Para asegurar que no haya interrupciones en su tratamiento, su medicamento se renovará automáticamente después de ${orderData?.plan?.includes('3') ? '3 meses' : orderData?.plan?.includes('6') ? '6 meses' : 'cada mes'} usando la información de pago proporcionada.`,
       oneTimeNote: 'Esta es una compra única. No se le cobrará de forma recurrente.',
-      cardSaved: 'Su tarjeta será guardada de forma segura para futuros pagos de suscripción',
+      cardSaved: 'Para modificar o cancelar su plan de tratamiento, visite www.eonmeds.com/cancellations',
     }
   };
 
@@ -232,15 +232,15 @@ export function PaymentForm({ amount, onSuccess, onError, customerEmail, languag
         
         {/* Subscription Information */}
         {isSubscription ? (
-          <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="mb-4 p-4 rounded-lg border" style={{ backgroundColor: '#efece7', borderColor: '#d4cec4' }}>
             <div className="flex items-start gap-2">
-              <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <svg className="w-5 h-5 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20" style={{ color: '#5a4d3f' }}>
                 <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
               </svg>
               <div className="text-sm">
-                <p className="font-medium text-blue-900 mb-1">{t.subscriptionInfo}</p>
-                <p className="text-blue-800">{t.subscriptionNote}</p>
-                <p className="text-blue-700 mt-2 text-xs">{t.cardSaved}</p>
+                <p className="font-medium mb-1" style={{ color: '#3d342a' }}>{t.subscriptionInfo}</p>
+                <p style={{ color: '#5a4d3f' }}>{t.subscriptionNote}</p>
+                <p className="mt-2 text-xs" style={{ color: '#5a4d3f' }}>{t.cardSaved}</p>
               </div>
             </div>
           </div>
