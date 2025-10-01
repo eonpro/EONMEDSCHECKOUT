@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { computeTotals } from '../../lib/pricing';
 import { PillIcon, FlameIcon, CheckIcon } from '../../icons/icons';
 import { StripeProvider } from '../../components/StripeProvider';
@@ -113,22 +113,128 @@ export function GLP1CheckoutPageImproved() {
     zipCode: '',
     country: 'US',
   });
+  const [patientData, setPatientData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    age: 0,
+    weight: 0,
+    height: '',
+    bmi: 0,
+    qualified: false,
+    medicalHistory: '',
+    symptoms: '',
+    medication_preference: '',
+    state: '',
+  });
+
+  // Load qualification data from URL parameter on mount
+  useEffect(() => {
+    // Get query parameter from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const encodedData = urlParams.get('q');
+    
+    if (encodedData) {
+      try {
+        // Decode and parse the data
+        const qualificationData = JSON.parse(atob(encodedData));
+        const data = qualificationData;
+        
+        // Parse weight data
+        const weightData = data.weight ? (typeof data.weight === 'string' ? JSON.parse(data.weight) : data.weight) : null;
+        const dobData = data.dob ? (typeof data.dob === 'string' ? JSON.parse(data.dob) : data.dob) : null;
+        const languagePref = data.language;
+        
+        // Calculate age from DOB
+        let age = 0;
+        if (dobData) {
+          try {
+            const dob = dobData;
+            const birthDate = new Date(dob.year, dob.month - 1, dob.day);
+            const today = new Date();
+            age = today.getFullYear() - birthDate.getFullYear();
+            const monthDiff = today.getMonth() - birthDate.getMonth();
+            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+              age--;
+            }
+          } catch (e) {}
+        }
+        
+        // Parse weight and height
+        let weight = 0;
+        let height = '';
+        let bmi = 0;
+        
+        if (weightData) {
+          try {
+            const parsed = weightData;
+            weight = parsed.currentWeight || 0;
+            const heightInches = (parsed.heightFeet || 0) * 12 + (parsed.heightInches || 0);
+            height = parsed.heightFeet + "'" + parsed.heightInches + '"';
+            
+            // Calculate BMI
+            if (weight && heightInches) {
+              bmi = (weight / (heightInches * heightInches)) * 703;
+              bmi = Math.round(bmi * 10) / 10;
+            }
+          } catch (e) {}
+        }
+        
+        // Parse address if available
+        let address = {};
+        if (data.address) {
+          try {
+            address = typeof data.address === 'string' ? JSON.parse(data.address) : data.address;
+          } catch (e) {}
+        }
+        
+        setPatientData({
+          firstName: data.firstName || '',
+          lastName: data.lastName || '',
+          email: data.email || '',
+          phone: data.phone || '',
+          age: age,
+          weight: weight,
+          height: height,
+          bmi: bmi,
+          qualified: data.qualified || false,
+          medicalHistory: '',
+          symptoms: '',
+          medication_preference: data.medication_preference || '',
+          state: data.state || '',
+        });
+        
+        // Set language preference
+        if (languagePref) {
+          setLanguage(languagePref as 'en' | 'es');
+        }
+        
+        // Pre-set medication if user had a preference
+        if (data.medication_preference && data.medication_preference !== 'recommendation') {
+          setSelectedMedication(data.medication_preference);
+        }
+        
+        // Pre-populate shipping address if available
+        if (address && typeof address === 'object') {
+          const addr = address as any;
+          setShippingAddress({
+            addressLine1: addr.street || '',
+            addressLine2: addr.unit || '',
+            city: addr.city || '',
+            state: addr.state || data.state || '',
+            zipCode: addr.zipCode || '',
+            country: 'US',
+          });
+        }
+        
+      } catch (error) {
+        console.error('Error loading qualification data:', error);
+      }
+    }
+  }, []);
 
   const t = translations[language];
-
-  const patientData = {
-    firstName: 'John',
-    lastName: 'Smith',
-    email: 'john.smith@email.com',
-    phone: '(555) 123-4567',
-    age: 45,
-    weight: 220,
-    height: "5'10\"",
-    bmi: 31.5,
-    qualified: true,
-    medicalHistory: 'Pre-diabetes, Hypertension',
-    symptoms: 'Weight gain, Low energy',
-  } as const;
 
   const medications: Medication[] = [
     {
