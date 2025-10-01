@@ -14,10 +14,5 @@
     "api/**/*.ts": {
       "runtime": "@vercel/node@3.2.10"
     }
-  },
-  "env": {
-    "STRIPE_PUBLISHABLE_KEY": "@stripe_publishable_key",
-    "STRIPE_SECRET_KEY": "@stripe_secret_key",
-    "STRIPE_WEBHOOK_SECRET": "@stripe_webhook_secret"
   }
 }
