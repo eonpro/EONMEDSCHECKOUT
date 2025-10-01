@@ -105,6 +105,7 @@ export function GLP1CheckoutPageImproved() {
   const [fatBurnerDuration] = useState<string>('1');
   const [promoApplied] = useState<boolean>(false);
   const [language, setLanguage] = useState<'en' | 'es'>('en');
+  const [showAddressConfirmation, setShowAddressConfirmation] = useState<boolean>(false);
   const [shippingAddress, setShippingAddress] = useState<ShippingAddress>({
     addressLine1: '',
     addressLine2: '',
@@ -210,22 +211,79 @@ export function GLP1CheckoutPageImproved() {
           setLanguage(languagePref as 'en' | 'es');
         }
         
-        // Pre-set medication if user had a preference
-        if (data.medication_preference && data.medication_preference !== 'recommendation') {
-          setSelectedMedication(data.medication_preference);
+        // Parse enhanced data
+        const digestiveConditions = data.digestive_conditions ? 
+          (typeof data.digestive_conditions === 'string' ? JSON.parse(data.digestive_conditions) : data.digestive_conditions) : [];
+        const goals = data.goals ? 
+          (typeof data.goals === 'string' ? JSON.parse(data.goals) : data.goals) : [];
+        const sideEffects = data.side_effects ? 
+          (typeof data.side_effects === 'string' ? JSON.parse(data.side_effects) : data.side_effects) : [];
+        const glp1History = data.glp1_history || '';
+        
+        // Calculate weight loss goal
+        let weightToLose = 0;
+        if (weightData && weightData.currentWeight && weightData.idealWeight) {
+          weightToLose = weightData.currentWeight - weightData.idealWeight;
+        }
+        
+        // Smart medication recommendation logic
+        let recommendedMedication = data.medication_preference;
+        
+        // If user wants recommendation or is first-time user wanting to lose 50+ lbs, recommend tirzepatide
+        if (data.medication_preference === 'recommendation' || !data.medication_preference) {
+          if ((weightToLose >= 50 && glp1History === 'never_taken') || 
+              (bmi >= 35 && glp1History === 'never_taken') ||
+              goals.includes('lose_50_plus')) {
+            recommendedMedication = 'tirzepatide';
+          } else {
+            recommendedMedication = 'semaglutide';
+          }
+        }
+        
+        // Set the recommended medication
+        if (recommendedMedication && recommendedMedication !== 'recommendation') {
+          setSelectedMedication(recommendedMedication);
+        }
+        
+        // Auto-add add-ons based on conditions
+        const autoAddons: string[] = [];
+        
+        // Add nausea medication if user has nausea issues or digestive conditions
+        if (sideEffects.includes('nausea') || 
+            digestiveConditions.includes('heartburn') || 
+            digestiveConditions.includes('gerd') ||
+            digestiveConditions.includes('ibs')) {
+          autoAddons.push('nausea-rx');
+        }
+        
+        // Add fat burner if user has fatigue or low energy
+        if (digestiveConditions.includes('fatigue') || 
+            data.activity_level === 'sedentary') {
+          autoAddons.push('fat-burner');
+        }
+        
+        // Set auto-selected add-ons
+        if (autoAddons.length > 0) {
+          setSelectedAddons(autoAddons);
         }
         
         // Pre-populate shipping address if available
         if (address && typeof address === 'object') {
           const addr = address as any;
-          setShippingAddress({
-            addressLine1: addr.street || '',
+          const prefilledAddress = {
+            addressLine1: addr.street || addr.fullAddress || '',
             addressLine2: addr.unit || '',
             city: addr.city || '',
             state: addr.state || data.state || '',
             zipCode: addr.zipCode || '',
             country: 'US',
-          });
+          };
+          setShippingAddress(prefilledAddress);
+          
+          // Mark that we have a pre-filled address to ask for confirmation
+          if (addr.street || addr.fullAddress) {
+            setShowAddressConfirmation(true);
+          }
         }
         
       } catch (error) {
@@ -1152,6 +1210,48 @@ export function GLP1CheckoutPageImproved() {
                 {/* Shipping Address */}
                 <div className="mb-6">
                   <h3 className="text-lg font-medium mb-4">{t.shippingAddress}</h3>
+                  
+                  {/* Address Confirmation for pre-filled addresses */}
+                  {showAddressConfirmation && shippingAddress.addressLine1 && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                      <p className="text-sm font-medium text-blue-900 mb-2">
+                        {language === 'es' 
+                          ? '¿Es esta tu dirección de envío?'
+                          : 'Is this your shipping address?'}
+                      </p>
+                      <p className="text-sm text-gray-700">
+                        {shippingAddress.addressLine1}
+                        {shippingAddress.addressLine2 && `, ${shippingAddress.addressLine2}`}
+                        <br />
+                        {shippingAddress.city}, {shippingAddress.state} {shippingAddress.zipCode}
+                      </p>
+                      <div className="flex gap-3 mt-3">
+                        <button
+                          onClick={() => setShowAddressConfirmation(false)}
+                          className="px-4 py-2 bg-[#13a97b] text-white rounded-lg text-sm font-medium hover:bg-[#0e8661]"
+                        >
+                          {language === 'es' ? 'Sí, usar esta' : 'Yes, use this'}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowAddressConfirmation(false);
+                            setShippingAddress({
+                              addressLine1: '',
+                              addressLine2: '',
+                              city: '',
+                              state: '',
+                              zipCode: '',
+                              country: 'US',
+                            });
+                          }}
+                          className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50"
+                        >
+                          {language === 'es' ? 'No, cambiar' : 'No, change it'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  
                   <AddressAutocomplete
                     value={shippingAddress}
                     onChange={setShippingAddress}
