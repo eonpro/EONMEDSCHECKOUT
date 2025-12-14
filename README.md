@@ -21,7 +21,7 @@ STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
 ```
 
-3. Run dev: `npm run dev`
+3. Run dev: `npm run dev` (served at `http://localhost:4001`)
 
 ## Payments (Stripe)
 

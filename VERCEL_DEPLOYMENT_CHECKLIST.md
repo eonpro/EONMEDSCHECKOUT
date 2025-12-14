@@ -56,4 +56,4 @@ After deployment, set up webhook in Stripe Dashboard:
 
 ## 📱 Local Testing Still Works
 - Intake: http://localhost:3000
-- Checkout: http://localhost:5173
+- Checkout: http://localhost:4001

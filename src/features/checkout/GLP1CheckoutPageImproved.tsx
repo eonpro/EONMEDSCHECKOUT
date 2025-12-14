@@ -6,13 +6,13 @@ import { PaymentForm } from '../../components/PaymentForm';
 import { ThankYouPage } from '../../components/ThankYouPage';
 import { AddressAutocomplete } from '../../components/AddressAutocomplete';
 
-export type ShippingAddress = { 
-  addressLine1: string; 
-  addressLine2?: string; 
-  city: string; 
-  state: string; 
-  zipCode: string; 
-  country?: string; 
+export type ShippingAddress = {
+  addressLine1: string;
+  addressLine2?: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  country?: string;
 };
 
 type Plan = { id: string; type: string; price: number; billing: string; savings?: number; badge?: string };
@@ -135,18 +135,18 @@ export function GLP1CheckoutPageImproved() {
     // Get query parameter from URL
     const urlParams = new URLSearchParams(window.location.search);
     const encodedData = urlParams.get('q');
-    
+
     if (encodedData) {
       try {
         // Decode and parse the data
         const qualificationData = JSON.parse(atob(encodedData));
         const data = qualificationData;
-        
+
         // Parse weight data
         const weightData = data.weight ? (typeof data.weight === 'string' ? JSON.parse(data.weight) : data.weight) : null;
         const dobData = data.dob ? (typeof data.dob === 'string' ? JSON.parse(data.dob) : data.dob) : null;
         const languagePref = data.language;
-        
+
         // Calculate age from DOB
         let age = 0;
         if (dobData) {
@@ -161,19 +161,19 @@ export function GLP1CheckoutPageImproved() {
             }
           } catch (e) {}
         }
-        
+
         // Parse weight and height
         let weight = 0;
         let height = '';
         let bmi = 0;
-        
+
         if (weightData) {
           try {
             const parsed = weightData;
             weight = parsed.currentWeight || 0;
             const heightInches = (parsed.heightFeet || 0) * 12 + (parsed.heightInches || 0);
             height = parsed.heightFeet + "'" + parsed.heightInches + '"';
-            
+
             // Calculate BMI
             if (weight && heightInches) {
               bmi = (weight / (heightInches * heightInches)) * 703;
@@ -181,7 +181,7 @@ export function GLP1CheckoutPageImproved() {
             }
           } catch (e) {}
         }
-        
+
         // Parse address if available
         let address = {};
         if (data.address) {
@@ -189,7 +189,7 @@ export function GLP1CheckoutPageImproved() {
             address = typeof data.address === 'string' ? JSON.parse(data.address) : data.address;
           } catch (e) {}
         }
-        
+
         setPatientData({
           firstName: data.firstName || '',
           lastName: data.lastName || '',
@@ -205,68 +205,112 @@ export function GLP1CheckoutPageImproved() {
           medication_preference: data.medication_preference || '',
           state: data.state || '',
         });
-        
+
         // Set language preference
         if (languagePref) {
           setLanguage(languagePref as 'en' | 'es');
         }
-        
-        // Parse enhanced data
-        const digestiveConditions = data.digestive_conditions ? 
-          (typeof data.digestive_conditions === 'string' ? JSON.parse(data.digestive_conditions) : data.digestive_conditions) : [];
-        const goals = data.goals ? 
-          (typeof data.goals === 'string' ? JSON.parse(data.goals) : data.goals) : [];
-        const sideEffects = data.side_effects ? 
-          (typeof data.side_effects === 'string' ? JSON.parse(data.side_effects) : data.side_effects) : [];
+
+        // Parse enhanced data (NEW: Full data from consolidated intake!)
+        const chronicConditions = data.chronic_conditions
+          ? (typeof data.chronic_conditions === 'string' ? JSON.parse(data.chronic_conditions) : data.chronic_conditions)
+          : [];
+        const digestiveConditions = data.digestive_conditions
+          ? (typeof data.digestive_conditions === 'string' ? JSON.parse(data.digestive_conditions) : data.digestive_conditions)
+          : [];
+        const goals = data.goals
+          ? (typeof data.goals === 'string' ? JSON.parse(data.goals) : data.goals)
+          : [];
+        const sideEffects = data.side_effects
+          ? (typeof data.side_effects === 'string' ? JSON.parse(data.side_effects) : data.side_effects)
+          : [];
         const glp1History = data.glp1_history || '';
-        
+        const activityLevel = data.activity_level || '';
+        const medications = data.medications
+          ? (typeof data.medications === 'string' ? JSON.parse(data.medications) : data.medications)
+          : [];
+        const allergies = data.allergies
+          ? (typeof data.allergies === 'string' ? JSON.parse(data.allergies) : data.allergies)
+          : [];
+
         // Calculate weight loss goal
         let weightToLose = 0;
         if (weightData && weightData.currentWeight && weightData.idealWeight) {
           weightToLose = weightData.currentWeight - weightData.idealWeight;
         }
-        
-        // Smart medication recommendation logic
+
+        // Enhanced smart medication recommendation logic
         let recommendedMedication = data.medication_preference;
-        
-        // If user wants recommendation or is first-time user wanting to lose 50+ lbs, recommend tirzepatide
-        if (data.medication_preference === 'recommendation' || !data.medication_preference) {
-          if ((weightToLose >= 50 && glp1History === 'never_taken') || 
+
+        // Use recommended medication if provided, otherwise calculate
+        if (data.recommended_medication) {
+          recommendedMedication = data.recommended_medication;
+        } else if (data.medication_preference === 'recommendation' || !data.medication_preference) {
+          // Advanced recommendation based on multiple factors
+          if ((weightToLose >= 50 && glp1History === 'never_taken') ||
               (bmi >= 35 && glp1History === 'never_taken') ||
-              goals.includes('lose_50_plus')) {
-            recommendedMedication = 'tirzepatide';
+              goals.includes('lose_50_plus') ||
+              chronicConditions.includes('diabetes_type2')) {
+            recommendedMedication = 'tirzepatide'; // Better for higher BMI and diabetes
           } else {
             recommendedMedication = 'semaglutide';
           }
         }
-        
+
         // Set the recommended medication
         if (recommendedMedication && recommendedMedication !== 'recommendation') {
           setSelectedMedication(recommendedMedication);
         }
-        
-        // Auto-add add-ons based on conditions
-        const autoAddons: string[] = [];
-        
-        // Add nausea medication if user has nausea issues or digestive conditions
-        if (sideEffects.includes('nausea') || 
-            digestiveConditions.includes('heartburn') || 
-            digestiveConditions.includes('gerd') ||
-            digestiveConditions.includes('ibs')) {
-          autoAddons.push('nausea-rx');
+
+        // Enhanced smart add-on recommendations using all data
+        const autoAddons: string[] = data.recommended_addons
+          ? JSON.parse(data.recommended_addons)
+          : [];
+
+        // Additional logic for add-ons based on comprehensive data
+        if (autoAddons.length === 0) {
+          // Check for nausea conditions (expanded criteria)
+          if (sideEffects.includes('nausea') ||
+              sideEffects.includes('vomiting') ||
+              digestiveConditions.includes('heartburn') ||
+              digestiveConditions.includes('gerd') ||
+              digestiveConditions.includes('acid_reflux') ||
+              digestiveConditions.includes('ibs') ||
+              digestiveConditions.includes('gastroparesis')) {
+            autoAddons.push('nausea-rx');
+          }
+
+          // Check for energy/fatigue conditions (expanded criteria)
+          if (sideEffects.includes('fatigue') ||
+              activityLevel === 'sedentary' ||
+              activityLevel === 'lightly_active' ||
+              goals.includes('more_energy') ||
+              chronicConditions.includes('sleep_apnea')) {
+            autoAddons.push('fat-burner');
+          }
         }
-        
-        // Add fat burner if user has fatigue or low energy
-        if (digestiveConditions.includes('fatigue') || 
-            data.activity_level === 'sedentary') {
-          autoAddons.push('fat-burner');
-        }
-        
+
         // Set auto-selected add-ons
         if (autoAddons.length > 0) {
           setSelectedAddons(autoAddons);
         }
-        
+
+        // Log comprehensive data received (for debugging)
+        console.log('Comprehensive intake data received:', {
+          bmi,
+          weightToLose,
+          chronicConditions,
+          digestiveConditions,
+          medications,
+          allergies,
+          glp1History,
+          goals,
+          activityLevel,
+          sideEffects,
+          recommendedMedication,
+          autoAddons
+        });
+
         // Pre-populate shipping address if available
         if (address && typeof address === 'object') {
           const addr = address as any;
@@ -279,13 +323,13 @@ export function GLP1CheckoutPageImproved() {
             country: 'US',
           };
           setShippingAddress(prefilledAddress);
-          
+
           // Mark that we have a pre-filled address to ask for confirmation
           if (addr.street || addr.fullAddress) {
             setShowAddressConfirmation(true);
           }
         }
-        
+
       } catch (error) {
         console.error('Error loading qualification data:', error);
       }
@@ -326,12 +370,12 @@ export function GLP1CheckoutPageImproved() {
 
   const addons = useMemo(
     () => [
-      { 
-        id: 'nausea-rx', 
-        name: language === 'es' ? 'Prescripción para Alivio de Náuseas' : 'Nausea Relief Prescription', 
+      {
+        id: 'nausea-rx',
+        name: language === 'es' ? 'Prescripción para Alivio de Náuseas' : 'Nausea Relief Prescription',
         price: 39,
         basePrice: 39,
-        description: language === 'es' ? 'Medicamento recetado para manejar los efectos secundarios de GLP-1' : 'Prescription medication to manage GLP-1 side effects', 
+        description: language === 'es' ? 'Medicamento recetado para manejar los efectos secundarios de GLP-1' : 'Prescription medication to manage GLP-1 side effects',
         icon: PillIcon,
         hasDuration: true,
         getDynamicPrice: (_duration?: string, selectedPlanData?: { id: string }) => {
@@ -388,14 +432,14 @@ export function GLP1CheckoutPageImproved() {
   const [paymentIntentId, setPaymentIntentId] = useState<string>('');
 
   async function handlePaymentSuccess(intentId: string) {
-    // Payment successful! 
+    // Payment successful!
     // Save order to database and show success message
     console.log('Payment successful! Payment Intent:', intentId);
-    
+
     setPaymentIntentId(intentId);
     setPaymentSuccess(true);
     setStatusBanner('success');
-    
+
     // Scroll to top of page
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -429,7 +473,7 @@ export function GLP1CheckoutPageImproved() {
       <div className="p-6 pb-4">
         <h3 className="text-base font-medium text-gray-900">{t.orderSummary}</h3>
       </div>
-      
+
       {/* Order Items */}
       {selectedMed && selectedPlanData && (
         <div className="px-6 pb-4">
@@ -442,7 +486,7 @@ export function GLP1CheckoutPageImproved() {
               </div>
               <span className="text-sm font-medium text-gray-900">${selectedPlanData.price}</span>
             </div>
-            
+
             {/* Add-ons */}
             {selectedAddons.map((addonId) => {
               const addon = addons.find(a => a.id === addonId);
@@ -455,7 +499,7 @@ export function GLP1CheckoutPageImproved() {
                 </div>
               );
             })}
-            
+
             {/* Expedited Shipping */}
             {expeditedShipping && (
               <div className="flex justify-between items-start text-sm">
@@ -464,7 +508,7 @@ export function GLP1CheckoutPageImproved() {
               </div>
             )}
           </div>
-          
+
           {/* Totals */}
           <div className="mt-4 pt-4 border-t border-gray-200">
             <div className="space-y-2">
@@ -479,7 +523,7 @@ export function GLP1CheckoutPageImproved() {
                 </span>
               </div>
             </div>
-            
+
             <div className="mt-3 pt-3 border-t border-gray-200">
               <div className="flex justify-between items-center">
                 <span className="text-sm font-medium text-gray-900">{t.total}</span>
@@ -489,7 +533,7 @@ export function GLP1CheckoutPageImproved() {
           </div>
         </div>
       )}
-      
+
       {/* Trust Badges Section */}
       <div className="bg-gray-50 px-6 py-4 border-t">
         <div className="space-y-2.5">
@@ -501,7 +545,7 @@ export function GLP1CheckoutPageImproved() {
             </div>
             <span className="text-xs text-gray-600">{language === 'es' ? 'Pago seguro y encriptado • PCI DSS' : 'Encrypted & secure • PCI DSS'}</span>
           </div>
-          
+
           <div className="flex items-center gap-2">
             <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
               <svg className="w-3 h-3 text-green-600" fill="currentColor" viewBox="0 0 20 20">
@@ -510,7 +554,7 @@ export function GLP1CheckoutPageImproved() {
             </div>
             <span className="text-xs text-gray-600">{language === 'es' ? 'Cumplimiento LegitScript' : 'LegitScript-style compliance ready'}</span>
           </div>
-          
+
           <div className="flex items-center gap-2">
             <div className="w-5 h-5 rounded-full bg-yellow-100 flex items-center justify-center flex-shrink-0">
               <svg className="w-3 h-3 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
@@ -519,7 +563,7 @@ export function GLP1CheckoutPageImproved() {
             </div>
             <span className="text-xs text-gray-600">{language === 'es' ? 'Miles de reseñas de 5 estrellas' : 'Thousands of 5-star patient reviews'}</span>
           </div>
-          
+
           <div className="flex items-center gap-2">
             <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
               <svg className="w-3 h-3 text-green-600" fill="currentColor" viewBox="0 0 20 20">
@@ -530,110 +574,110 @@ export function GLP1CheckoutPageImproved() {
           </div>
         </div>
       </div>
-      
+
       {/* Payment Methods */}
       <div className="px-6 py-4 border-t">
         <p className="text-xs text-gray-500 text-center mb-3">{language === 'es' ? 'Aceptamos' : 'We accept'}</p>
-        
+
         {/* Payment Icons Grid */}
         <div className="grid grid-cols-4 gap-1.5 mb-2">
           {/* Visa */}
           <div className="bg-white border border-gray-200 rounded p-1 flex items-center justify-center h-7">
-            <img 
+            <img
               src="https://static.wixstatic.com/media/c49a9b_9d3e15b423d34a1086b256c6eea37bdc~mv2.png"
               alt="Visa"
               className="h-3.5 object-contain"
             />
           </div>
-          
+
           {/* Mastercard */}
           <div className="bg-white border border-gray-200 rounded p-1 flex items-center justify-center h-7">
-            <img 
+            <img
               src="https://static.wixstatic.com/media/c49a9b_b0edad6eb6cd466bac07c5bda3f50e6c~mv2.png"
               alt="Mastercard"
               className="h-4 object-contain"
             />
           </div>
-          
+
           {/* Amex */}
           <div className="bg-white border border-gray-200 rounded p-1 flex items-center justify-center h-7">
-            <img 
+            <img
               src="https://static.wixstatic.com/media/c49a9b_55c815982ca64e1d823eb758bc1b63ce~mv2.png"
               alt="American Express"
               className="h-4 object-contain"
             />
           </div>
-          
+
           {/* Discover */}
           <div className="bg-white border border-gray-200 rounded p-1 flex items-center justify-center h-7">
-            <img 
+            <img
               src="https://static.wixstatic.com/media/c49a9b_6706e340060c4724b87993e82aad4de8~mv2.png"
               alt="Discover"
               className="h-4 object-contain"
             />
           </div>
         </div>
-        
+
         {/* BNPL Options */}
         <div className="grid grid-cols-3 gap-1.5 mb-2">
           {/* Affirm */}
           <div className="bg-white border border-gray-200 rounded p-1 flex items-center justify-center h-7">
-            <img 
+            <img
               src="https://static.wixstatic.com/media/c49a9b_9b6873f0575e4214856e63931ef9183b~mv2.png"
               alt="Affirm"
               className="h-3.5 object-contain"
             />
           </div>
-          
+
           {/* Klarna */}
           <div className="bg-white border border-gray-200 rounded p-1 flex items-center justify-center h-7">
-            <img 
+            <img
               src="https://static.wixstatic.com/media/c49a9b_048fb63b14584ac386ec064e50a052b8~mv2.png"
               alt="Klarna"
               className="h-3.5 object-contain"
             />
             </div>
-          
+
           {/* Afterpay */}
           <div className="bg-white border border-gray-200 rounded p-1 flex items-center justify-center h-7">
-            <img 
+            <img
               src="https://static.wixstatic.com/media/c49a9b_9497371396e04cd3a40352be51bec618~mv2.png"
               alt="Afterpay"
               className="h-3.5 object-contain"
             />
           </div>
         </div>
-        
+
         {/* Digital Wallets */}
         <div className="grid grid-cols-3 gap-1.5 mb-3">
           {/* Apple Pay */}
           <div className="bg-white border border-gray-200 rounded p-1 flex items-center justify-center h-7">
-            <img 
+            <img
               src="https://static.wixstatic.com/media/c49a9b_a420b0ffa46d446596ff636b55d07d56~mv2.png"
               alt="Apple Pay"
               className="h-4 object-contain"
             />
           </div>
-          
+
           {/* Google Pay */}
           <div className="bg-white border border-gray-200 rounded p-1 flex items-center justify-center h-7">
-            <img 
+            <img
               src="https://static.wixstatic.com/media/c49a9b_bbfc1e34ddaf4afea90acfdda69e4f5e~mv2.png"
               alt="Google Pay"
               className="h-4 object-contain"
             />
           </div>
-          
+
           {/* PayPal */}
           <div className="bg-white border border-gray-200 rounded p-1 flex items-center justify-center h-7">
-            <img 
+            <img
               src="https://static.wixstatic.com/media/c49a9b_800c2c0d78324989846ec6aaa4c223ea~mv2.png"
               alt="PayPal"
               className="h-4 object-contain"
             />
           </div>
         </div>
-        
+
         {/* HSA/FSA Badge */}
         <div className="bg-green-50 border border-green-200 rounded-lg p-2 mt-3">
           <p className="text-xs font-medium text-green-800 text-center">
@@ -661,50 +705,7 @@ export function GLP1CheckoutPageImproved() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5]" style={{ fontFamily: 'Poppins, sans-serif' }}>
-      <header className="bg-white border-b shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <img
-                src="https://static.wixstatic.com/media/c49a9b_60568a55413d471ba85d995d7da0d0f2~mv2.png"
-                alt="EONMeds"
-                className="h-10 w-auto"
-              />
-            </div>
-            {/* Language Toggle */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setLanguage('en')}
-                className={`px-3 py-1.5 rounded-lg flex items-center gap-2 transition-colors ${language === 'en' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-              >
-                <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-                  <circle cx="10" cy="10" r="9" fill="#B22234"/>
-                  <rect x="0" y="2" width="20" height="1.5" fill="white"/>
-                  <rect x="0" y="5" width="20" height="1.5" fill="white"/>
-                  <rect x="0" y="8" width="20" height="1.5" fill="white"/>
-                  <rect x="0" y="11" width="20" height="1.5" fill="white"/>
-                  <rect x="0" y="14" width="20" height="1.5" fill="white"/>
-                  <rect x="0" y="17" width="20" height="1.5" fill="white"/>
-                  <rect x="0" y="1" width="8" height="9" fill="#3C3B6E"/>
-                </svg>
-                <span className="text-sm font-medium">EN</span>
-              </button>
-              <button
-                onClick={() => setLanguage('es')}
-                className={`px-3 py-1.5 rounded-lg flex items-center gap-2 transition-colors ${language === 'es' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-              >
-                <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-                  <rect x="0" y="0" width="20" height="5" fill="#C60B1E"/>
-                  <rect x="0" y="5" width="20" height="10" fill="#FFC400"/>
-                  <rect x="0" y="15" width="20" height="5" fill="#C60B1E"/>
-                </svg>
-                <span className="text-sm font-medium">ES</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-[#f5f5f5]" style={{ fontFamily: '\'Sofia Pro\', Poppins, sans-serif' }}>
 
       {/* Marquee Banner */}
       <div className="relative w-full overflow-hidden bg-[#EEECE8] h-[35px] flex items-center">
@@ -714,8 +715,8 @@ export function GLP1CheckoutPageImproved() {
             100% { transform: translateX(-50%); }
           }
         `}</style>
-        
-        <div 
+
+        <div
           className="flex items-center"
           style={{
             animation: 'marquee-scroll 30s linear infinite',
@@ -809,7 +810,7 @@ export function GLP1CheckoutPageImproved() {
         <div className="max-w-3xl mx-auto">
           <div className="rounded-2xl overflow-hidden flex items-center">
             <div className="bg-gray-200 h-16 w-24 sm:h-20 sm:w-28 flex-shrink-0">
-              <img 
+              <img
                 src="https://static.wixstatic.com/media/c49a9b_51deb4cab3c04b1b8a4b679f7dd241a6~mv2.webp"
                 alt="Eonmeds Cold Pack"
                 className="w-full h-full object-cover"
@@ -820,7 +821,7 @@ export function GLP1CheckoutPageImproved() {
                 {language === 'es' ? 'Envío Express Incluido' : 'Express Shipping Included'}
               </h3>
               <p className="text-xs text-black mt-0.5">
-                {language === 'es' 
+                {language === 'es'
                   ? 'Enviado en un paquete especial para mantener tu envío frío.'
                   : 'Shipped in special packaging to keep your medication cold.'}
               </p>
@@ -831,7 +832,40 @@ export function GLP1CheckoutPageImproved() {
 
       {/* Progress Steps */}
       <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-6 py-4">
+        <div className="max-w-7xl mx-auto px-6 py-4 space-y-4">
+          <div className="flex justify-end">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setLanguage('en')}
+                className={`px-3 py-1.5 rounded-lg flex items-center gap-2 transition-colors ${language === 'en' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                aria-label="Switch to English"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                  <circle cx="10" cy="10" r="9" fill="#B22234" />
+                  <rect x="0" y="2" width="20" height="1.5" fill="white" />
+                  <rect x="0" y="5" width="20" height="1.5" fill="white" />
+                  <rect x="0" y="8" width="20" height="1.5" fill="white" />
+                  <rect x="0" y="11" width="20" height="1.5" fill="white" />
+                  <rect x="0" y="14" width="20" height="1.5" fill="white" />
+                  <rect x="0" y="17" width="20" height="1.5" fill="white" />
+                  <rect x="0" y="1" width="8" height="9" fill="#3C3B6E" />
+                </svg>
+                <span className="text-sm font-medium">EN</span>
+              </button>
+              <button
+                onClick={() => setLanguage('es')}
+                className={`px-3 py-1.5 rounded-lg flex items-center gap-2 transition-colors ${language === 'es' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                aria-label="Cambiar a Español"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                  <rect x="0" y="0" width="20" height="5" fill="#C60B1E" />
+                  <rect x="0" y="5" width="20" height="10" fill="#FFC400" />
+                  <rect x="0" y="15" width="20" height="5" fill="#C60B1E" />
+                </svg>
+                <span className="text-sm font-medium">ES</span>
+              </button>
+            </div>
+          </div>
           <div className="flex items-center justify-between max-w-2xl mx-auto">
             <div className={`flex items-center gap-2 ${currentStep === 1 ? 'text-[#13a97b] font-semibold' : currentStep > 1 ? 'text-gray-600' : 'text-gray-400'}`}>
               <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${currentStep >= 1 ? 'bg-[#13a97b] text-white' : 'bg-gray-200'}`}>
@@ -869,7 +903,7 @@ export function GLP1CheckoutPageImproved() {
       {statusBanner && (
         <div className="max-w-7xl mx-auto px-6 py-2">
           <div className={`rounded-md p-3 text-white text-center ${statusBanner === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
-            {statusBanner === 'success' 
+            {statusBanner === 'success'
               ? (language === 'es' ? 'Pago exitoso. ¡Gracias!' : 'Payment successful. Thank you!')
               : (language === 'es' ? 'Pago cancelado. Puedes intentar de nuevo.' : 'Payment canceled. You can try again.')}
           </div>
@@ -900,8 +934,8 @@ export function GLP1CheckoutPageImproved() {
                         key={med.id}
                         onClick={handleClick}
                         className={`bg-white rounded-xl p-6 cursor-pointer transition-all border-2 relative overflow-hidden ${
-                          selectedMedication === med.id 
-                            ? 'border-[#13a97b] shadow-lg ring-2 ring-[#13a97b] ring-opacity-30' 
+                          selectedMedication === med.id
+                            ? 'border-[#13a97b] shadow-lg ring-2 ring-[#13a97b] ring-opacity-30'
                             : 'border-gray-200 hover:border-gray-300'
                         }`}
                       >
@@ -910,8 +944,8 @@ export function GLP1CheckoutPageImproved() {
                         )}
                         <div className="flex items-start gap-4 relative">
                           <div className="flex-shrink-0">
-                            <img 
-                              src={med.id === 'semaglutide' 
+                            <img
+                              src={med.id === 'semaglutide'
                                 ? 'https://static.wixstatic.com/media/c49a9b_7adb19325cea4ad8b15d6845977fc42a~mv2.png'
                                 : 'https://static.wixstatic.com/media/c49a9b_00c1ff5076814c8e93e3c53a132b962e~mv2.png'
                               }
@@ -927,11 +961,11 @@ export function GLP1CheckoutPageImproved() {
                             </div>
                             <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs text-gray-600 mt-2">
                               <span className="flex items-center gap-1">
-                                <CheckIcon className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" style={{ color: '#13a97b' }} /> 
+                                <CheckIcon className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" style={{ color: '#13a97b' }} />
                                 <span className="truncate">{t.medicalConsultation}</span>
                               </span>
                               <span className="flex items-center gap-1">
-                                <CheckIcon className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" style={{ color: '#13a97b' }} /> 
+                                <CheckIcon className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" style={{ color: '#13a97b' }} />
                                 <span className="truncate">{t.freeShipping}</span>
                               </span>
                             </div>
@@ -957,8 +991,8 @@ export function GLP1CheckoutPageImproved() {
 
             {/* Step 2: Plan & Add-ons */}
             {currentStep === 2 && selectedMed && (
-              <div className="relative w-screen -ml-[50vw] left-[50%] -mt-8" style={{ 
-                background: selectedMed.id === 'tirzepatide' 
+              <div className="relative w-screen -ml-[50vw] left-[50%] -mt-8" style={{
+                background: selectedMed.id === 'tirzepatide'
                   ? 'linear-gradient(to bottom, #ff6f00 0%, #f5f5f5 60%)'
                   : 'linear-gradient(to bottom, #ffd24e 0%, #f5f5f5 60%)',
                 paddingTop: '2rem',
@@ -985,8 +1019,8 @@ export function GLP1CheckoutPageImproved() {
 
                   {/* Vial Image - Smaller */}
                   <div className="text-center mb-4">
-                      <img 
-                        src={selectedMed.id === 'semaglutide' 
+                      <img
+                        src={selectedMed.id === 'semaglutide'
                         ? "https://static.wixstatic.com/media/c49a9b_4da809344f204a088d1d4708b4c1609b~mv2.webp"
                         : "https://static.wixstatic.com/media/c49a9b_00c1ff5076814c8e93e3c53a132b962e~mv2.png"
                         }
@@ -998,12 +1032,12 @@ export function GLP1CheckoutPageImproved() {
                   {/* Medication Info */}
                   <div className="mb-6">
                     <h3 className="text-2xl font-semibold text-gray-900 mb-1">
-                      {language === 'es' 
+                      {language === 'es'
                         ? (selectedMed.id === 'semaglutide' ? 'Semaglutida Compuesta' : 'Tirzepatida Compuesta')
                         : `Compounded ${selectedMed.name}`}
                     </h3>
                     <p className="text-sm text-gray-700">
-                      {language === 'es' 
+                      {language === 'es'
                         ? 'Inyección semanal personalizada de GLP-1 para el control del peso'
                         : 'Personalized weekly GLP-1 injection for weight management'}
                     </p>
@@ -1015,16 +1049,16 @@ export function GLP1CheckoutPageImproved() {
                     <div className="space-y-3">
                       {selectedMed.plans.map((plan) => {
                       const isSelected = selectedPlan === plan.id;
-                      
+
                       // Calculate monthly price for display
-                      const monthlyPrice = plan.billing === 'monthly' ? plan.price : 
+                      const monthlyPrice = plan.billing === 'monthly' ? plan.price :
                                          plan.type.includes('3') ? Math.round(plan.price / 3) :
                                          plan.type.includes('6') ? Math.round(plan.price / 6) : plan.price;
-                      
+
                         // Get original price for strikethrough
-                        const originalMonthlyPrice = plan.savings ? 
+                        const originalMonthlyPrice = plan.savings ?
                           Math.round((plan.price + plan.savings) / (plan.type.includes('3') ? 3 : plan.type.includes('6') ? 6 : 1)) : null;
-                      
+
                       return (
                         <div
                           key={plan.id}
@@ -1060,7 +1094,7 @@ export function GLP1CheckoutPageImproved() {
                                   <li className="flex items-start gap-2">
                                     <span className="text-gray-400">•</span>
                                     <span>
-                                      {plan.billing === 'monthly' 
+                                      {plan.billing === 'monthly'
                                         ? (language === 'es' ? `$${plan.price} cobrado cada mes` : `$${plan.price} charged every month`)
                                         : plan.type.includes('3')
                                         ? (language === 'es' ? `$${plan.price} cobrado cada 3 meses` : `$${plan.price} charged every 3 months`)
@@ -1090,7 +1124,7 @@ export function GLP1CheckoutPageImproved() {
                                 </ul>
                                 {plan.type !== 'One-time purchase' && (
                                   <p className="text-xs text-gray-500 italic mt-2">
-                                    {language === 'es' 
+                                    {language === 'es'
                                       ? '*Pago por adelantado completo. Cancela o cambia tu plan en cualquier momento en tu cuenta en línea.'
                                       : '*Paid upfront in full. Cancel or change your plan any time in your online account.'}
                                   </p>
@@ -1132,13 +1166,13 @@ export function GLP1CheckoutPageImproved() {
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 {addon.id === 'fat-burner' ? (
-                                  <img 
+                                  <img
                                     src="https://static.wixstatic.com/media/c49a9b_7cf96a7c6da041d2ae156b2f0436343d~mv2.png"
                                     alt="Fat Burner"
                                     className="w-10 h-10 object-contain"
                                   />
                                 ) : addon.id === 'nausea-rx' ? (
-                                  <img 
+                                  <img
                                     src="https://static.wixstatic.com/media/c49a9b_6c1b30c9e184401cbc20788d869fccdf~mv2.png"
                                     alt="Nausea Relief"
                                     className="w-10 h-10 object-contain"
@@ -1190,7 +1224,7 @@ export function GLP1CheckoutPageImproved() {
                       <OrderSummary />
                     </div>
                   </div>
-                  
+
                   {/* Order Summary - Mobile Only, Bottom */}
                   <div className="lg:hidden mt-8">
                     <OrderSummary />
@@ -1210,12 +1244,12 @@ export function GLP1CheckoutPageImproved() {
                 {/* Shipping Address */}
                 <div className="mb-6">
                   <h3 className="text-lg font-medium mb-4">{t.shippingAddress}</h3>
-                  
+
                   {/* Address Confirmation for pre-filled addresses */}
                   {showAddressConfirmation && shippingAddress.addressLine1 && (
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
                       <p className="text-sm font-medium text-blue-900 mb-2">
-                        {language === 'es' 
+                        {language === 'es'
                           ? '¿Es esta tu dirección de envío?'
                           : 'Is this your shipping address?'}
                       </p>
@@ -1251,7 +1285,7 @@ export function GLP1CheckoutPageImproved() {
                       </div>
                     </div>
                   )}
-                  
+
                   <AddressAutocomplete
                     value={shippingAddress}
                     onChange={setShippingAddress}
@@ -1326,15 +1360,15 @@ export function GLP1CheckoutPageImproved() {
 
                   {/* Cold Shipping Info */}
                   <div className="mt-4 bg-[#e9f990]/30 rounded-lg p-4 flex items-center gap-3">
-                    <img 
+                    <img
                       src="https://static.wixstatic.com/media/c49a9b_51deb4cab3c04b1b8a4b679f7dd241a6~mv2.webp"
                       alt="Cold Shipping"
                       className="w-12 h-12 object-contain flex-shrink-0"
                     />
                     <div>
                       <p className="text-sm font-medium text-gray-900">
-                        {language === 'es' 
-                          ? 'Empaque con Control de Temperatura' 
+                        {language === 'es'
+                          ? 'Empaque con Control de Temperatura'
                           : 'Temperature-Controlled Packaging'}
                       </p>
                       <p className="text-xs text-gray-600 mt-0.5">
@@ -1375,8 +1409,8 @@ export function GLP1CheckoutPageImproved() {
                 <div className="bg-gray-50 rounded-xl p-4 mb-6">
                   <p className="text-xs text-gray-700 leading-relaxed">
                     <span className="font-medium">
-                      {language === 'es' 
-                        ? "Importante: Al hacer clic en 'Realizar pedido' usted acepta que:" 
+                      {language === 'es'
+                        ? "Importante: Al hacer clic en 'Realizar pedido' usted acepta que:"
                         : "Important: By clicking 'Place Order' you agree that:"}
                     </span>
                     <br /><br />
@@ -1391,7 +1425,7 @@ El/los producto(s) recetado(s) asociado(s) con su suscripción se le enviarán c
 The prescription product(s) associated with your subscription will be shipped to you every ${selectedPlanData.type.includes('6') ? '6 months' : selectedPlanData.type.includes('3') ? '3 months' : 'month'}. A partner pharmacy will refill and ship your prescription product(s) on the same continuous basis. The first refill of your prescription product(s) will occur approximately 10 days earlier to prevent any gaps in your treatment. We will notify you of any actions you need to take to ensure that the prescription product(s) associated with your subscription remains active. You are responsible for completing these actions. Unless you have canceled, your subscription will automatically renew even if you have not taken the directed actions needed to ensure that the prescription product(s) associated with your subscription remains active. Your subscription will renew unless you cancel at least 2 days before the next processing date. You can view your processing date and cancel your subscription(s) through your online account or by contacting customer support at support@eonmeds.com or 1-800-368-0038. Cancellation will take effect at the end of the current subscription period. We do not offer refunds for partially used subscription periods, although we may provide refunds on a case-by-case basis in our sole and absolute discretion.`
                       )
                     ) : (
-                      language === 'es' 
+                      language === 'es'
                         ? 'Está realizando una compra única. No se le cobrará de forma recurrente.'
                         : 'You are making a one-time purchase. You will not be charged on a recurring basis.'
                     )}

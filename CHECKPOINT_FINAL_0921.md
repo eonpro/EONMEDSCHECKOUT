@@ -123,7 +123,7 @@ All environment variables are set in Vercel:
 - **Secondary Color**: #ffd24e (Yellow)
 - **Accent Color**: #ff6f00 (Orange for Tirzepatide)
 - **Neutral Background**: #efece7
-- **Font Family**: Poppins
+- **Font Family**: Sofia Pro (with Poppins fallback)
 - **Button Style**: Black pill-shaped with white text
 - **Mobile Margins**: 10px each side
 - **Desktop Container**: Narrowed and centered

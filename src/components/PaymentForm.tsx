@@ -5,6 +5,7 @@ import {
   useElements
 } from '@stripe/react-stripe-js';
 import { StripePaymentElementOptions } from '@stripe/stripe-js';
+import { getApiUrl } from '../config/api';
 
 interface ShippingAddress {
   addressLine1: string;
@@ -59,7 +60,7 @@ export function PaymentForm({ amount, onSuccess, onError, customerEmail, languag
     
     // For now, use regular payment intent for all payments
     // Subscription setup will require additional Stripe configuration
-    const endpoint = '/api/payment/create-intent';
+    const endpoint = getApiUrl('createPaymentIntent');
     
     fetch(endpoint, {
       method: 'POST',

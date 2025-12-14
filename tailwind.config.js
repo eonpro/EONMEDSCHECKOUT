@@ -12,7 +12,7 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['Poppins', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        sans: ['Sofia Pro', 'Poppins', 'ui-sans-serif', 'system-ui', 'sans-serif'],
       },
     },
   },

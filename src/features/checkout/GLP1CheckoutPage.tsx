@@ -153,7 +153,7 @@ export function GLP1CheckoutPage() {
 
   if (currentStep === 1) {
     return (
-      <div className="min-h-screen bg-[#efece7]" style={{ fontFamily: 'Poppins, sans-serif' }}>
+      <div className="min-h-screen bg-[#efece7]" style={{ fontFamily: '\'Sofia Pro\', Poppins, sans-serif' }}>
         <header className="bg-white border-b shadow-sm">
           <div className="max-w-4xl mx-auto px-6 py-4">
             <div className="flex items-center gap-4">
@@ -255,7 +255,7 @@ export function GLP1CheckoutPage() {
   // Step 2: Plan Selection & Add-ons
   if (currentStep === 2) {
     return (
-      <div className="min-h-screen bg-[#efece7]" style={{ fontFamily: 'Poppins, sans-serif' }}>
+      <div className="min-h-screen bg-[#efece7]" style={{ fontFamily: '\'Sofia Pro\', Poppins, sans-serif' }}>
         <header className="bg-white border-b shadow-sm">
           <div className="max-w-4xl mx-auto px-6 py-4">
             <div className="flex items-center gap-4">
@@ -408,7 +408,7 @@ export function GLP1CheckoutPage() {
   // Step 3: Shipping & Payment
   if (currentStep === 3) {
     return (
-      <div className="min-h-screen bg-[#efece7]" style={{ fontFamily: 'Poppins, sans-serif' }}>
+      <div className="min-h-screen bg-[#efece7]" style={{ fontFamily: '\'Sofia Pro\', Poppins, sans-serif' }}>
         <header className="bg-white border-b shadow-sm">
           <div className="max-w-4xl mx-auto px-6 py-4">
             <div className="flex items-center gap-4">

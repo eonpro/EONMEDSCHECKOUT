@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { loadStripe, Stripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
+import { getApiUrl } from '../config/api';
 
 interface StripeProviderProps {
   children: React.ReactNode;
@@ -35,7 +36,7 @@ export function StripeProvider({ children, amount, appearance }: StripeProviderP
     }
 
     // Fetch payment intent
-    fetch('/api/payment/create-intent', {
+    fetch(getApiUrl('createPaymentIntent'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -78,7 +79,7 @@ export function StripeProvider({ children, amount, appearance }: StripeProviderP
         colorBackground: '#ffffff',
         colorText: '#1a1a1a',
         colorDanger: '#df1c41',
-        fontFamily: 'Poppins, system-ui, sans-serif',
+        fontFamily: '\'Sofia Pro\', Poppins, system-ui, sans-serif',
         spacingUnit: '4px',
         borderRadius: '8px',
         fontSizeBase: '16px',
