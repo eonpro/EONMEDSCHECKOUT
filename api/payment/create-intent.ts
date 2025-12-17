@@ -92,28 +92,41 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
 });
 
 // Helper function to create or retrieve customer
-async function getOrCreateCustomer(email: string, metadata?: any) {
+async function getOrCreateCustomer(email: string | undefined, metadata?: any) {
   try {
-    // Search for existing customer by email
-    const existingCustomers = await stripe.customers.list({
-      email: email,
-      limit: 1,
-    });
+    // Validate email format
+    const isValidEmail = email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    
+    if (isValidEmail) {
+      // Search for existing customer by email
+      const existingCustomers = await stripe.customers.list({
+        email: email,
+        limit: 1,
+      });
 
-    if (existingCustomers.data.length > 0) {
-      // Update existing customer metadata
-      const customer = await stripe.customers.update(existingCustomers.data[0].id, {
+      if (existingCustomers.data.length > 0) {
+        // Update existing customer metadata
+        const customer = await stripe.customers.update(existingCustomers.data[0].id, {
+          metadata: metadata || {},
+        });
+        return customer;
+      }
+
+      // Create new customer with email
+      const customer = await stripe.customers.create({
+        email: email,
         metadata: metadata || {},
       });
       return customer;
     }
 
-    // Create new customer
+    // Create customer without email (for anonymous checkouts)
     const customer = await stripe.customers.create({
-      email: email,
-      metadata: metadata || {},
+      metadata: {
+        ...metadata,
+        anonymous: 'true',
+      },
     });
-
     return customer;
   } catch (error) {
     console.error('Error creating/retrieving customer:', error);
@@ -236,6 +249,9 @@ export default async function handler(
       }) : '',
     };
 
+    // Validate email format before using
+    const isValidEmail = customer_email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer_email);
+
     // Create payment intent with enhanced metadata
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amount, // Amount should be in cents
@@ -246,11 +262,11 @@ export default async function handler(
         enabled: true, // Enable all payment methods
       },
       setup_future_usage: isSubscription ? 'off_session' : undefined, // Save card for subscriptions
-      receipt_email: customer_email,
+      receipt_email: isValidEmail ? customer_email : undefined, // Only include if valid email
       metadata: orderMetadata,
       // Add shipping address to Stripe
       shipping: shipping_address ? {
-        name: customer_email || 'Customer',
+        name: isValidEmail ? customer_email : 'Customer',
         address: {
           line1: shipping_address.addressLine1,
           line2: shipping_address.addressLine2 || undefined,
