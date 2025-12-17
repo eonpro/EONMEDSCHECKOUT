@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { loadStripe, Stripe } from '@stripe/stripe-js';
+import React, { useEffect, useState, useMemo } from 'react';
+import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import { getApiUrl } from '../config/api';
 
@@ -9,31 +9,36 @@ interface StripeProviderProps {
   appearance?: any;
 }
 
-// Load Stripe outside of component to avoid recreating on every render
-let stripePromise: Promise<Stripe | null> | null = null;
+// Get publishable key from environment
+const STRIPE_PUBLISHABLE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '';
 
-const getStripe = () => {
-  if (!stripePromise) {
-    const publishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '';
-    if (!publishableKey) {
-      console.error('Stripe publishable key not found');
-      return null;
-    }
-    stripePromise = loadStripe(publishableKey);
-  }
-  return stripePromise;
-};
+// Load Stripe once at module level
+const stripePromise = STRIPE_PUBLISHABLE_KEY ? loadStripe(STRIPE_PUBLISHABLE_KEY) : null;
+
+if (!STRIPE_PUBLISHABLE_KEY) {
+  console.error('Stripe publishable key not found in environment');
+}
 
 export function StripeProvider({ children, amount, appearance }: StripeProviderProps) {
-  const [clientSecret, setClientSecret] = useState<string>('');
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Memoize amount in cents to prevent unnecessary re-fetches
+  const amountInCents = useMemo(() => Math.round(amount * 100), [amount]);
+
   useEffect(() => {
-    if (amount <= 0) {
+    if (amountInCents <= 0) {
       setLoading(false);
       return;
     }
+
+    // Reset state when amount changes
+    setLoading(true);
+    setClientSecret(null);
+    setError(null);
+
+    const controller = new AbortController();
 
     // Fetch payment intent
     fetch(getApiUrl('createPaymentIntent'), {
@@ -42,36 +47,42 @@ export function StripeProvider({ children, amount, appearance }: StripeProviderP
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        amount: Math.round(amount * 100), // Convert to cents
+        amount: amountInCents,
         currency: 'usd',
         metadata: {
           source: 'eonmeds-checkout',
         },
       }),
+      signal: controller.signal,
     })
       .then((res) => {
         if (!res.ok) {
-          throw new Error('Failed to create payment intent');
+          throw new Error(`Failed to create payment intent: ${res.status}`);
         }
         return res.json();
       })
       .then((data) => {
         if (data.clientSecret) {
+          console.log('Payment intent created successfully');
           setClientSecret(data.clientSecret);
           setLoading(false);
         } else {
-          throw new Error('No client secret received');
+          throw new Error('No client secret received from server');
         }
       })
       .catch((err) => {
+        if (err.name === 'AbortError') return;
         console.error('Error creating payment intent:', err);
         setError('Failed to initialize payment. Please refresh and try again.');
         setLoading(false);
       });
-  }, [amount]);
 
-  const options = {
-    clientSecret,
+    return () => controller.abort();
+  }, [amountInCents]);
+
+  // Memoize Elements options to prevent unnecessary re-renders
+  const options = useMemo(() => ({
+    clientSecret: clientSecret || undefined,
     appearance: appearance || {
       theme: 'stripe' as const,
       variables: {
@@ -98,10 +109,9 @@ export function StripeProvider({ children, amount, appearance }: StripeProviderP
         },
       },
     },
-  };
+  }), [clientSecret, appearance]);
 
-  const stripe = getStripe();
-
+  // Show loading spinner while fetching payment intent
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -110,6 +120,7 @@ export function StripeProvider({ children, amount, appearance }: StripeProviderP
     );
   }
 
+  // Show error message if payment intent creation failed
   if (error) {
     return (
       <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -118,12 +129,14 @@ export function StripeProvider({ children, amount, appearance }: StripeProviderP
     );
   }
 
-  if (!clientSecret || !stripe) {
+  // Don't render Elements until we have a client secret and Stripe is loaded
+  if (!clientSecret || !stripePromise) {
+    console.error('Cannot render Elements: missing clientSecret or stripePromise');
     return null;
   }
 
   return (
-    <Elements stripe={stripe} options={options}>
+    <Elements key={clientSecret} stripe={stripePromise} options={options}>
       {children}
     </Elements>
   );
