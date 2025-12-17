@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   PaymentElement,
   useStripe,
   useElements
 } from '@stripe/react-stripe-js';
 import { StripePaymentElementOptions } from '@stripe/stripe-js';
-import { getApiUrl } from '../config/api';
 
 interface ShippingAddress {
   addressLine1: string;
@@ -36,74 +35,26 @@ interface PaymentFormProps {
   orderData?: OrderData;
 }
 
-export function PaymentForm({ amount, onSuccess, onError, customerEmail, language = 'en', shippingAddress, orderData }: PaymentFormProps) {
+export function PaymentForm({ amount, onSuccess, onError, customerEmail, language = 'en', shippingAddress: _shippingAddress, orderData }: PaymentFormProps) {
   const stripe = useStripe();
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [clientSecret, setClientSecret] = useState<string>('');
-  const [isSubscription, setIsSubscription] = useState(false);
-  // const [customerId, setCustomerId] = useState<string>(''); // Will be used for future features
-
-  // Fetch payment intent from backend
-  useEffect(() => {
-    if (amount <= 0) return;
-
-    // Determine if this is a subscription or one-time payment
-    const planId = orderData?.plan || '';
-    const subscription = Boolean(planId && 
-      !planId.toLowerCase().includes('one time') && 
-      !planId.toLowerCase().includes('once') &&
-      (planId.toLowerCase().includes('month') || planId.toLowerCase().includes('plan')));
-    
-    setIsSubscription(subscription);
-    
-    // For now, use regular payment intent for all payments
-    // Subscription setup will require additional Stripe configuration
-    const endpoint = getApiUrl('createPaymentIntent');
-    
-    fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        amount: Math.round(amount * 100), // Convert to cents
-        currency: 'usd',
-        customer_email: customerEmail,
-        shipping_address: shippingAddress,
-        order_data: {
-          ...orderData,
-          payment_type: isSubscription ? 'subscription' : 'one-time',
-        },
-        plan_id: planId,
-      }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.clientSecret) {
-          setClientSecret(data.clientSecret);
-          // if (data.customerId) {
-          //   setCustomerId(data.customerId);
-          // }
-          // Confirm subscription status from backend
-          if (data.isSubscription !== undefined) {
-            setIsSubscription(data.isSubscription);
-          }
-        } else {
-          throw new Error('Failed to create payment intent');
-        }
-      })
-      .catch((error) => {
-        console.error('Error creating payment intent:', error);
-        setErrorMessage('Failed to initialize payment. Please try again.');
-      });
-  }, [amount, customerEmail, orderData]);
+  
+  // Determine if this is a subscription based on plan type
+  const planId = orderData?.plan || '';
+  const isSubscription = Boolean(planId && 
+    !planId.toLowerCase().includes('one time') && 
+    !planId.toLowerCase().includes('once') &&
+    (planId.toLowerCase().includes('month') || planId.toLowerCase().includes('plan')));
+  
+  // Note: PaymentIntent is created by StripeProvider, not here
+  // The Elements context already has the clientSecret from StripeProvider
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    if (!stripe || !elements || !clientSecret) {
+    if (!stripe || !elements) {
       return;
     }
 
@@ -218,13 +169,8 @@ export function PaymentForm({ amount, onSuccess, onError, customerEmail, languag
 
   const t = translations[language];
 
-  if (!clientSecret) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-      </div>
-    );
-  }
+  // Note: Loading state is handled by StripeProvider
+  // PaymentForm only renders when Elements context is ready
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
