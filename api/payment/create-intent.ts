@@ -56,32 +56,35 @@ function handleCors(req: VercelRequest, res: VercelResponse): boolean {
 // ============================================================================
 
 // Stripe Product Configuration for API (using process.env)
+// Using both possible env var naming conventions for compatibility
 const STRIPE_PRODUCTS = {
   // Semaglutide Products
   semaglutide: {
-    monthly: process.env.VITE_STRIPE_PRICE_SEMAGLUTIDE_MONTHLY || 'price_semaglutide_monthly',
-    threeMonth: process.env.VITE_STRIPE_PRICE_SEMAGLUTIDE_3MONTH || 'price_semaglutide_3month',
-    sixMonth: process.env.VITE_STRIPE_PRICE_SEMAGLUTIDE_6MONTH || 'price_semaglutide_6month',
-    oneTime: process.env.VITE_STRIPE_PRICE_SEMAGLUTIDE_ONETIME || 'price_semaglutide_onetime',
+    monthly: process.env.STRIPE_PRICE_SEMAGLUTIDE_MONTHLY || process.env.VITE_STRIPE_PRICE_SEMAGLUTIDE_MONTHLY || '',
+    singleMonth: process.env.STRIPE_PRICE_SEMAGLUTIDE_SINGLEMONTH || '',
+    threeMonth: process.env.STRIPE_PRICE_SEMAGLUTIDE_3MONTH || process.env.VITE_STRIPE_PRICE_SEMAGLUTIDE_3MONTH || '',
+    sixMonth: process.env.STRIPE_PRICE_SEMAGLUTIDE_6MONTH || process.env.VITE_STRIPE_PRICE_SEMAGLUTIDE_6MONTH || '',
+    oneTime: process.env.STRIPE_PRICE_SEMAGLUTIDE_ONETIME || process.env.VITE_STRIPE_PRICE_SEMAGLUTIDE_ONETIME || '',
   },
   
   // Tirzepatide Products
   tirzepatide: {
-    monthly: process.env.VITE_STRIPE_PRICE_TIRZEPATIDE_MONTHLY || 'price_tirzepatide_monthly',
-    threeMonth: process.env.VITE_STRIPE_PRICE_TIRZEPATIDE_3MONTH || 'price_tirzepatide_3month',
-    sixMonth: process.env.VITE_STRIPE_PRICE_TIRZEPATIDE_6MONTH || 'price_tirzepatide_6month',
-    oneTime: process.env.VITE_STRIPE_PRICE_TIRZEPATIDE_ONETIME || 'price_tirzepatide_onetime',
+    monthly: process.env.STRIPE_PRICE_TIRZEPATIDE_MONTHLY || process.env.VITE_STRIPE_PRICE_TIRZEPATIDE_MONTHLY || '',
+    singleMonth: process.env.STRIPE_PRICE_TIRZEPATIDE_SINGLEMONTH || '',
+    threeMonth: process.env.STRIPE_PRICE_TIRZEPATIDE_3MONTH || process.env.VITE_STRIPE_PRICE_TIRZEPATIDE_3MONTH || '',
+    sixMonth: process.env.STRIPE_PRICE_TIRZEPATIDE_6MONTH || process.env.VITE_STRIPE_PRICE_TIRZEPATIDE_6MONTH || '',
+    oneTime: process.env.STRIPE_PRICE_TIRZEPATIDE_ONETIME || process.env.VITE_STRIPE_PRICE_TIRZEPATIDE_ONETIME || '',
   },
   
   // Add-on Products
   addons: {
-    nauseaRelief: process.env.VITE_STRIPE_PRICE_NAUSEA_RELIEF || 'price_nausea_relief',
-    fatBurner: process.env.VITE_STRIPE_PRICE_FAT_BURNER || 'price_fat_burner',
+    nauseaRelief: process.env.STRIPE_PRODUCT_NAUSEA_RELIEF || process.env.VITE_STRIPE_PRICE_NAUSEA_RELIEF || '',
+    fatBurner: process.env.STRIPE_PRODUCT_FAT_BURNER || process.env.VITE_STRIPE_PRICE_FAT_BURNER || '',
   },
   
   // Shipping
   shipping: {
-    expedited: process.env.VITE_STRIPE_PRICE_EXPEDITED_SHIPPING || 'price_expedited_shipping',
+    expedited: process.env.STRIPE_SHIPPING_EXPEDITED || process.env.VITE_STRIPE_PRICE_EXPEDITED_SHIPPING || '',
   },
 };
 
@@ -137,29 +140,44 @@ async function getOrCreateCustomer(email: string | undefined, metadata?: any) {
 // Helper function to get product price ID
 function getPriceId(medication: string, planType: string) {
   if (!medication || !planType) {
+    console.log('[getPriceId] Missing medication or planType:', { medication, planType });
     return null;
   }
 
   const med = medication.toLowerCase().replace(/\s+/g, '');
   const medKey = med.includes('semaglutide') ? 'semaglutide' : 'tirzepatide';
   
-  // Map plan types to price IDs
-  const planMapping: { [key: string]: string } = {
-    'Monthly': 'monthly',
-    '3-month plan': 'threeMonth',
-    '6-month plan': 'sixMonth',
-    'One-time purchase': 'oneTime',
-  };
+  // Map plan types to price IDs - handle various naming conventions
+  const planLower = planType.toLowerCase();
+  let mappedPlan = 'monthly'; // default
   
-  const mappedPlan = planMapping[planType] || 'monthly';
+  if (planLower.includes('6') || planLower.includes('six')) {
+    mappedPlan = 'sixMonth';
+  } else if (planLower.includes('3') || planLower.includes('three')) {
+    mappedPlan = 'threeMonth';
+  } else if (planLower.includes('one-time') || planLower.includes('onetime')) {
+    mappedPlan = 'oneTime';
+  } else if (planLower.includes('single') || planLower === 'monthly') {
+    // Try singleMonth first, fall back to monthly
+    mappedPlan = 'singleMonth';
+  }
   
   // Get the correct price ID from STRIPE_PRODUCTS
   const medProducts = STRIPE_PRODUCTS[medKey as keyof typeof STRIPE_PRODUCTS];
   if (!medProducts || typeof medProducts === 'string') {
+    console.log('[getPriceId] Invalid medProducts for key:', medKey);
     return null;
   }
   
-  return medProducts[mappedPlan as keyof typeof medProducts] || null;
+  let priceId = medProducts[mappedPlan as keyof typeof medProducts];
+  
+  // Fallback: if singleMonth not found, try monthly
+  if (!priceId && mappedPlan === 'singleMonth') {
+    priceId = medProducts['monthly' as keyof typeof medProducts];
+  }
+  
+  console.log('[getPriceId] Result:', { medication, planType, medKey, mappedPlan, priceId });
+  return priceId || null;
 }
 
 export default async function handler(
