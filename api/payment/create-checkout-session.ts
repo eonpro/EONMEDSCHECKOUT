@@ -1,6 +1,58 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import Stripe from 'stripe';
-import { handleCors } from '../lib/cors';
+
+// ============================================================================
+// CORS Configuration - Restrict to trusted domains only
+// ============================================================================
+const ALLOWED_ORIGINS = [
+  'https://eonmeds-checkout.vercel.app',
+  'https://checkout.eonmeds.com',
+  'https://eonmeds.com',
+  'https://www.eonmeds.com',
+  'https://weightlossintake.vercel.app',
+  'https://intake.eonmeds.com',
+  'http://localhost:3000',
+  'http://localhost:4001',
+  'http://localhost:5173',
+  ...(process.env.ALLOWED_ORIGINS?.split(',').map(o => o.trim()).filter(Boolean) || []),
+];
+
+function isAllowedOrigin(origin: string | undefined): string | null {
+  if (!origin) return null;
+  if (ALLOWED_ORIGINS.includes(origin)) return origin;
+  if (origin.match(/^https:\/\/eonmeds-checkout-[a-z0-9]+-[a-z0-9]+\.vercel\.app$/)) return origin;
+  if (origin.match(/^https:\/\/weightlossintake-[a-z0-9]+-[a-z0-9]+\.vercel\.app$/)) return origin;
+  return null;
+}
+
+function handleCors(req: VercelRequest, res: VercelResponse): boolean {
+  const origin = req.headers.origin as string | undefined;
+  const allowed = isAllowedOrigin(origin);
+  
+  if (allowed) {
+    res.setHeader('Access-Control-Allow-Origin', allowed);
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Vary', 'Origin');
+  }
+  
+  if (req.method === 'OPTIONS') {
+    if (!allowed) {
+      res.status(403).json({ error: 'Origin not allowed' });
+      return true;
+    }
+    res.status(200).end();
+    return true;
+  }
+  
+  if (origin && !allowed) {
+    res.status(403).json({ error: 'Origin not allowed' });
+    return true;
+  }
+  
+  return false;
+}
+// ============================================================================
 
 // Initialize Stripe with secret key
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
@@ -50,8 +102,7 @@ export default async function handler(
   res: VercelResponse
 ) {
   // Handle CORS - returns early if blocked or OPTIONS request
-  const { blocked } = handleCors(req, res);
-  if (blocked) return;
+  if (handleCors(req, res)) return;
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
