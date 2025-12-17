@@ -1384,7 +1384,20 @@ export function GLP1CheckoutPageImproved() {
                 <div className="mb-6">
                   <h3 className="text-lg font-medium mb-4">{t.payment}</h3>
                   {/* Native Stripe Payment Form - No redirect */}
-                  <StripeProvider amount={total}>
+                  <StripeProvider 
+                    amount={total}
+                    customerEmail={patientData.email}
+                    shippingAddress={shippingAddress}
+                    orderData={{
+                      medication: selectedMed?.name || '',
+                      plan: selectedPlanData?.type || '',
+                      addons: selectedAddons.map(id => addons.find(a => a.id === id)?.name || '').filter(Boolean),
+                      expeditedShipping,
+                      subtotal,
+                      shippingCost,
+                      total
+                    }}
+                  >
                     <PaymentForm
                       amount={total}
                       onSuccess={handlePaymentSuccess}

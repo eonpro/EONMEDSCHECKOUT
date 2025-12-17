@@ -3,10 +3,32 @@ import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import { getApiUrl } from '../config/api';
 
+interface ShippingAddress {
+  addressLine1: string;
+  addressLine2?: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  country?: string;
+}
+
+interface OrderData {
+  medication: string;
+  plan: string;
+  addons: string[];
+  expeditedShipping: boolean;
+  subtotal: number;
+  shippingCost: number;
+  total: number;
+}
+
 interface StripeProviderProps {
   children: React.ReactNode;
   amount: number;
   appearance?: any;
+  customerEmail?: string;
+  shippingAddress?: ShippingAddress;
+  orderData?: OrderData;
 }
 
 // Get publishable key from environment
@@ -19,13 +41,17 @@ if (!STRIPE_PUBLISHABLE_KEY) {
   console.error('Stripe publishable key not found in environment');
 }
 
-export function StripeProvider({ children, amount, appearance }: StripeProviderProps) {
+export function StripeProvider({ children, amount, appearance, customerEmail, shippingAddress, orderData }: StripeProviderProps) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Memoize amount in cents to prevent unnecessary re-fetches
   const amountInCents = useMemo(() => Math.round(amount * 100), [amount]);
+
+  // Memoize order data to prevent unnecessary re-fetches
+  const orderDataJson = useMemo(() => JSON.stringify(orderData || {}), [orderData]);
+  const shippingAddressJson = useMemo(() => JSON.stringify(shippingAddress || {}), [shippingAddress]);
 
   useEffect(() => {
     if (amountInCents <= 0) {
@@ -40,7 +66,11 @@ export function StripeProvider({ children, amount, appearance }: StripeProviderP
 
     const controller = new AbortController();
 
-    // Fetch payment intent
+    // Parse memoized JSON back to objects
+    const parsedOrderData = JSON.parse(orderDataJson);
+    const parsedShippingAddress = JSON.parse(shippingAddressJson);
+
+    // Fetch payment intent with full order details
     fetch(getApiUrl('createPaymentIntent'), {
       method: 'POST',
       headers: {
@@ -49,8 +79,11 @@ export function StripeProvider({ children, amount, appearance }: StripeProviderP
       body: JSON.stringify({
         amount: amountInCents,
         currency: 'usd',
+        customer_email: customerEmail,
+        shipping_address: Object.keys(parsedShippingAddress).length > 0 ? parsedShippingAddress : undefined,
+        order_data: Object.keys(parsedOrderData).length > 0 ? parsedOrderData : undefined,
         metadata: {
-          source: 'eonmeds-checkout',
+          source: 'eonmeds_checkout',
         },
       }),
       signal: controller.signal,
@@ -78,7 +111,7 @@ export function StripeProvider({ children, amount, appearance }: StripeProviderP
       });
 
     return () => controller.abort();
-  }, [amountInCents]);
+  }, [amountInCents, customerEmail, orderDataJson, shippingAddressJson]);
 
   // Memoize Elements options to prevent unnecessary re-renders
   const options = useMemo(() => ({
