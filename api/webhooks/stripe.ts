@@ -18,7 +18,8 @@ async function buffer(readable: any) {
   return Buffer.concat(chunks);
 }
 
-// Helper function to create subscription
+// Helper function to create subscription for FUTURE billing only
+// The initial payment was already collected via PaymentIntent
 async function createSubscriptionForPayment(paymentIntent: any) {
   try {
     const metadata = paymentIntent.metadata;
@@ -35,6 +36,7 @@ async function createSubscriptionForPayment(paymentIntent: any) {
     
     if (!customerId || !mainPriceId) {
       console.error('[webhook] Missing customer ID or price ID for subscription creation');
+      console.log('[webhook] Metadata:', metadata);
       return;
     }
     
@@ -43,9 +45,16 @@ async function createSubscriptionForPayment(paymentIntent: any) {
     
     if (paymentMethodId) {
       // Attach payment method to customer for future use
-      await stripe.paymentMethods.attach(paymentMethodId, {
-        customer: customerId,
-      });
+      try {
+        await stripe.paymentMethods.attach(paymentMethodId, {
+          customer: customerId,
+        });
+      } catch (attachError: any) {
+        // Payment method might already be attached
+        if (!attachError.message?.includes('already been attached')) {
+          throw attachError;
+        }
+      }
       
       // Set as default payment method
       await stripe.customers.update(customerId, {
@@ -55,7 +64,27 @@ async function createSubscriptionForPayment(paymentIntent: any) {
       });
     }
     
-    // Create the subscription
+    // Calculate the billing cycle anchor based on the plan
+    // The first payment was already collected, so we start billing in the NEXT cycle
+    const plan = metadata.plan?.toLowerCase() || '';
+    let billingIntervalMonths = 1; // default monthly
+    
+    if (plan.includes('6') || plan.includes('six')) {
+      billingIntervalMonths = 6;
+    } else if (plan.includes('3') || plan.includes('three')) {
+      billingIntervalMonths = 3;
+    }
+    
+    // Set billing to start at the next cycle (not now!)
+    const now = new Date();
+    const nextBillingDate = new Date(now);
+    nextBillingDate.setMonth(nextBillingDate.getMonth() + billingIntervalMonths);
+    const billingCycleAnchor = Math.floor(nextBillingDate.getTime() / 1000);
+    
+    console.log(`[webhook] Creating subscription with billing starting ${nextBillingDate.toISOString()}`);
+    
+    // Create the subscription with billing starting in the NEXT cycle
+    // This prevents double-charging since the initial payment was already collected
     const subscription = await stripe.subscriptions.create({
       customer: customerId,
       items: [
@@ -64,34 +93,22 @@ async function createSubscriptionForPayment(paymentIntent: any) {
         },
       ],
       default_payment_method: paymentMethodId,
+      billing_cycle_anchor: billingCycleAnchor,
+      proration_behavior: 'none', // Don't prorate, we already collected payment
       metadata: {
         medication: metadata.medication,
         plan: metadata.plan,
         source: 'eonmeds_checkout',
-        payment_intent_id: paymentIntent.id,
+        initial_payment_intent_id: paymentIntent.id,
+        initial_payment_amount: paymentIntent.amount,
       },
-      // Since payment was already collected, we mark the first invoice as paid
-      // and start the subscription immediately
-      expand: ['latest_invoice'],
     });
     
     console.log(`[webhook] Created subscription ${subscription.id} for customer ${customerId}`);
+    console.log(`[webhook] Next billing date: ${nextBillingDate.toISOString()}`);
     
-    // Handle add-ons if any (these are one-time charges)
-    const addonPriceIds = metadata.addon_price_ids?.split(',').filter(Boolean) || [];
-    if (addonPriceIds.length > 0) {
-      // Create invoice items for add-ons
-      for (const priceId of addonPriceIds) {
-        if (priceId) {
-          await stripe.invoiceItems.create({
-            customer: customerId,
-            price: priceId,
-            description: 'Add-on',
-          });
-        }
-      }
-      console.log(`[webhook] Added ${addonPriceIds.length} add-ons to customer`);
-    }
+    // NOTE: Add-ons were already included in the initial PaymentIntent
+    // They are one-time charges and don't need to be added to the subscription
     
     return subscription;
   } catch (error) {
