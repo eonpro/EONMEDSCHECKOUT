@@ -4,7 +4,7 @@ import Stripe from 'stripe';
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET as string | undefined;
 const stripeSecret = process.env.STRIPE_SECRET_KEY as string | undefined;
 // Use a stable, valid Stripe API version compatible with stripe typings
-const stripe = stripeSecret ? new Stripe(stripeSecret, { apiVersion: '2023-10-16' }) : (null as any);
+const stripe = stripeSecret ? new Stripe(stripeSecret, { apiVersion: '2024-06-20' as any }) : (null as any);
 
 export const config = {
   api: {
