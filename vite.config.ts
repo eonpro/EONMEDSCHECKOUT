@@ -12,3 +12,4 @@ export default defineConfig({
     strictPort: useStrictPort,
   },
 });
+// Rebuild trigger: Wed Dec 17 14:33:06 EST 2025
