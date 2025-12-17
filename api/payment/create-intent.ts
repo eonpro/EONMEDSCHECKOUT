@@ -1,12 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import Stripe from 'stripe';
-
-// CORS headers for cross-origin requests
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-};
+import { handleCors } from '../lib/cors';
 
 // Stripe Product Configuration for API (using process.env)
 const STRIPE_PRODUCTS = {
@@ -105,15 +99,9 @@ export default async function handler(
   req: VercelRequest,
   res: VercelResponse
 ) {
-  // Set CORS headers for all responses
-  Object.entries(corsHeaders).forEach(([key, value]) => {
-    res.setHeader(key, value);
-  });
-
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+  // Handle CORS - returns early if blocked or OPTIONS request
+  const { blocked } = handleCors(req, res);
+  if (blocked) return;
 
   // Only allow POST requests
   if (req.method !== 'POST') {
