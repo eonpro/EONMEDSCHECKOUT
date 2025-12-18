@@ -36,6 +36,7 @@ export interface GHLPaymentData {
   plan?: string;
   isSubscription?: boolean;
   subscriptionId?: string;
+  language?: 'en' | 'es'; // English or Spanish
 }
 
 interface GHLContact {
@@ -259,11 +260,22 @@ export async function handlePaymentForGHL(
   
   try {
     // =======================================================
-    // AUTOMATION TRIGGER TAG
-    // Use "payment-completed" in GHL workflow triggers
+    // AUTOMATION TRIGGER TAGS
+    // Use language-specific tags for separate automations
     // =======================================================
+    const language = paymentData.language || 'en';
+    const isSpanish = language === 'es';
+    
     const tags = [
-      'payment-completed',  // <-- PRIMARY TRIGGER TAG for automations
+      // Primary trigger tag (use for all payments)
+      'payment-completed',
+      
+      // LANGUAGE-SPECIFIC TRIGGER TAGS
+      // Use these to trigger English vs Spanish SMS automations
+      isSpanish ? 'payment-completed-es' : 'payment-completed-en',
+      isSpanish ? 'spanish' : 'english',
+      
+      // General tags
       'eonmeds',
       'paid',
     ];
@@ -299,6 +311,10 @@ export async function handlePaymentForGHL(
     });
     
     const customFields: Record<string, string> = {
+      // LANGUAGE PREFERENCE - Use for conditional SMS
+      'language': language,
+      'preferred_language': isSpanish ? 'Spanish' : 'English',
+      
       // Payment info for SMS templates
       'last_payment_amount': paymentAmount,
       'last_payment_date': paymentDate,

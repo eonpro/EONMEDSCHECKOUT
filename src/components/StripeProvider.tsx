@@ -31,6 +31,7 @@ interface StripeProviderProps {
   customerPhone?: string;
   shippingAddress?: ShippingAddress;
   orderData?: OrderData;
+  language?: 'en' | 'es'; // Language for GHL SMS automations
 }
 
 // Get publishable key from environment
@@ -43,7 +44,7 @@ if (!STRIPE_PUBLISHABLE_KEY) {
   console.error('Stripe publishable key not found in environment');
 }
 
-export function StripeProvider({ children, amount, appearance, customerEmail, customerName, customerPhone, shippingAddress, orderData }: StripeProviderProps) {
+export function StripeProvider({ children, amount, appearance, customerEmail, customerName, customerPhone, shippingAddress, orderData, language = 'en' }: StripeProviderProps) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -86,6 +87,7 @@ export function StripeProvider({ children, amount, appearance, customerEmail, cu
         customer_phone: customerPhone,
         shipping_address: Object.keys(parsedShippingAddress).length > 0 ? parsedShippingAddress : undefined,
         order_data: Object.keys(parsedOrderData).length > 0 ? parsedOrderData : undefined,
+        language: language, // Pass language for GHL SMS automations
         metadata: {
           source: 'eonmeds_checkout',
         },
@@ -115,7 +117,7 @@ export function StripeProvider({ children, amount, appearance, customerEmail, cu
       });
 
     return () => controller.abort();
-  }, [amountInCents, customerEmail, customerName, customerPhone, orderDataJson, shippingAddressJson]);
+  }, [amountInCents, customerEmail, customerName, customerPhone, orderDataJson, shippingAddressJson, language]);
 
   // Memoize Elements options to prevent unnecessary re-renders
   const options = useMemo(() => ({

@@ -182,6 +182,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               plan: metadata.plan,
               isSubscription: metadata.is_subscription === 'true',
               subscriptionId,
+              language: (metadata.language || metadata.lang || 'en') as 'en' | 'es',
             };
             
             // Only send to GHL if we have at least an email

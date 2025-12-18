@@ -225,7 +225,8 @@ export default async function handler(
       customer_phone,
       shipping_address, 
       order_data, 
-      metadata 
+      metadata,
+      language, // 'en' or 'es'
     } = req.body;
 
     // Validate amount
@@ -321,6 +322,8 @@ export default async function handler(
       customer_last_name: lastName,
       customer_phone: customer_phone || '',
       customer_id: customer.id,
+      // Language preference for GHL SMS automations
+      language: language || 'en',
       // Shipping address fields (flat for easier access in webhook)
       shipping_line1: shipping_address?.addressLine1 || '',
       shipping_city: shipping_address?.city || '',

@@ -1537,6 +1537,7 @@ export function GLP1CheckoutPageImproved() {
                     customerName={`${patientData.firstName} ${patientData.lastName}`.trim()}
                     customerPhone={patientData.phone}
                     shippingAddress={shippingAddress}
+                    language={language}
                     orderData={{
                       medication: selectedMed?.name || '',
                       plan: selectedPlanData?.type || '',
