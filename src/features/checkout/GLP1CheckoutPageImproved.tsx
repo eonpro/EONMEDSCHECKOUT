@@ -450,6 +450,7 @@ export function GLP1CheckoutPageImproved() {
       {
         id: 'nausea-rx',
         name: language === 'es' ? 'Prescripción para Alivio de Náuseas' : 'Nausea Relief Prescription',
+        nameEn: 'Nausea Relief Prescription', // English name for metadata
         price: 39,
         basePrice: 39,
         description: language === 'es' ? 'Medicamento recetado para manejar los efectos secundarios de GLP-1' : 'Prescription medication to manage GLP-1 side effects',
@@ -466,6 +467,7 @@ export function GLP1CheckoutPageImproved() {
       {
         id: 'fat-burner',
         name: language === 'es' ? 'Quemador de Grasa (L-Carnitina + Complejo B)' : 'Fat Burner (L-Carnitine + B Complex)',
+        nameEn: 'Fat Burner (L-Carnitine + B Complex)', // English name for metadata
         basePrice: 99,
         description: language === 'es' ? 'Aumenta el metabolismo y la energía durante la pérdida de peso' : 'Boost metabolism and energy during weight loss',
         icon: FlameIcon,
@@ -1532,7 +1534,10 @@ export function GLP1CheckoutPageImproved() {
                     orderData={{
                       medication: selectedMed?.name || '',
                       plan: selectedPlanData?.type || '',
-                      addons: selectedAddons.map(id => addons.find(a => a.id === id)?.name || '').filter(Boolean),
+                      addons: selectedAddons.map(id => {
+                        const addon = addons.find(a => a.id === id);
+                        return (addon as any)?.nameEn || addon?.name || '';
+                      }).filter(Boolean),
                       expeditedShipping,
                       subtotal,
                       shippingCost,
@@ -1549,7 +1554,10 @@ export function GLP1CheckoutPageImproved() {
                       orderData={{
                         medication: selectedMed?.name || '',
                         plan: selectedPlanData?.type || '',
-                        addons: selectedAddons.map(id => addons.find(a => a.id === id)?.name || '').filter(Boolean),
+                        addons: selectedAddons.map(id => {
+                          const addon = addons.find(a => a.id === id);
+                          return (addon as any)?.nameEn || addon?.name || '';
+                        }).filter(Boolean),
                         expeditedShipping,
                         subtotal,
                         shippingCost,

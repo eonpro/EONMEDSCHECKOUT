@@ -282,28 +282,47 @@ export default async function handler(
       if (shippingPriceId) addonPriceIds.push(shippingPriceId);
     }
 
-    // Build clear description for Stripe Dashboard
-    const description = `${order_data?.medication || 'Medication'} - ${order_data?.plan || 'Plan'}${
+    // Normalize plan name to English (for consistency in Stripe Dashboard)
+    const normalizedPlanName = (() => {
+      const p = (order_data?.plan || '').toLowerCase();
+      if (p.includes('mensual') || p.includes('monthly') || p.includes('recurrente') || p.includes('recurring')) {
+        return 'Monthly Recurring';
+      }
+      if (p.includes('3') && (p.includes('mes') || p.includes('month'))) {
+        return '3-Month Plan';
+      }
+      if (p.includes('6') && (p.includes('mes') || p.includes('month'))) {
+        return '6-Month Plan';
+      }
+      if (p.includes('única') || p.includes('one-time') || p.includes('onetime')) {
+        return 'One-Time Purchase';
+      }
+      return order_data?.plan || 'Monthly Recurring';
+    })();
+
+    // Build clear description for Stripe Dashboard (in English)
+    const description = `${order_data?.medication || 'Medication'} - ${normalizedPlanName}${
       order_data?.addons?.length > 0 ? ` + ${order_data.addons.join(', ')}` : ''
     }${order_data?.expeditedShipping ? ' + Expedited Shipping' : ''}`;
 
-    // Build metadata with order details and product IDs
+    // Build metadata with order details and product IDs (all in English for consistency)
     const orderMetadata = {
       ...metadata,
       customer_email,
       customer_id: customer.id,
       timestamp: new Date().toISOString(),
+      terms_accepted_at: new Date().toISOString(), // Timestamp when customer accepted terms
       medication: order_data?.medication || '',
-      plan: order_data?.plan || '',
+      plan: normalizedPlanName, // English plan name
       is_subscription: isSubscription ? 'true' : 'false',
       main_price_id: mainPriceId || '',
       addon_price_ids: addonPriceIds.join(','),
-      addons: JSON.stringify(order_data?.addons || []),
+      addons: JSON.stringify(order_data?.addons || []), // English addon names from frontend
       expedited_shipping: order_data?.expeditedShipping ? 'yes' : 'no',
       subtotal: order_data?.subtotal?.toString() || '',
       shipping_cost: order_data?.shippingCost?.toString() || '',
       total: order_data?.total?.toString() || '',
-      // Add shipping address to metadata
+      // Shipping address in clean JSON format
       shipping_address: shipping_address ? JSON.stringify({
         line1: shipping_address.addressLine1,
         line2: shipping_address.addressLine2,
