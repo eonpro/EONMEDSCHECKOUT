@@ -573,14 +573,14 @@ export function GLP1CheckoutPageImproved() {
         <h3 className="text-base font-medium text-gray-900">{t.orderSummary}</h3>
         {patientData.firstName && (
           <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-100">
-            <p className="text-sm font-medium text-gray-900">
-              {language === 'es' ? 'Para' : 'For'}: {patientData.firstName} {patientData.lastName}
+            <p className="text-base font-semibold text-gray-900">
+              {patientData.firstName} {patientData.lastName}
             </p>
             {patientData.email && (
-              <p className="text-xs text-gray-600 mt-1">{patientData.email}</p>
+              <p className="text-sm text-gray-600 mt-1">{patientData.email}</p>
             )}
             {patientData.phone && (
-              <p className="text-xs text-gray-600">{patientData.phone}</p>
+              <p className="text-sm text-gray-600">{patientData.phone}</p>
             )}
           </div>
         )}
