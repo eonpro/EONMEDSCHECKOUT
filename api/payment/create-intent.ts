@@ -99,6 +99,14 @@ async function getOrCreateCustomer(
   email: string | undefined,
   name?: string,
   phone?: string,
+  address?: {
+    line1: string;
+    line2?: string;
+    city: string;
+    state: string;
+    postal_code: string;
+    country?: string;
+  },
   metadata?: any
 ) {
   try {
@@ -117,6 +125,7 @@ async function getOrCreateCustomer(
         const customer = await stripe.customers.update(existingCustomers.data[0].id, {
           name: name || undefined,
           phone: phone || undefined,
+          address: address || undefined,
           metadata: metadata || {},
         });
         return customer;
@@ -127,6 +136,7 @@ async function getOrCreateCustomer(
         email: email,
         name: name || undefined,
         phone: phone || undefined,
+        address: address || undefined,
         metadata: metadata || {},
       });
       return customer;
@@ -136,6 +146,7 @@ async function getOrCreateCustomer(
     const customer = await stripe.customers.create({
       name: name || undefined,
       phone: phone || undefined,
+      address: address || undefined,
       metadata: {
         ...metadata,
         anonymous: 'true',
@@ -220,11 +231,22 @@ export default async function handler(
       return res.status(400).json({ error: 'Invalid amount' });
     }
 
+    // Build billing address from shipping address
+    const billingAddress = shipping_address ? {
+      line1: shipping_address.addressLine1,
+      line2: shipping_address.addressLine2 || undefined,
+      city: shipping_address.city,
+      state: shipping_address.state,
+      postal_code: shipping_address.zipCode,
+      country: shipping_address.country || 'US',
+    } : undefined;
+
     // Create or retrieve customer with full profile
     const customer = await getOrCreateCustomer(
       customer_email,
       customer_name,
       customer_phone,
+      billingAddress,
       {
         medication: order_data?.medication || '',
         plan: order_data?.plan || '',
