@@ -826,7 +826,7 @@ export function GLP1CheckoutPageImproved() {
     <div className="min-h-screen bg-[#f5f5f5]" style={{ fontFamily: '\'Sofia Pro\', Poppins, sans-serif' }}>
 
       {/* Marquee Banner */}
-      <div className="relative w-full overflow-hidden bg-[#EEECE8] h-[35px] flex items-center">
+      <div className="relative w-full overflow-hidden bg-white h-[35px] flex items-center">
         <style>{`
           @keyframes marquee-scroll {
             0% { transform: translateX(0); }
@@ -949,7 +949,7 @@ export function GLP1CheckoutPageImproved() {
       </div>
 
       {/* Progress Steps */}
-      <div className="bg-white border-b">
+      <div className="bg-[#f5f5f5]">
         <div className="max-w-7xl mx-auto px-6 py-4 space-y-4">
           <div className="flex justify-end">
             <div className="flex items-center gap-2">
@@ -984,7 +984,7 @@ export function GLP1CheckoutPageImproved() {
               </button>
             </div>
           </div>
-          <div className="flex items-center justify-between max-w-2xl mx-auto">
+          <div className="flex items-center justify-between max-w-5xl mx-auto">
             <div className={`flex items-center gap-2 ${currentStep === 1 ? 'text-[#13a97b] font-semibold' : currentStep > 1 ? 'text-gray-600' : 'text-gray-400'}`}>
               <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${currentStep >= 1 ? 'bg-[#13a97b] text-white' : 'bg-gray-200'}`}>
                 {currentStep > 1 ? (
