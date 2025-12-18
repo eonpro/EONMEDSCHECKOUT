@@ -8,8 +8,8 @@
  * - GHL_LOCATION_ID: Your GHL location ID
  */
 
-// GHL API Configuration
-const GHL_API_BASE = 'https://services.leadconnectorhq.com';
+// GHL API Configuration - Using v1 API
+const GHL_API_BASE = 'https://rest.gohighlevel.com/v1';
 const GHL_API_KEY = process.env.GHL_API_KEY || '';
 const GHL_LOCATION_ID = process.env.GHL_LOCATION_ID || '';
 
@@ -56,7 +56,7 @@ export function isGHLConfigured(): boolean {
 }
 
 /**
- * Make authenticated request to GHL API
+ * Make authenticated request to GHL API (v1)
  */
 async function ghlRequest(
   endpoint: string,
@@ -65,10 +65,11 @@ async function ghlRequest(
 ): Promise<any> {
   const url = `${GHL_API_BASE}${endpoint}`;
   
+  console.log(`[GHL] ${method} ${url}`);
+  
   const headers: Record<string, string> = {
     'Authorization': `Bearer ${GHL_API_KEY}`,
     'Content-Type': 'application/json',
-    'Version': '2021-07-28',
   };
   
   const options: RequestInit = {
@@ -78,33 +79,36 @@ async function ghlRequest(
   
   if (body) {
     options.body = JSON.stringify(body);
+    console.log(`[GHL] Request body:`, JSON.stringify(body, null, 2));
   }
   
   const response = await fetch(url, options);
+  const responseText = await response.text();
+  
+  console.log(`[GHL] Response (${response.status}):`, responseText.substring(0, 500));
   
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`GHL API error (${response.status}): ${errorText}`);
+    throw new Error(`GHL API error (${response.status}): ${responseText}`);
   }
   
-  return response.json();
+  try {
+    return JSON.parse(responseText);
+  } catch {
+    return responseText;
+  }
 }
 
 /**
- * Search for existing contact by email
+ * Search for existing contact by email (v1 API)
  */
 async function findContactByEmail(email: string): Promise<GHLContact | null> {
   try {
     const result = await ghlRequest(
-      `/contacts/?locationId=${GHL_LOCATION_ID}&query=${encodeURIComponent(email)}`
+      `/contacts/lookup?email=${encodeURIComponent(email)}`
     );
     
     if (result.contacts && result.contacts.length > 0) {
-      // Find exact email match
-      const contact = result.contacts.find(
-        (c: any) => c.email?.toLowerCase() === email.toLowerCase()
-      );
-      return contact || null;
+      return result.contacts[0];
     }
     
     return null;
@@ -115,7 +119,7 @@ async function findContactByEmail(email: string): Promise<GHLContact | null> {
 }
 
 /**
- * Create a new contact in GoHighLevel
+ * Create a new contact in GoHighLevel (v1 API)
  */
 export async function createGHLContact(data: GHLContactData): Promise<GHLContact | null> {
   if (!isGHLConfigured()) {
@@ -129,17 +133,16 @@ export async function createGHLContact(data: GHLContactData): Promise<GHLContact
     
     if (existingContact) {
       console.log(`[GHL] Contact already exists: ${existingContact.id}`);
-      // Update existing contact
+      // Update existing contact with new tags
       return updateGHLContact(existingContact.id, data);
     }
     
-    // Create new contact
+    // Create new contact (v1 API format)
     const contactPayload: Record<string, unknown> = {
-      locationId: GHL_LOCATION_ID,
       firstName: data.firstName,
       lastName: data.lastName,
       email: data.email,
-      phone: data.phone,
+      phone: data.phone ? `+1${data.phone.replace(/\D/g, '').slice(-10)}` : undefined,
       address1: data.address1,
       city: data.city,
       state: data.state,
@@ -149,17 +152,15 @@ export async function createGHLContact(data: GHLContactData): Promise<GHLContact
       tags: data.tags || ['eonmeds', 'checkout'],
     };
     
-    // Add custom fields if provided
+    // Add custom fields if provided (v1 format)
     if (data.customFields) {
-      contactPayload.customFields = Object.entries(data.customFields).map(
-        ([key, value]) => ({ key, value })
-      );
+      contactPayload.customField = data.customFields;
     }
     
     const result = await ghlRequest('/contacts/', 'POST', contactPayload);
     
-    console.log(`[GHL] Created contact: ${result.contact?.id}`);
-    return result.contact;
+    console.log(`[GHL] Created contact: ${result.contact?.id || result.id}`);
+    return result.contact || result;
   } catch (error) {
     console.error('[GHL] Error creating contact:', error);
     throw error;
