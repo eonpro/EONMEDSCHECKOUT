@@ -105,6 +105,7 @@ const translations = {
 
 export function GLP1CheckoutPageImproved() {
   const [currentStep, setCurrentStep] = useState<number>(1);
+  const [isTransitioning, setIsTransitioning] = useState<boolean>(false);
   const [statusBanner, setStatusBanner] = useState<'success' | 'cancel' | null>(null);
   const [selectedMedication, setSelectedMedication] = useState<string>('');
   const [selectedPlan, setSelectedPlan] = useState<string>('');
@@ -537,18 +538,30 @@ export function GLP1CheckoutPageImproved() {
 
   function handleNextStep() {
     if (currentStep === 1 && selectedMedication && selectedPlan) {
-      setCurrentStep(2);
-      window.scrollTo(0, 0);
+      setIsTransitioning(true);
+      setTimeout(() => {
+        setCurrentStep(2);
+        setIsTransitioning(false);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }, 200);
     } else if (currentStep === 2) {
-      setCurrentStep(3);
-      window.scrollTo(0, 0);
+      setIsTransitioning(true);
+      setTimeout(() => {
+        setCurrentStep(3);
+        setIsTransitioning(false);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }, 200);
     }
   }
 
   function handlePreviousStep() {
     if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
-      window.scrollTo(0, 0);
+      setIsTransitioning(true);
+      setTimeout(() => {
+        setCurrentStep(currentStep - 1);
+        setIsTransitioning(false);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }, 200);
     }
   }
 
@@ -1016,7 +1029,7 @@ export function GLP1CheckoutPageImproved() {
           <div className={`${currentStep === 2 ? '' : 'lg:col-span-2'} px-[10px] sm:px-0`}>
             {/* Step 1: Medication Selection */}
             {currentStep === 1 && (
-              <div className="lg:max-w-xl lg:mx-auto">
+              <div className={`lg:max-w-xl lg:mx-auto transition-all duration-300 ${isTransitioning ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}>
                 <div className="mb-6">
                   <h2 className="text-xl font-medium text-gray-900 mb-2">
                     {patientData.firstName 
@@ -1096,7 +1109,7 @@ export function GLP1CheckoutPageImproved() {
 
             {/* Step 2: Plan & Add-ons */}
             {currentStep === 2 && selectedMed && (
-              <div className="relative w-screen -ml-[50vw] left-[50%] -mt-8" style={{
+              <div className={`relative w-screen -ml-[50vw] left-[50%] -mt-8 transition-all duration-300 ${isTransitioning ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`} style={{
                 background: selectedMed.id === 'tirzepatide'
                   ? 'linear-gradient(to bottom, #ff6f00 0%, #f5f5f5 60%)'
                   : 'linear-gradient(to bottom, #ffd24e 0%, #f5f5f5 60%)',
@@ -1346,7 +1359,7 @@ export function GLP1CheckoutPageImproved() {
 
             {/* Step 3: Shipping & Payment */}
             {currentStep === 3 && (
-              <div className="lg:max-w-xl lg:mx-auto">
+              <div className={`lg:max-w-xl lg:mx-auto transition-all duration-300 ${isTransitioning ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}>
                 <div className="mb-6">
                   <h2 className="text-xl font-medium text-gray-900 mb-2">
                     {patientData.firstName 
