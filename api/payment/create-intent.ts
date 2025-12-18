@@ -9,6 +9,8 @@ const ALLOWED_ORIGINS = [
   'https://checkout.eonmeds.com',
   'https://eonmeds.com',
   'https://www.eonmeds.com',
+  'https://weightloss.eonmeds.com',
+  'https://espanol.eonmeds.com',
   'https://weightlossintake.vercel.app',
   'https://intake.eonmeds.com',
   'http://localhost:3000',
@@ -305,11 +307,26 @@ export default async function handler(
       order_data?.addons?.length > 0 ? ` + ${order_data.addons.join(', ')}` : ''
     }${order_data?.expeditedShipping ? ' + Expedited Shipping' : ''}`;
 
+    // Parse customer name into first/last
+    const nameParts = (customer_name || '').trim().split(/\s+/);
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+
     // Build metadata with order details and product IDs (all in English for consistency)
     const orderMetadata = {
       ...metadata,
+      // Customer info for GHL integration
       customer_email,
+      customer_first_name: firstName,
+      customer_last_name: lastName,
+      customer_phone: customer_phone || '',
       customer_id: customer.id,
+      // Shipping address fields (flat for easier access in webhook)
+      shipping_line1: shipping_address?.addressLine1 || '',
+      shipping_city: shipping_address?.city || '',
+      shipping_state: shipping_address?.state || '',
+      shipping_zip: shipping_address?.zipCode || '',
+      // Order details
       timestamp: new Date().toISOString(),
       terms_accepted_at: new Date().toISOString(), // Timestamp when customer accepted terms
       medication: order_data?.medication || '',
@@ -322,7 +339,7 @@ export default async function handler(
       subtotal: order_data?.subtotal?.toString() || '',
       shipping_cost: order_data?.shippingCost?.toString() || '',
       total: order_data?.total?.toString() || '',
-      // Shipping address in clean JSON format
+      // Shipping address in clean JSON format (for reference)
       shipping_address: shipping_address ? JSON.stringify({
         line1: shipping_address.addressLine1,
         line2: shipping_address.addressLine2,

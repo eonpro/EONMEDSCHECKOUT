@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import Stripe from 'stripe';
+import { handlePaymentForGHL, isGHLConfigured } from '../integrations/gohighlevel';
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET as string | undefined;
 const stripeSecret = process.env.STRIPE_SECRET_KEY as string | undefined;
@@ -137,25 +138,69 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const paymentIntent = event.data.object as any;
         console.log(`[webhook] Payment intent succeeded: ${paymentIntent.id}`);
         
+        let subscriptionId: string | undefined;
+        
         // Create subscription if this was a subscription payment
         if (paymentIntent.metadata?.is_subscription === 'true') {
           try {
             const subscription = await createSubscriptionForPayment(paymentIntent);
             if (subscription) {
+              subscriptionId = subscription.id;
               console.log(`[webhook] Successfully created subscription for payment ${paymentIntent.id}`);
-              
-              // Here you could:
-              // - Send confirmation email
-              // - Update database with subscription ID
-              // - Trigger order fulfillment
-              // - etc.
             }
           } catch (error) {
             console.error(`[webhook] Failed to create subscription for payment ${paymentIntent.id}:`, error);
-            // Note: We don't fail the webhook here since payment was successful
-            // You may want to have a retry mechanism or alert system for failed subscription creation
           }
         }
+        
+        // =========================================================
+        // GoHighLevel Integration - Create/Update Contact
+        // =========================================================
+        if (isGHLConfigured()) {
+          try {
+            const metadata = paymentIntent.metadata || {};
+            
+            // Extract customer info from metadata
+            const contactData = {
+              firstName: metadata.customer_first_name || '',
+              lastName: metadata.customer_last_name || '',
+              email: metadata.customer_email || paymentIntent.receipt_email || '',
+              phone: metadata.customer_phone || '',
+              address1: metadata.shipping_line1 || '',
+              city: metadata.shipping_city || '',
+              state: metadata.shipping_state || '',
+              postalCode: metadata.shipping_zip || '',
+              source: 'EONMeds Checkout',
+            };
+            
+            // Payment data for GHL
+            const paymentData = {
+              paymentIntentId: paymentIntent.id,
+              amount: paymentIntent.amount,
+              currency: paymentIntent.currency || 'usd',
+              medication: metadata.medication,
+              plan: metadata.plan,
+              isSubscription: metadata.is_subscription === 'true',
+              subscriptionId,
+            };
+            
+            // Only send to GHL if we have at least an email
+            if (contactData.email) {
+              const ghlResult = await handlePaymentForGHL(contactData, paymentData);
+              if (ghlResult.success) {
+                console.log(`[webhook] Created/updated GHL contact for payment ${paymentIntent.id}`);
+              } else {
+                console.warn(`[webhook] Failed to create GHL contact for payment ${paymentIntent.id}`);
+              }
+            } else {
+              console.warn('[webhook] No email found in payment metadata, skipping GHL');
+            }
+          } catch (ghlError) {
+            // Don't fail the webhook if GHL fails
+            console.error('[webhook] GHL integration error:', ghlError);
+          }
+        }
+        // =========================================================
         
         // Log the successful payment
         const meta = {
