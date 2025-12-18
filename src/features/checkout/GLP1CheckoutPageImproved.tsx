@@ -1558,7 +1558,7 @@ export function GLP1CheckoutPageImproved() {
                         : "Important: By clicking 'Place Order' you agree that:"}
                     </span>
                     <br /><br />
-                    {selectedPlanData && selectedPlanData.billing !== 'once' ? (
+                    {selectedPlanData && (selectedPlanData.billing === 'monthly' || selectedPlanData.billing === 'total') ? (
                       language === 'es' ? (
                         `Si se prescribe, está comprando una suscripción que se renueva automáticamente y se le cobrará $${total} por los primeros ${selectedPlanData.type.includes('6') ? '6 meses' : selectedPlanData.type.includes('3') ? '3 meses' : 'mes'} y $${selectedPlanData.price} cada ${selectedPlanData.type.includes('6') ? '6 meses' : selectedPlanData.type.includes('3') ? '3 meses' : 'mes'} hasta que cancele. Como parte de su suscripción, recibirá un suministro de ${selectedPlanData.type.includes('6') ? '6 meses' : selectedPlanData.type.includes('3') ? '3 meses' : '1 mes'} del/los producto(s) recetado(s).
 
