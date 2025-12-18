@@ -1101,10 +1101,10 @@ export function GLP1CheckoutPageImproved() {
 
             {/* Step 2: Plan & Add-ons */}
             {currentStep === 2 && selectedMed && (
-              <div className={`relative w-screen -ml-[50vw] left-[50%] -mt-8 transition-all duration-300 ease-out ${isTransitioning ? 'opacity-0 scale-98 translate-y-4' : 'opacity-100 scale-100 translate-y-0'}`} style={{
+              <div className={`relative w-screen -ml-[50vw] left-[50%] transition-all duration-300 ease-out ${isTransitioning ? 'opacity-0 scale-98 translate-y-4' : 'opacity-100 scale-100 translate-y-0'}`} style={{
                 background: selectedMed.id === 'tirzepatide'
-                  ? 'linear-gradient(to bottom, #ff6f00 0%, #f5f5f5 60%)'
-                  : 'linear-gradient(to bottom, #ffd24e 0%, #f5f5f5 60%)',
+                  ? 'linear-gradient(to bottom, #ff6f00 0%, #f7f5f1 60%)'
+                  : 'linear-gradient(to bottom, #ffd24e 0%, #f7f5f1 60%)',
                 paddingTop: '2rem',
                 paddingBottom: '2rem'
               }}>
