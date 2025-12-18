@@ -556,6 +556,11 @@ export function GLP1CheckoutPageImproved() {
       {/* Header */}
       <div className="p-6 pb-4">
         <h3 className="text-base font-medium text-gray-900">{t.orderSummary}</h3>
+        {patientData.firstName && (
+          <p className="text-xs text-gray-500 mt-1">
+            {language === 'es' ? 'Para' : 'For'}: {patientData.firstName}
+          </p>
+        )}
       </div>
 
       {/* Order Items */}
@@ -1003,7 +1008,13 @@ export function GLP1CheckoutPageImproved() {
             {currentStep === 1 && (
               <div className="lg:max-w-xl lg:mx-auto">
                 <div className="mb-6">
-                  <h2 className="text-xl font-medium text-gray-900 mb-2">{t.chooseMedication}</h2>
+                  <h2 className="text-xl font-medium text-gray-900 mb-2">
+                    {patientData.firstName 
+                      ? (language === 'es' 
+                          ? `${patientData.firstName}, ${t.chooseMedication}` 
+                          : `${patientData.firstName}, ${t.chooseMedication}`)
+                      : t.chooseMedication}
+                  </h2>
                   <p className="text-gray-600">{t.medicationSubtitle}</p>
                 </div>
 
@@ -1089,7 +1100,13 @@ export function GLP1CheckoutPageImproved() {
                       <div className="lg:max-w-xl">
                   {/* Title Section */}
                   <div className="mb-4">
-                    <h2 className="text-xl font-semibold text-gray-900 mb-1">{t.selectPlan}</h2>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-1">
+                      {patientData.firstName 
+                        ? (language === 'es' 
+                            ? `${patientData.firstName}, ${t.selectPlan}` 
+                            : `${patientData.firstName}, ${t.selectPlan}`)
+                        : t.selectPlan}
+                    </h2>
                     <p className="text-sm text-gray-600">{t.planSubtitle}</p>
                   </div>
 
@@ -1321,9 +1338,39 @@ export function GLP1CheckoutPageImproved() {
             {currentStep === 3 && (
               <div className="lg:max-w-xl lg:mx-auto">
                 <div className="mb-6">
-                  <h2 className="text-xl font-medium text-gray-900 mb-2">{t.shippingPayment}</h2>
+                  <h2 className="text-xl font-medium text-gray-900 mb-2">
+                    {patientData.firstName 
+                      ? (language === 'es' 
+                          ? `${patientData.firstName}, ${t.shippingPayment}` 
+                          : `${patientData.firstName}, ${t.shippingPayment}`)
+                      : t.shippingPayment}
+                  </h2>
                   <p className="text-gray-600">{t.shippingSubtitle}</p>
                 </div>
+
+                {/* Customer Info Display (from prefill) */}
+                {(patientData.firstName || patientData.email || patientData.phone) && (
+                  <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-full bg-[#13a97b] flex items-center justify-center flex-shrink-0">
+                        <span className="text-white text-lg font-semibold">
+                          {patientData.firstName.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-gray-900">
+                          {patientData.firstName} {patientData.lastName}
+                        </p>
+                        {patientData.email && (
+                          <p className="text-xs text-gray-600 mt-0.5">{patientData.email}</p>
+                        )}
+                        {patientData.phone && (
+                          <p className="text-xs text-gray-600">{patientData.phone}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Shipping Address */}
                 <div className="mb-6">

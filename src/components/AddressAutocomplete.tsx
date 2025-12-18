@@ -25,6 +25,7 @@ export interface AddressAutocompleteProps {
 export function AddressAutocomplete({ value, onChange, language = 'en' }: AddressAutocompleteProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [googleLoaded, setGoogleLoaded] = useState(false);
+  const [isUserTyping, setIsUserTyping] = useState(false);
 
   useEffect(() => {
     loadGoogleMapsScript()
@@ -35,6 +36,13 @@ export function AddressAutocomplete({ value, onChange, language = 'en' }: Addres
         console.warn('Failed to load Google Maps:', err);
       });
   }, []);
+
+  // Sync prefilled address to input field
+  useEffect(() => {
+    if (inputRef.current && value.addressLine1 && !isUserTyping && googleLoaded) {
+      inputRef.current.value = value.addressLine1;
+    }
+  }, [value.addressLine1, isUserTyping, googleLoaded]);
 
   useEffect(() => {
     if (!googleLoaded) return;
@@ -151,6 +159,8 @@ export function AddressAutocomplete({ value, onChange, language = 'en' }: Addres
           type="text"
           placeholder={language === 'es' ? "Comience a escribir su dirección..." : "Start typing your address..."}
           className="px-4 py-2 border rounded-lg w-full"
+          onFocus={() => setIsUserTyping(true)}
+          onBlur={() => setIsUserTyping(false)}
         />
         <p className="text-xs text-gray-500 mt-1">
           {language === 'es' ? "Seleccione una dirección de las sugerencias" : "Select an address from the suggestions"}
