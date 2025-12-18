@@ -1358,14 +1358,14 @@ export function GLP1CheckoutPageImproved() {
                         </span>
                       </div>
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900">
+                        <p className="text-base font-medium text-gray-900">
                           {patientData.firstName} {patientData.lastName}
                         </p>
                         {patientData.email && (
-                          <p className="text-xs text-gray-600 mt-0.5">{patientData.email}</p>
+                          <p className="text-sm text-gray-600 mt-0.5">{patientData.email}</p>
                         )}
                         {patientData.phone && (
-                          <p className="text-xs text-gray-600">{patientData.phone}</p>
+                          <p className="text-sm text-gray-600">{patientData.phone}</p>
                         )}
                       </div>
                     </div>
