@@ -1506,13 +1506,13 @@ export function GLP1CheckoutPageImproved() {
                   </div>
 
                   {/* Cold Shipping Info */}
-                  <div className="mt-4 bg-[#e9f990]/30 rounded-lg p-4 flex items-center gap-3">
+                  <div className="mt-4 bg-[#e9f990]/30 rounded-lg overflow-hidden flex items-stretch">
                     <img
                       src="https://static.wixstatic.com/media/c49a9b_51deb4cab3c04b1b8a4b679f7dd241a6~mv2.webp"
                       alt="Cold Shipping"
-                      className="w-12 h-12 object-contain flex-shrink-0"
+                      className="w-24 h-auto object-cover flex-shrink-0"
                     />
-                    <div>
+                    <div className="flex-1 p-4 flex flex-col justify-center">
                       <p className="text-sm font-medium text-gray-900">
                         {language === 'es'
                           ? 'Empaque con Control de Temperatura'
