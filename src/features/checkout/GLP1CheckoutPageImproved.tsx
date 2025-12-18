@@ -541,16 +541,16 @@ export function GLP1CheckoutPageImproved() {
       setIsTransitioning(true);
       setTimeout(() => {
         setCurrentStep(2);
-        setIsTransitioning(false);
         window.scrollTo({ top: 0, behavior: 'smooth' });
-      }, 200);
+        setTimeout(() => setIsTransitioning(false), 50);
+      }, 400);
     } else if (currentStep === 2) {
       setIsTransitioning(true);
       setTimeout(() => {
         setCurrentStep(3);
-        setIsTransitioning(false);
         window.scrollTo({ top: 0, behavior: 'smooth' });
-      }, 200);
+        setTimeout(() => setIsTransitioning(false), 50);
+      }, 400);
     }
   }
 
@@ -559,9 +559,9 @@ export function GLP1CheckoutPageImproved() {
       setIsTransitioning(true);
       setTimeout(() => {
         setCurrentStep(currentStep - 1);
-        setIsTransitioning(false);
         window.scrollTo({ top: 0, behavior: 'smooth' });
-      }, 200);
+        setTimeout(() => setIsTransitioning(false), 50);
+      }, 400);
     }
   }
 
@@ -1029,7 +1029,7 @@ export function GLP1CheckoutPageImproved() {
           <div className={`${currentStep === 2 ? '' : 'lg:col-span-2'} px-[10px] sm:px-0`}>
             {/* Step 1: Medication Selection */}
             {currentStep === 1 && (
-              <div className={`lg:max-w-xl lg:mx-auto transition-all duration-300 ${isTransitioning ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}>
+              <div className={`lg:max-w-xl lg:mx-auto transition-all duration-500 ease-in-out ${isTransitioning ? 'opacity-0 scale-95 translate-y-8' : 'opacity-100 scale-100 translate-y-0'}`}>
                 <div className="mb-6">
                   <h2 className="text-xl font-medium text-gray-900 mb-2">
                     {patientData.firstName 
@@ -1109,7 +1109,7 @@ export function GLP1CheckoutPageImproved() {
 
             {/* Step 2: Plan & Add-ons */}
             {currentStep === 2 && selectedMed && (
-              <div className={`relative w-screen -ml-[50vw] left-[50%] -mt-8 transition-all duration-300 ${isTransitioning ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`} style={{
+              <div className={`relative w-screen -ml-[50vw] left-[50%] -mt-8 transition-all duration-500 ease-in-out ${isTransitioning ? 'opacity-0 scale-95 translate-y-8' : 'opacity-100 scale-100 translate-y-0'}`} style={{
                 background: selectedMed.id === 'tirzepatide'
                   ? 'linear-gradient(to bottom, #ff6f00 0%, #f5f5f5 60%)'
                   : 'linear-gradient(to bottom, #ffd24e 0%, #f5f5f5 60%)',
@@ -1359,7 +1359,7 @@ export function GLP1CheckoutPageImproved() {
 
             {/* Step 3: Shipping & Payment */}
             {currentStep === 3 && (
-              <div className={`lg:max-w-xl lg:mx-auto transition-all duration-300 ${isTransitioning ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}>
+              <div className={`lg:max-w-xl lg:mx-auto transition-all duration-500 ease-in-out ${isTransitioning ? 'opacity-0 scale-95 translate-y-8' : 'opacity-100 scale-100 translate-y-0'}`}>
                 <div className="mb-6">
                   <h2 className="text-xl font-medium text-gray-900 mb-2">
                     {patientData.firstName 
