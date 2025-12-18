@@ -1108,7 +1108,7 @@ export function GLP1CheckoutPageImproved() {
                 paddingTop: '2rem',
                 paddingBottom: '2rem'
               }}>
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="max-w-7xl mx-auto px-[26px] sm:px-6 lg:px-8">
                   <div className="lg:grid lg:grid-cols-3 lg:gap-1">
                     {/* Main Content */}
                     <div className="lg:col-span-2">
