@@ -1015,7 +1015,7 @@ export function GLP1CheckoutPageImproved() {
       )}
 
       {/* Main Content with Sidebar Layout */}
-      <div className={`${currentStep === 2 ? '' : 'max-w-7xl mx-auto'} ${currentStep === 2 ? '' : 'px-4 sm:px-6'} py-8`}>
+      <div className={`${currentStep === 2 ? '' : 'max-w-7xl mx-auto'} ${currentStep === 2 ? '' : 'px-4 sm:px-6'} ${currentStep === 2 ? '' : 'py-8'}`}>
         <div className={`${currentStep === 2 ? 'relative' : 'grid grid-cols-1 lg:grid-cols-3 gap-1 max-w-7xl mx-auto px-4 sm:px-6'}`}>
           {/* Main Content Area */}
           <div className={`${currentStep === 2 ? '' : 'lg:col-span-2'} px-[10px] sm:px-0`}>
