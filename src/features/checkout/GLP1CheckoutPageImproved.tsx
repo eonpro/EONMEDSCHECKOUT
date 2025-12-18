@@ -537,7 +537,7 @@ export function GLP1CheckoutPageImproved() {
   }
 
   function handleNextStep() {
-    if (currentStep === 1 && selectedMedication && selectedPlan) {
+    if (currentStep === 1 && selectedMedication) {
       setIsTransitioning(true);
       setTimeout(() => {
         setCurrentStep(2);
@@ -546,7 +546,7 @@ export function GLP1CheckoutPageImproved() {
           setTimeout(() => setIsTransitioning(false), 100);
         });
       }, 250);
-    } else if (currentStep === 2) {
+    } else if (currentStep === 2 && selectedPlan) {
       setIsTransitioning(true);
       setTimeout(() => {
         setCurrentStep(3);
@@ -1341,7 +1341,8 @@ export function GLP1CheckoutPageImproved() {
                   </button>
                   <button
                     onClick={handleNextStep}
-                          className="flex-1 px-8 py-2.5 rounded-full bg-black text-white font-medium hover:bg-gray-800"
+                    disabled={!selectedPlan}
+                    className="flex-1 px-8 py-2.5 rounded-full bg-black text-white font-medium hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {t.continueShipping}
                   </button>
