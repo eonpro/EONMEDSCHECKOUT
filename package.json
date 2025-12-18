@@ -22,7 +22,8 @@
     "micro": "^10.0.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "stripe": "^14.25.0"
+    "stripe": "^14.25.0",
+    "zod": "^4.2.1"
   },
   "devDependencies": {
     "@types/google.maps": "^3.58.1",

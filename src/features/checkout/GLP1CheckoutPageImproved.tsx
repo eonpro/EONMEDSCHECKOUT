@@ -5,6 +5,14 @@ import { StripeProvider } from '../../components/StripeProvider';
 import { PaymentForm } from '../../components/PaymentForm';
 import { ThankYouPage } from '../../components/ThankYouPage';
 import { AddressAutocomplete } from '../../components/AddressAutocomplete';
+import {
+  useIntakePrefill,
+  prefillToPatientData,
+  prefillToShippingAddress,
+  prefillToMedication,
+  prefillToPlan,
+} from '../../hooks/useIntakePrefill';
+import { clearAllPrefillData } from '../../utils/cookies';
 
 export type ShippingAddress = {
   addressLine1: string;
@@ -129,6 +137,75 @@ export function GLP1CheckoutPageImproved() {
     medication_preference: '',
     state: '',
   });
+
+  // =========================================================================
+  // Heyflow Intake Prefill Integration
+  // =========================================================================
+  const {
+    data: prefillData,
+    intakeId,
+    isLoading: isPrefillLoading,
+    clearPrefill: _clearPrefill, // Available for manual clear if needed
+  } = useIntakePrefill({ debug: true });
+
+  // Apply prefill data when available
+  useEffect(() => {
+    if (prefillData && !isPrefillLoading) {
+      console.log('[Checkout] Applying prefill data from intake:', prefillData);
+
+      // Update patient data
+      const patientPrefill = prefillToPatientData(prefillData);
+      setPatientData(prev => ({
+        ...prev,
+        firstName: patientPrefill.firstName || prev.firstName,
+        lastName: patientPrefill.lastName || prev.lastName,
+        email: patientPrefill.email || prev.email,
+        phone: patientPrefill.phone || prev.phone,
+      }));
+
+      // Update shipping address
+      const addressPrefill = prefillToShippingAddress(prefillData);
+      setShippingAddress(prev => ({
+        ...prev,
+        addressLine1: addressPrefill.addressLine1 || prev.addressLine1,
+        addressLine2: addressPrefill.addressLine2 || prev.addressLine2,
+        city: addressPrefill.city || prev.city,
+        state: addressPrefill.state || prev.state,
+        zipCode: addressPrefill.zipCode || prev.zipCode,
+        country: addressPrefill.country || prev.country,
+      }));
+
+      // Pre-select medication if provided
+      const medication = prefillToMedication(prefillData);
+      if (medication) {
+        setSelectedMedication(medication);
+      }
+
+      // Pre-select plan if provided
+      const plan = prefillToPlan(prefillData);
+      if (plan) {
+        // Find matching plan ID from medications data
+        const med = medications.find(m => m.id === (medication || selectedMedication));
+        if (med) {
+          const matchingPlan = med.plans.find(p => p.type === plan);
+          if (matchingPlan) {
+            setSelectedPlan(matchingPlan.id);
+          }
+        }
+      }
+
+      // Set language preference
+      if (prefillData.language) {
+        setLanguage(prefillData.language);
+      }
+
+      // Log intake ID for tracking
+      if (intakeId) {
+        console.log('[Checkout] Intake ID for tracking:', intakeId);
+      }
+    }
+  }, [prefillData, isPrefillLoading, intakeId]);
+  // =========================================================================
 
   // Load qualification data from URL parameter on mount
   useEffect(() => {
@@ -435,10 +512,17 @@ export function GLP1CheckoutPageImproved() {
     // Payment successful!
     // Save order to database and show success message
     console.log('Payment successful! Payment Intent:', intentId);
+    if (intakeId) {
+      console.log('[Checkout] Order completed for intake ID:', intakeId);
+    }
 
     setPaymentIntentId(intentId);
     setPaymentSuccess(true);
     setStatusBanner('success');
+
+    // Clear prefill data after successful payment
+    clearAllPrefillData();
+    console.log('[Checkout] Prefill data cleared after successful payment');
 
     // Scroll to top of page
     window.scrollTo({ top: 0, behavior: 'smooth' });
