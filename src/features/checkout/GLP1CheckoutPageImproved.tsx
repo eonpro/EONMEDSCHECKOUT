@@ -823,7 +823,7 @@ export function GLP1CheckoutPageImproved() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5]" style={{ fontFamily: '\'Sofia Pro\', Poppins, sans-serif' }}>
+    <div className="min-h-screen bg-[#f7f5f1]" style={{ fontFamily: '\'Sofia Pro\', Poppins, sans-serif' }}>
 
       {/* Marquee Banner */}
       <div className="relative w-full overflow-hidden bg-white h-[35px] flex items-center">
@@ -924,19 +924,19 @@ export function GLP1CheckoutPageImproved() {
       </div>
 
       {/* Progress Steps */}
-      <div className="bg-[#f5f5f5]">
+      <div className="bg-[#f7f5f1]">
         <div className="max-w-7xl mx-auto px-6 py-4 space-y-4">
           <div className="flex justify-end">
             {/* Language Toggle Switch */}
-            <div className="relative bg-white rounded-full p-1 shadow-sm border border-gray-200 inline-flex items-center">
+            <div className="relative bg-white rounded-full p-0.5 shadow-sm border border-gray-200 inline-flex items-center">
               <button
                 onClick={() => setLanguage('en')}
-                className={`relative z-10 px-4 py-2 rounded-full flex items-center gap-2 transition-all duration-300 ${
+                className={`relative z-10 px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-all duration-300 ${
                   language === 'en' ? 'text-white' : 'text-gray-600'
                 }`}
                 aria-label="Switch to English"
               >
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
                   <circle cx="12" cy="12" r="10" fill="#B22234" />
                   <rect x="2" y="4" width="20" height="1.5" fill="white" />
                   <rect x="2" y="7" width="20" height="1.5" fill="white" />
@@ -946,26 +946,26 @@ export function GLP1CheckoutPageImproved() {
                   <rect x="2" y="19" width="20" height="1.5" fill="white" />
                   <rect x="2" y="3" width="9" height="10" fill="#3C3B6E" />
                 </svg>
-                <span className="text-sm font-semibold">EN</span>
+                <span className="text-xs font-semibold">EN</span>
               </button>
               <button
                 onClick={() => setLanguage('es')}
-                className={`relative z-10 px-4 py-2 rounded-full flex items-center gap-2 transition-all duration-300 ${
+                className={`relative z-10 px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-all duration-300 ${
                   language === 'es' ? 'text-white' : 'text-gray-600'
                 }`}
                 aria-label="Cambiar a Español"
               >
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
                   <rect x="2" y="2" width="20" height="6" fill="#C60B1E" />
                   <rect x="2" y="8" width="20" height="8" fill="#FFC400" />
                   <rect x="2" y="16" width="20" height="6" fill="#C60B1E" />
                 </svg>
-                <span className="text-sm font-semibold">ES</span>
+                <span className="text-xs font-semibold">ES</span>
               </button>
               {/* Sliding background */}
               <div
-                className={`absolute top-1 bottom-1 rounded-full bg-gray-900 transition-all duration-300 ease-out ${
-                  language === 'en' ? 'left-1 right-[50%]' : 'left-[50%] right-1'
+                className={`absolute top-0.5 bottom-0.5 rounded-full bg-[#13a97b] transition-all duration-300 ease-out ${
+                  language === 'en' ? 'left-0.5 right-[50%]' : 'left-[50%] right-0.5'
                 }`}
               />
             </div>
