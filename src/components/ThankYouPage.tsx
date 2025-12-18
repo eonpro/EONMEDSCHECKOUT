@@ -163,14 +163,14 @@ export function ThankYouPage({
             </p>
             
             {/* Medication Vial Image */}
-            <div className="mb-6">
+            <div className="mb-6 flex justify-center">
               <img 
                 src={isTirzepatide 
                   ? "https://static.wixstatic.com/media/c49a9b_00c1ff5076814c8e93e3c53a132b962e~mv2.png"
                   : "https://static.wixstatic.com/media/c49a9b_4da809344f204a088d1d4708b4c1609b~mv2.webp"
                 }
                 alt={medicationName}
-                className="w-32 h-32 mx-auto object-contain"
+                className="max-w-[140px] max-h-[140px] w-auto h-auto object-contain"
               />
             </div>
             
