@@ -1018,7 +1018,7 @@ export function GLP1CheckoutPageImproved() {
       <div className={`${currentStep === 2 ? '' : 'max-w-7xl mx-auto'} ${currentStep === 2 ? '' : 'px-4 sm:px-6'} ${currentStep === 2 ? '' : 'py-8'}`}>
         <div className={`${currentStep === 2 ? 'relative' : 'grid grid-cols-1 lg:grid-cols-3 gap-1 max-w-7xl mx-auto px-4 sm:px-6'}`}>
           {/* Main Content Area */}
-          <div className={`${currentStep === 2 ? '' : 'lg:col-span-2'} px-[10px] sm:px-0`}>
+          <div className={`${currentStep === 2 ? '' : 'lg:col-span-2'} ${currentStep === 2 ? '' : 'px-0 sm:px-0'}`}>
             {/* Step 1: Medication Selection */}
             {currentStep === 1 && (
               <div className={`lg:max-w-xl lg:mx-auto transition-all duration-300 ease-out ${isTransitioning ? 'opacity-0 scale-98 translate-y-4' : 'opacity-100 scale-100 translate-y-0'}`}>
@@ -1108,7 +1108,7 @@ export function GLP1CheckoutPageImproved() {
                 paddingTop: '2rem',
                 paddingBottom: '2rem'
               }}>
-                <div className="max-w-7xl mx-auto px-[10px] sm:px-6 lg:px-8">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                   <div className="lg:grid lg:grid-cols-3 lg:gap-1">
                     {/* Main Content */}
                     <div className="lg:col-span-2">
