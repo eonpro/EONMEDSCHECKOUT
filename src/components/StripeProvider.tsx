@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import { getApiUrl } from '../config/api';
@@ -48,30 +48,45 @@ export function StripeProvider({ children, amount, appearance, customerEmail, cu
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Use refs to track latest values and prevent duplicate requests
+  const hasCreatedIntent = useRef(false);
+  const currentIntentAmount = useRef<number | null>(null);
+  const latestPropsRef = useRef({ customerEmail, customerName, customerPhone, shippingAddress, orderData, language });
 
-  // Memoize amount in cents to prevent unnecessary re-fetches
+  // Always keep refs updated with latest props
+  useEffect(() => {
+    latestPropsRef.current = { customerEmail, customerName, customerPhone, shippingAddress, orderData, language };
+  }, [customerEmail, customerName, customerPhone, shippingAddress, orderData, language]);
+
+  // Memoize amount in cents - ONLY dependency for creating new intent
   const amountInCents = useMemo(() => Math.round(amount * 100), [amount]);
 
-  // Memoize order data to prevent unnecessary re-fetches
-  const orderDataJson = useMemo(() => JSON.stringify(orderData || {}), [orderData]);
-  const shippingAddressJson = useMemo(() => JSON.stringify(shippingAddress || {}), [shippingAddress]);
-
+  // Create payment intent - only when amount changes AND we haven't created one yet
   useEffect(() => {
+    // Skip if amount is invalid
     if (amountInCents <= 0) {
       setLoading(false);
       return;
     }
 
-    // Reset state when amount changes
+    // Skip if we already have an intent for this exact amount
+    if (hasCreatedIntent.current && currentIntentAmount.current === amountInCents) {
+      console.log('[StripeProvider] Skipping duplicate intent creation for same amount:', amountInCents);
+      return;
+    }
+
+    // Reset state when creating new intent
     setLoading(true);
-    setClientSecret(null);
     setError(null);
 
     const controller = new AbortController();
 
-    // Parse memoized JSON back to objects
-    const parsedOrderData = JSON.parse(orderDataJson);
-    const parsedShippingAddress = JSON.parse(shippingAddressJson);
+    // Use latest props from ref
+    const { customerEmail: email, customerName: name, customerPhone: phone, 
+            shippingAddress: shipping, orderData: order, language: lang } = latestPropsRef.current;
+
+    console.log('[StripeProvider] Creating payment intent for amount:', amountInCents);
 
     // Fetch payment intent with full order details
     fetch(getApiUrl('createPaymentIntent'), {
@@ -82,12 +97,12 @@ export function StripeProvider({ children, amount, appearance, customerEmail, cu
       body: JSON.stringify({
         amount: amountInCents,
         currency: 'usd',
-        customer_email: customerEmail,
-        customer_name: customerName,
-        customer_phone: customerPhone,
-        shipping_address: Object.keys(parsedShippingAddress).length > 0 ? parsedShippingAddress : undefined,
-        order_data: Object.keys(parsedOrderData).length > 0 ? parsedOrderData : undefined,
-        language: language, // Pass language for GHL SMS automations
+        customer_email: email,
+        customer_name: name,
+        customer_phone: phone,
+        shipping_address: shipping && Object.keys(shipping).length > 0 ? shipping : undefined,
+        order_data: order && Object.keys(order).length > 0 ? order : undefined,
+        language: lang, // Pass language for GHL SMS automations
         metadata: {
           source: 'eonmeds_checkout',
         },
@@ -102,7 +117,9 @@ export function StripeProvider({ children, amount, appearance, customerEmail, cu
       })
       .then((data) => {
         if (data.clientSecret) {
-          console.log('Payment intent created successfully');
+          console.log('[StripeProvider] Payment intent created successfully:', data.paymentIntentId);
+          hasCreatedIntent.current = true;
+          currentIntentAmount.current = amountInCents;
           setClientSecret(data.clientSecret);
           setLoading(false);
         } else {
@@ -111,13 +128,13 @@ export function StripeProvider({ children, amount, appearance, customerEmail, cu
       })
       .catch((err) => {
         if (err.name === 'AbortError') return;
-        console.error('Error creating payment intent:', err);
+        console.error('[StripeProvider] Error creating payment intent:', err);
         setError('Failed to initialize payment. Please refresh and try again.');
         setLoading(false);
       });
 
     return () => controller.abort();
-  }, [amountInCents, customerEmail, customerName, customerPhone, orderDataJson, shippingAddressJson, language]);
+  }, [amountInCents]); // ONLY depend on amount - other props are read from ref
 
   // Memoize Elements options to prevent unnecessary re-renders
   const options = useMemo(() => ({

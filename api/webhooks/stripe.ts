@@ -136,30 +136,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     switch (event.type) {
       case 'payment_intent.succeeded': {
         const paymentIntent = event.data.object as any;
-        console.log(`[webhook] Payment intent succeeded: ${paymentIntent.id}`);
+        const metadata = paymentIntent.metadata || {};
+        
+        // Detailed logging for debugging
+        console.log(`[webhook] ========== PAYMENT SUCCEEDED ==========`);
+        console.log(`[webhook] PaymentIntent ID: ${paymentIntent.id}`);
+        console.log(`[webhook] Amount: ${paymentIntent.amount} ${paymentIntent.currency}`);
+        console.log(`[webhook] Customer ID: ${paymentIntent.customer}`);
+        console.log(`[webhook] Receipt Email: ${paymentIntent.receipt_email}`);
+        console.log(`[webhook] Metadata:`, JSON.stringify(metadata, null, 2));
+        console.log(`[webhook] is_subscription: ${metadata.is_subscription}`);
+        console.log(`[webhook] GHL configured: ${isGHLConfigured()}`);
         
         let subscriptionId: string | undefined;
         
         // Create subscription if this was a subscription payment
-        if (paymentIntent.metadata?.is_subscription === 'true') {
+        if (metadata.is_subscription === 'true') {
+          console.log('[webhook] Creating subscription for recurring payment...');
           try {
             const subscription = await createSubscriptionForPayment(paymentIntent);
             if (subscription) {
               subscriptionId = subscription.id;
-              console.log(`[webhook] Successfully created subscription for payment ${paymentIntent.id}`);
+              console.log(`[webhook] ✅ Successfully created subscription: ${subscriptionId}`);
             }
           } catch (error) {
-            console.error(`[webhook] Failed to create subscription for payment ${paymentIntent.id}:`, error);
+            console.error(`[webhook] ❌ Failed to create subscription:`, error);
           }
+        } else {
+          console.log('[webhook] Not a subscription payment (is_subscription !== true)');
         }
         
         // =========================================================
         // GoHighLevel Integration - Create/Update Contact
         // =========================================================
+        console.log('[webhook] Checking GHL integration...');
         if (isGHLConfigured()) {
+          console.log('[webhook] GHL is configured, proceeding with contact creation...');
           try {
-            const metadata = paymentIntent.metadata || {};
-            
             // Extract customer info from metadata
             const contactData = {
               firstName: metadata.customer_first_name || '',
@@ -173,6 +186,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               source: 'EONMeds Checkout',
             };
             
+            console.log('[webhook] Contact data:', JSON.stringify(contactData, null, 2));
+            
             // Payment data for GHL
             const paymentData = {
               paymentIntentId: paymentIntent.id,
@@ -185,35 +200,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               language: (metadata.language || metadata.lang || 'en') as 'en' | 'es',
             };
             
+            console.log('[webhook] Payment data:', JSON.stringify(paymentData, null, 2));
+            
             // Only send to GHL if we have at least an email
             if (contactData.email) {
+              console.log('[webhook] Email found, calling GHL...');
               const ghlResult = await handlePaymentForGHL(contactData, paymentData);
               if (ghlResult.success) {
-                console.log(`[webhook] Created/updated GHL contact for payment ${paymentIntent.id}`);
+                console.log(`[webhook] ✅ GHL contact created/updated for payment ${paymentIntent.id}`);
               } else {
-                console.warn(`[webhook] Failed to create GHL contact for payment ${paymentIntent.id}`);
+                console.warn(`[webhook] ⚠️ GHL returned success=false for payment ${paymentIntent.id}`);
               }
             } else {
-              console.warn('[webhook] No email found in payment metadata, skipping GHL');
+              console.warn('[webhook] ⚠️ No email found in payment metadata, skipping GHL');
             }
           } catch (ghlError) {
             // Don't fail the webhook if GHL fails
-            console.error('[webhook] GHL integration error:', ghlError);
+            console.error('[webhook] ❌ GHL integration error:', ghlError);
           }
+        } else {
+          console.log('[webhook] ⚠️ GHL not configured (missing API key or Location ID)');
         }
         // =========================================================
         
         // Log the successful payment
-        const meta = {
+        console.log(`[webhook] ========== PAYMENT PROCESSING COMPLETE ==========`);
+        const logMeta = {
           id: event.id,
           type: event.type,
           created: event.created,
           customer_id: paymentIntent.customer,
           amount: paymentIntent.amount,
-          medication: paymentIntent.metadata?.medication,
-          plan: paymentIntent.metadata?.plan,
+          medication: metadata.medication,
+          plan: metadata.plan,
+          subscription_created: !!subscriptionId,
         };
-        console.log('[webhook] Payment completed', meta);
+        console.log('[webhook] Summary:', JSON.stringify(logMeta));
         break;
       }
       
