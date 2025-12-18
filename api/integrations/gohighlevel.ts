@@ -244,6 +244,9 @@ export async function addNoteToContact(
 /**
  * Create contact and record payment information
  * Called when a payment succeeds
+ * 
+ * AUTOMATION TRIGGER TAG: "payment-completed"
+ * Use this tag in GHL to trigger SMS/email automations
  */
 export async function handlePaymentForGHL(
   contactData: GHLContactData,
@@ -255,41 +258,65 @@ export async function handlePaymentForGHL(
   }
   
   try {
-    // Build tags based on payment
-    const tags = ['eonmeds', 'paid'];
+    // =======================================================
+    // AUTOMATION TRIGGER TAG
+    // Use "payment-completed" in GHL workflow triggers
+    // =======================================================
+    const tags = [
+      'payment-completed',  // <-- PRIMARY TRIGGER TAG for automations
+      'eonmeds',
+      'paid',
+    ];
     
+    // Add medication-specific tag
     if (paymentData.medication) {
-      tags.push(paymentData.medication.toLowerCase());
+      const medTag = paymentData.medication.toLowerCase().replace(/\s+/g, '-');
+      tags.push(medTag); // e.g., "semaglutide" or "tirzepatide"
     }
     
+    // Add plan-specific tag
     if (paymentData.plan) {
-      tags.push(`plan-${paymentData.plan.toLowerCase().replace(/\s+/g, '-')}`);
+      const planTag = `plan-${paymentData.plan.toLowerCase().replace(/\s+/g, '-')}`;
+      tags.push(planTag); // e.g., "plan-monthly-recurring", "plan-3-month"
     }
     
+    // Add subscription vs one-time tag
     if (paymentData.isSubscription) {
       tags.push('subscription');
     } else {
-      tags.push('one-time');
+      tags.push('one-time-purchase');
     }
     
-    // Build custom fields for payment info
+    // =======================================================
+    // CUSTOM FIELDS FOR SMS TEMPLATES
+    // Use these in your GHL SMS templates: {{contact.custom_field_name}}
+    // =======================================================
+    const paymentAmount = `$${(paymentData.amount / 100).toFixed(2)}`;
+    const paymentDate = new Date().toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric'
+    });
+    
     const customFields: Record<string, string> = {
-      'payment_date': new Date().toISOString(),
-      'payment_amount': `$${(paymentData.amount / 100).toFixed(2)}`,
+      // Payment info for SMS templates
+      'last_payment_amount': paymentAmount,
+      'last_payment_date': paymentDate,
       'payment_id': paymentData.paymentIntentId,
+      
+      // Medication info for SMS templates
+      'medication': paymentData.medication || '',
+      'plan_name': paymentData.plan || '',
+      'plan_type': paymentData.isSubscription ? 'Subscription' : 'One-Time',
+      
+      // Subscription tracking
+      'subscription_id': paymentData.subscriptionId || '',
+      'subscription_status': paymentData.isSubscription ? 'Active' : 'N/A',
+      
+      // For order tracking
+      'last_order_date': new Date().toISOString(),
+      'customer_status': 'paid',
     };
-    
-    if (paymentData.medication) {
-      customFields['medication'] = paymentData.medication;
-    }
-    
-    if (paymentData.plan) {
-      customFields['plan'] = paymentData.plan;
-    }
-    
-    if (paymentData.subscriptionId) {
-      customFields['subscription_id'] = paymentData.subscriptionId;
-    }
     
     // Create or update contact
     const contact = await createGHLContact({
@@ -299,17 +326,26 @@ export async function handlePaymentForGHL(
     });
     
     if (contact) {
-      // Add a note about the payment
+      // Add a note about the payment (visible in contact timeline)
       const noteText = [
-        `💳 Payment Received - ${new Date().toLocaleDateString()}`,
-        `Amount: $${(paymentData.amount / 100).toFixed(2)} ${paymentData.currency.toUpperCase()}`,
+        `💳 PAYMENT COMPLETED`,
+        `━━━━━━━━━━━━━━━━━━━━━`,
+        `Amount: ${paymentAmount} ${paymentData.currency.toUpperCase()}`,
+        `Date: ${paymentDate}`,
+        ``,
         paymentData.medication ? `Medication: ${paymentData.medication}` : '',
         paymentData.plan ? `Plan: ${paymentData.plan}` : '',
-        paymentData.isSubscription ? `Subscription ID: ${paymentData.subscriptionId}` : 'One-time purchase',
+        paymentData.isSubscription ? `Type: Subscription` : 'Type: One-time purchase',
+        paymentData.subscriptionId ? `Subscription ID: ${paymentData.subscriptionId}` : '',
+        ``,
         `Payment ID: ${paymentData.paymentIntentId}`,
+        ``,
+        `✅ Automation trigger tag: payment-completed`,
       ].filter(Boolean).join('\n');
       
       await addNoteToContact(contact.id, noteText);
+      
+      console.log(`[GHL] Contact ${contact.id} tagged with "payment-completed" for automation`);
     }
     
     return { contact, success: true };
