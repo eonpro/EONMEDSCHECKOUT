@@ -927,36 +927,47 @@ export function GLP1CheckoutPageImproved() {
       <div className="bg-[#f5f5f5]">
         <div className="max-w-7xl mx-auto px-6 py-4 space-y-4">
           <div className="flex justify-end">
-            <div className="flex items-center gap-2">
+            {/* Language Toggle Switch */}
+            <div className="relative bg-white rounded-full p-1 shadow-sm border border-gray-200 inline-flex items-center">
               <button
                 onClick={() => setLanguage('en')}
-                className={`px-3 py-1.5 rounded-lg flex items-center gap-2 transition-colors ${language === 'en' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                className={`relative z-10 px-4 py-2 rounded-full flex items-center gap-2 transition-all duration-300 ${
+                  language === 'en' ? 'text-white' : 'text-gray-600'
+                }`}
                 aria-label="Switch to English"
               >
-                <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-                  <circle cx="10" cy="10" r="9" fill="#B22234" />
-                  <rect x="0" y="2" width="20" height="1.5" fill="white" />
-                  <rect x="0" y="5" width="20" height="1.5" fill="white" />
-                  <rect x="0" y="8" width="20" height="1.5" fill="white" />
-                  <rect x="0" y="11" width="20" height="1.5" fill="white" />
-                  <rect x="0" y="14" width="20" height="1.5" fill="white" />
-                  <rect x="0" y="17" width="20" height="1.5" fill="white" />
-                  <rect x="0" y="1" width="8" height="9" fill="#3C3B6E" />
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" fill="#B22234" />
+                  <rect x="2" y="4" width="20" height="1.5" fill="white" />
+                  <rect x="2" y="7" width="20" height="1.5" fill="white" />
+                  <rect x="2" y="10" width="20" height="1.5" fill="white" />
+                  <rect x="2" y="13" width="20" height="1.5" fill="white" />
+                  <rect x="2" y="16" width="20" height="1.5" fill="white" />
+                  <rect x="2" y="19" width="20" height="1.5" fill="white" />
+                  <rect x="2" y="3" width="9" height="10" fill="#3C3B6E" />
                 </svg>
-                <span className="text-sm font-medium">EN</span>
+                <span className="text-sm font-semibold">EN</span>
               </button>
               <button
                 onClick={() => setLanguage('es')}
-                className={`px-3 py-1.5 rounded-lg flex items-center gap-2 transition-colors ${language === 'es' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                className={`relative z-10 px-4 py-2 rounded-full flex items-center gap-2 transition-all duration-300 ${
+                  language === 'es' ? 'text-white' : 'text-gray-600'
+                }`}
                 aria-label="Cambiar a Español"
               >
-                <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-                  <rect x="0" y="0" width="20" height="5" fill="#C60B1E" />
-                  <rect x="0" y="5" width="20" height="10" fill="#FFC400" />
-                  <rect x="0" y="15" width="20" height="5" fill="#C60B1E" />
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
+                  <rect x="2" y="2" width="20" height="6" fill="#C60B1E" />
+                  <rect x="2" y="8" width="20" height="8" fill="#FFC400" />
+                  <rect x="2" y="16" width="20" height="6" fill="#C60B1E" />
                 </svg>
-                <span className="text-sm font-medium">ES</span>
+                <span className="text-sm font-semibold">ES</span>
               </button>
+              {/* Sliding background */}
+              <div
+                className={`absolute top-1 bottom-1 rounded-full bg-gray-900 transition-all duration-300 ease-out ${
+                  language === 'en' ? 'left-1 right-[50%]' : 'left-[50%] right-1'
+                }`}
+              />
             </div>
           </div>
           <div className="flex items-center justify-between max-w-5xl mx-auto">
