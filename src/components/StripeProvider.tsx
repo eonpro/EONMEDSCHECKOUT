@@ -27,6 +27,8 @@ interface StripeProviderProps {
   amount: number;
   appearance?: any;
   customerEmail?: string;
+  customerName?: string;
+  customerPhone?: string;
   shippingAddress?: ShippingAddress;
   orderData?: OrderData;
 }
@@ -41,7 +43,7 @@ if (!STRIPE_PUBLISHABLE_KEY) {
   console.error('Stripe publishable key not found in environment');
 }
 
-export function StripeProvider({ children, amount, appearance, customerEmail, shippingAddress, orderData }: StripeProviderProps) {
+export function StripeProvider({ children, amount, appearance, customerEmail, customerName, customerPhone, shippingAddress, orderData }: StripeProviderProps) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -80,6 +82,8 @@ export function StripeProvider({ children, amount, appearance, customerEmail, sh
         amount: amountInCents,
         currency: 'usd',
         customer_email: customerEmail,
+        customer_name: customerName,
+        customer_phone: customerPhone,
         shipping_address: Object.keys(parsedShippingAddress).length > 0 ? parsedShippingAddress : undefined,
         order_data: Object.keys(parsedOrderData).length > 0 ? parsedOrderData : undefined,
         metadata: {
@@ -111,7 +115,7 @@ export function StripeProvider({ children, amount, appearance, customerEmail, sh
       });
 
     return () => controller.abort();
-  }, [amountInCents, customerEmail, orderDataJson, shippingAddressJson]);
+  }, [amountInCents, customerEmail, customerName, customerPhone, orderDataJson, shippingAddressJson]);
 
   // Memoize Elements options to prevent unnecessary re-renders
   const options = useMemo(() => ({

@@ -1526,6 +1526,8 @@ export function GLP1CheckoutPageImproved() {
                   <StripeProvider 
                     amount={total}
                     customerEmail={patientData.email}
+                    customerName={`${patientData.firstName} ${patientData.lastName}`.trim()}
+                    customerPhone={patientData.phone}
                     shippingAddress={shippingAddress}
                     orderData={{
                       medication: selectedMed?.name || '',

@@ -95,7 +95,12 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
 });
 
 // Helper function to create or retrieve customer
-async function getOrCreateCustomer(email: string | undefined, metadata?: any) {
+async function getOrCreateCustomer(
+  email: string | undefined,
+  name?: string,
+  phone?: string,
+  metadata?: any
+) {
   try {
     // Validate email format
     const isValidEmail = email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -108,16 +113,20 @@ async function getOrCreateCustomer(email: string | undefined, metadata?: any) {
       });
 
       if (existingCustomers.data.length > 0) {
-        // Update existing customer metadata
+        // Update existing customer with latest info
         const customer = await stripe.customers.update(existingCustomers.data[0].id, {
+          name: name || undefined,
+          phone: phone || undefined,
           metadata: metadata || {},
         });
         return customer;
       }
 
-      // Create new customer with email
+      // Create new customer with full info
       const customer = await stripe.customers.create({
         email: email,
+        name: name || undefined,
+        phone: phone || undefined,
         metadata: metadata || {},
       });
       return customer;
@@ -125,6 +134,8 @@ async function getOrCreateCustomer(email: string | undefined, metadata?: any) {
 
     // Create customer without email (for anonymous checkouts)
     const customer = await stripe.customers.create({
+      name: name || undefined,
+      phone: phone || undefined,
       metadata: {
         ...metadata,
         anonymous: 'true',
@@ -193,19 +204,33 @@ export default async function handler(
   }
 
   try {
-    const { amount, currency, customer_email, shipping_address, order_data, metadata } = req.body;
+    const { 
+      amount, 
+      currency, 
+      customer_email, 
+      customer_name,
+      customer_phone,
+      shipping_address, 
+      order_data, 
+      metadata 
+    } = req.body;
 
     // Validate amount
     if (!amount || amount < 50) {
       return res.status(400).json({ error: 'Invalid amount' });
     }
 
-    // Create or retrieve customer
-    const customer = await getOrCreateCustomer(customer_email, {
-      medication: order_data?.medication || '',
-      plan: order_data?.plan || '',
-      source: 'eonmeds_checkout',
-    });
+    // Create or retrieve customer with full profile
+    const customer = await getOrCreateCustomer(
+      customer_email,
+      customer_name,
+      customer_phone,
+      {
+        medication: order_data?.medication || '',
+        plan: order_data?.plan || '',
+        source: 'eonmeds_checkout',
+      }
+    );
 
     // Determine if this is a subscription or one-time payment
     const planType = order_data?.plan || '';
