@@ -100,11 +100,13 @@ async function handlePaymentForGHL(contactData: any, paymentData: any): Promise<
 }
 // ============================================================================
 
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || '';
-const stripeSecret = process.env.STRIPE_SECRET_KEY || '';
+// SECURITY: Fail-closed if Stripe env vars are missing.
+// Never default secrets to empty strings.
+const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+const stripeSecret = process.env.STRIPE_SECRET_KEY;
 
-// Initialize Stripe with secret key
-const stripe = new Stripe(stripeSecret, { apiVersion: '2024-06-20' as any });
+// Initialize Stripe only if we have a secret key
+const stripe = stripeSecret ? new Stripe(stripeSecret, { apiVersion: '2024-06-20' as any }) : null;
 
 // Disable body parsing, we need raw body for webhook signature verification
 export const config = {
@@ -213,23 +215,22 @@ async function createSubscriptionForPayment(paymentIntent: any) {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Basic diagnostic response for non-POST
-  if (req.method === 'GET') {
-    return res.status(200).json({ 
-      status: 'webhook endpoint active',
-      hasWebhookSecret: !!webhookSecret,
-      hasStripeKey: !!stripeSecret,
-      hasGHL: isGHLConfigured(),
-    });
-  }
-  
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // Ensure Stripe webhook is properly configured
+  if (!webhookSecret || !stripeSecret || !stripe) {
+    console.error('[webhook] Stripe webhook not configured (missing STRIPE_WEBHOOK_SECRET and/or STRIPE_SECRET_KEY)');
+    return res.status(500).json({ error: 'Stripe webhook not configured' });
   }
   
   // Read raw body
   const buf = await buffer(req);
   const sig = req.headers['stripe-signature'] as string;
+  if (!sig) {
+    return res.status(400).send('Webhook Error: Missing stripe-signature header');
+  }
   
   let event: Stripe.Event;
   

@@ -49,48 +49,120 @@ export function StripeProvider({ children, amount, appearance, customerEmail, cu
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // Use refs to track latest values and prevent duplicate requests
-  const hasCreatedIntent = useRef(false);
-  const currentIntentAmount = useRef<number | null>(null);
-  const latestPropsRef = useRef({ customerEmail, customerName, customerPhone, shippingAddress, orderData, language });
-
-  // Always keep refs updated with latest props
-  useEffect(() => {
-    latestPropsRef.current = { customerEmail, customerName, customerPhone, shippingAddress, orderData, language };
-  }, [customerEmail, customerName, customerPhone, shippingAddress, orderData, language]);
-
   // Memoize amount in cents - ONLY dependency for creating new intent
   const amountInCents = useMemo(() => Math.round(amount * 100), [amount]);
 
+  const normalizedCustomerEmail = useMemo(() => (customerEmail || '').trim().toLowerCase(), [customerEmail]);
+  const normalizedCustomerName = useMemo(() => (customerName || '').trim(), [customerName]);
+  const normalizedCustomerPhoneDigits = useMemo(() => {
+    const digits = (customerPhone || '').replace(/\D/g, '');
+    return digits.slice(-10); // US: last 10 digits
+  }, [customerPhone]);
+  const normalizedCustomerPhoneE164 = useMemo(() => {
+    return normalizedCustomerPhoneDigits.length === 10 ? `+1${normalizedCustomerPhoneDigits}` : '';
+  }, [normalizedCustomerPhoneDigits]);
+
+  const normalizedShippingAddress = useMemo<ShippingAddress | undefined>(() => {
+    if (!shippingAddress) return undefined;
+    return {
+      addressLine1: String(shippingAddress.addressLine1 || '').trim(),
+      addressLine2: String(shippingAddress.addressLine2 || '').trim(),
+      city: String(shippingAddress.city || '').trim(),
+      state: String(shippingAddress.state || '').trim().toUpperCase(),
+      zipCode: String(shippingAddress.zipCode || '').trim(),
+      country: String(shippingAddress.country || 'US').trim().toUpperCase(),
+    };
+  }, [
+    shippingAddress?.addressLine1,
+    shippingAddress?.addressLine2,
+    shippingAddress?.city,
+    shippingAddress?.state,
+    shippingAddress?.zipCode,
+    shippingAddress?.country,
+  ]);
+
+  const normalizedOrderData = useMemo(() => {
+    if (!orderData) return undefined;
+    return {
+      medication: String(orderData.medication || ''),
+      plan: String(orderData.plan || ''),
+      // Sort for stability so reordering doesn't churn intents
+      addons: Array.isArray(orderData.addons) ? [...orderData.addons].map(String).sort() : [],
+      expeditedShipping: Boolean(orderData.expeditedShipping),
+      subtotal: Number(orderData.subtotal || 0),
+      shippingCost: Number(orderData.shippingCost || 0),
+      total: Number(orderData.total || 0),
+    };
+  }, [
+    orderData?.medication,
+    orderData?.plan,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    JSON.stringify(orderData?.addons || []),
+    orderData?.expeditedShipping,
+    orderData?.subtotal,
+    orderData?.shippingCost,
+    orderData?.total,
+  ]);
+
   const isShippingAddressComplete = useMemo(() => {
-    if (!shippingAddress) return false;
+    if (!normalizedShippingAddress) return false;
     return Boolean(
-      shippingAddress.addressLine1?.trim() &&
-        shippingAddress.city?.trim() &&
-        shippingAddress.state?.trim() &&
-        shippingAddress.zipCode?.trim()
+      normalizedShippingAddress.addressLine1 &&
+        normalizedShippingAddress.city &&
+        normalizedShippingAddress.state &&
+        normalizedShippingAddress.zipCode
     );
-  }, [shippingAddress?.addressLine1, shippingAddress?.city, shippingAddress?.state, shippingAddress?.zipCode]);
+  }, [
+    normalizedShippingAddress?.addressLine1,
+    normalizedShippingAddress?.city,
+    normalizedShippingAddress?.state,
+    normalizedShippingAddress?.zipCode,
+  ]);
 
   const isCustomerInfoComplete = useMemo(() => {
-    return Boolean(customerEmail?.trim() && customerName?.trim() && customerPhone?.trim());
-  }, [customerEmail, customerName, customerPhone]);
+    return Boolean(normalizedCustomerEmail && normalizedCustomerName && normalizedCustomerPhoneDigits.length === 10);
+  }, [normalizedCustomerEmail, normalizedCustomerName, normalizedCustomerPhoneDigits.length]);
 
   const isReadyToCreateIntent = useMemo(() => {
     return amountInCents > 0 && isCustomerInfoComplete && isShippingAddressComplete;
   }, [amountInCents, isCustomerInfoComplete, isShippingAddressComplete]);
 
-  // Create payment intent - only when ready AND amount changes (or first ready)
+  // BUGFIX: Key intents by the full request fingerprint (not only amount),
+  // so we don't reuse an intent with stale customer/shipping metadata.
+  const intentRequestKey = useMemo(() => {
+    return JSON.stringify({
+      amountInCents,
+      currency: 'usd',
+      email: normalizedCustomerEmail,
+      name: normalizedCustomerName,
+      phone: normalizedCustomerPhoneE164,
+      shipping: normalizedShippingAddress,
+      order: normalizedOrderData,
+      language,
+    });
+  }, [
+    amountInCents,
+    normalizedCustomerEmail,
+    normalizedCustomerName,
+    normalizedCustomerPhoneE164,
+    normalizedShippingAddress,
+    normalizedOrderData,
+    language,
+  ]);
+
+  const currentIntentKeyRef = useRef<string | null>(null);
+
+  // Create payment intent - only when ready AND intentRequestKey changes
   useEffect(() => {
-    // Wait until we have the required info (prevents creating intents with empty address/phone)
     if (!isReadyToCreateIntent) {
       setLoading(false);
+      // Avoid rendering Elements while user edits required fields
+      setClientSecret(null);
       return;
     }
 
-    // Skip if we already have an intent for this exact amount
-    if (hasCreatedIntent.current && currentIntentAmount.current === amountInCents) {
-      console.log('[StripeProvider] Skipping duplicate intent creation for same amount:', amountInCents);
+    // Skip if we already created an intent for this exact request payload
+    if (currentIntentKeyRef.current === intentRequestKey && clientSecret) {
       return;
     }
 
@@ -101,59 +173,57 @@ export function StripeProvider({ children, amount, appearance, customerEmail, cu
 
     const controller = new AbortController();
 
-    // Use latest props from ref
-    const { customerEmail: email, customerName: name, customerPhone: phone, 
-            shippingAddress: shipping, orderData: order, language: lang } = latestPropsRef.current;
+    const payload = {
+      amount: amountInCents,
+      currency: 'usd',
+      customer_email: normalizedCustomerEmail,
+      customer_name: normalizedCustomerName,
+      customer_phone: normalizedCustomerPhoneE164,
+      shipping_address: normalizedShippingAddress,
+      order_data: normalizedOrderData && Object.keys(normalizedOrderData).length > 0 ? normalizedOrderData : undefined,
+      language,
+      metadata: { source: 'eonmeds_checkout' },
+    };
 
-    console.log('[StripeProvider] Creating payment intent for amount:', amountInCents);
-
-    // Fetch payment intent with full order details
-    fetch(getApiUrl('createPaymentIntent'), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        amount: amountInCents,
-        currency: 'usd',
-        customer_email: email,
-        customer_name: name,
-        customer_phone: phone,
-        shipping_address: shipping,
-        order_data: order && Object.keys(order).length > 0 ? order : undefined,
-        language: lang, // Pass language for GHL SMS automations
-        metadata: {
-          source: 'eonmeds_checkout',
+    // Debounce to avoid creating multiple intents while user is typing
+    const debounceMs = 350;
+    const timeoutId = setTimeout(() => {
+      fetch(getApiUrl('createPaymentIntent'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-      }),
-      signal: controller.signal,
-    })
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`Failed to create payment intent: ${res.status}`);
-        }
-        return res.json();
+        body: JSON.stringify(payload),
+        signal: controller.signal,
       })
-      .then((data) => {
-        if (data.clientSecret) {
-          console.log('[StripeProvider] Payment intent created successfully:', data.paymentIntentId);
-          hasCreatedIntent.current = true;
-          currentIntentAmount.current = amountInCents;
-          setClientSecret(data.clientSecret);
+        .then((res) => {
+          if (!res.ok) {
+            throw new Error(`Failed to create payment intent: ${res.status}`);
+          }
+          return res.json();
+        })
+        .then((data) => {
+          if (data.clientSecret) {
+            currentIntentKeyRef.current = intentRequestKey;
+            setClientSecret(data.clientSecret);
+            setLoading(false);
+          } else {
+            throw new Error('No client secret received from server');
+          }
+        })
+        .catch((err) => {
+          if (err.name === 'AbortError') return;
+          console.error('[StripeProvider] Error creating payment intent:', err);
+          setError('Failed to initialize payment. Please refresh and try again.');
           setLoading(false);
-        } else {
-          throw new Error('No client secret received from server');
-        }
-      })
-      .catch((err) => {
-        if (err.name === 'AbortError') return;
-        console.error('[StripeProvider] Error creating payment intent:', err);
-        setError('Failed to initialize payment. Please refresh and try again.');
-        setLoading(false);
-      });
+        });
+    }, debounceMs);
 
-    return () => controller.abort();
-  }, [amountInCents, isReadyToCreateIntent]); // avoid creating intents with incomplete customer/shipping info
+    return () => {
+      clearTimeout(timeoutId);
+      controller.abort();
+    };
+  }, [isReadyToCreateIntent, intentRequestKey, amountInCents, clientSecret, language, normalizedCustomerEmail, normalizedCustomerName, normalizedCustomerPhoneE164, normalizedOrderData, normalizedShippingAddress]);
 
   // Memoize Elements options to prevent unnecessary re-renders
   const options = useMemo(() => ({
@@ -205,7 +275,7 @@ export function StripeProvider({ children, amount, appearance, customerEmail, cu
   }
 
   // If we don't have enough info yet, don't create an intent (and don't show Payment Element).
-  if (!clientSecret && !isReadyToCreateIntent) {
+  if (!isReadyToCreateIntent) {
     const helperText =
       language === 'es'
         ? 'Ingrese su dirección de envío para cargar las opciones de pago.'
