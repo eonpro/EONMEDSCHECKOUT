@@ -119,9 +119,11 @@ export function StripeProvider({ children, amount, appearance, customerEmail, cu
     normalizedShippingAddress?.zipCode,
   ]);
 
+  // Customer info: email required, name preferred, phone optional
   const isCustomerInfoComplete = useMemo(() => {
-    return Boolean(normalizedCustomerEmail && normalizedCustomerName && normalizedCustomerPhoneDigits.length === 10);
-  }, [normalizedCustomerEmail, normalizedCustomerName, normalizedCustomerPhoneDigits.length]);
+    // Only require email - name and phone are nice-to-have for GHL but not blocking
+    return Boolean(normalizedCustomerEmail);
+  }, [normalizedCustomerEmail]);
 
   const isReadyToCreateIntent = useMemo(() => {
     return amountInCents > 0 && isCustomerInfoComplete && isShippingAddressComplete;
@@ -276,10 +278,21 @@ export function StripeProvider({ children, amount, appearance, customerEmail, cu
 
   // If we don't have enough info yet, don't create an intent (and don't show Payment Element).
   if (!isReadyToCreateIntent) {
-    const helperText =
-      language === 'es'
-        ? 'Ingrese su dirección de envío para cargar las opciones de pago.'
-        : 'Enter your shipping address to load payment options.';
+    // Determine what's missing for a more helpful message
+    let helperText: string;
+    if (!normalizedCustomerEmail) {
+      helperText = language === 'es'
+        ? 'Se requiere un correo electrónico para procesar el pago.'
+        : 'An email address is required to process payment.';
+    } else if (!isShippingAddressComplete) {
+      helperText = language === 'es'
+        ? 'Complete su dirección de envío para cargar las opciones de pago.'
+        : 'Complete your shipping address to load payment options.';
+    } else {
+      helperText = language === 'es'
+        ? 'Cargando opciones de pago...'
+        : 'Loading payment options...';
+    }
 
     return (
       <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
