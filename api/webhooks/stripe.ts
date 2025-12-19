@@ -284,16 +284,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (isGHLConfigured()) {
           console.log('[webhook] GHL is configured, proceeding with contact creation...');
           try {
+            const shippingAddress = paymentIntent.shipping?.address || {};
+
             // Extract customer info from metadata
             const contactData = {
               firstName: metadata.customer_first_name || '',
               lastName: metadata.customer_last_name || '',
               email: metadata.customer_email || paymentIntent.receipt_email || '',
-              phone: metadata.customer_phone || '',
-              address1: metadata.shipping_line1 || '',
-              city: metadata.shipping_city || '',
-              state: metadata.shipping_state || '',
-              postalCode: metadata.shipping_zip || '',
+              phone: metadata.customer_phone || paymentIntent.shipping?.phone || '',
+              address1: metadata.shipping_line1 || shippingAddress.line1 || '',
+              city: metadata.shipping_city || shippingAddress.city || '',
+              state: metadata.shipping_state || shippingAddress.state || '',
+              postalCode: metadata.shipping_zip || shippingAddress.postal_code || '',
               source: 'EONMeds Checkout',
             };
             

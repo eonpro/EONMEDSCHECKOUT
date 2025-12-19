@@ -62,10 +62,28 @@ export function StripeProvider({ children, amount, appearance, customerEmail, cu
   // Memoize amount in cents - ONLY dependency for creating new intent
   const amountInCents = useMemo(() => Math.round(amount * 100), [amount]);
 
-  // Create payment intent - only when amount changes AND we haven't created one yet
+  const isShippingAddressComplete = useMemo(() => {
+    if (!shippingAddress) return false;
+    return Boolean(
+      shippingAddress.addressLine1?.trim() &&
+        shippingAddress.city?.trim() &&
+        shippingAddress.state?.trim() &&
+        shippingAddress.zipCode?.trim()
+    );
+  }, [shippingAddress?.addressLine1, shippingAddress?.city, shippingAddress?.state, shippingAddress?.zipCode]);
+
+  const isCustomerInfoComplete = useMemo(() => {
+    return Boolean(customerEmail?.trim() && customerName?.trim() && customerPhone?.trim());
+  }, [customerEmail, customerName, customerPhone]);
+
+  const isReadyToCreateIntent = useMemo(() => {
+    return amountInCents > 0 && isCustomerInfoComplete && isShippingAddressComplete;
+  }, [amountInCents, isCustomerInfoComplete, isShippingAddressComplete]);
+
+  // Create payment intent - only when ready AND amount changes (or first ready)
   useEffect(() => {
-    // Skip if amount is invalid
-    if (amountInCents <= 0) {
+    // Wait until we have the required info (prevents creating intents with empty address/phone)
+    if (!isReadyToCreateIntent) {
       setLoading(false);
       return;
     }
@@ -78,6 +96,7 @@ export function StripeProvider({ children, amount, appearance, customerEmail, cu
 
     // Reset state when creating new intent
     setLoading(true);
+    setClientSecret(null);
     setError(null);
 
     const controller = new AbortController();
@@ -100,7 +119,7 @@ export function StripeProvider({ children, amount, appearance, customerEmail, cu
         customer_email: email,
         customer_name: name,
         customer_phone: phone,
-        shipping_address: shipping && Object.keys(shipping).length > 0 ? shipping : undefined,
+        shipping_address: shipping,
         order_data: order && Object.keys(order).length > 0 ? order : undefined,
         language: lang, // Pass language for GHL SMS automations
         metadata: {
@@ -134,7 +153,7 @@ export function StripeProvider({ children, amount, appearance, customerEmail, cu
       });
 
     return () => controller.abort();
-  }, [amountInCents]); // ONLY depend on amount - other props are read from ref
+  }, [amountInCents, isReadyToCreateIntent]); // avoid creating intents with incomplete customer/shipping info
 
   // Memoize Elements options to prevent unnecessary re-renders
   const options = useMemo(() => ({
@@ -181,6 +200,15 @@ export function StripeProvider({ children, amount, appearance, customerEmail, cu
     return (
       <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
         <p className="text-red-600">{error}</p>
+      </div>
+    );
+  }
+
+  // If we don't have enough info yet, don't create an intent (and don't show Payment Element).
+  if (!clientSecret && !isReadyToCreateIntent) {
+    return (
+      <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+        <p className="text-gray-700">Enter your shipping address to load payment options.</p>
       </div>
     );
   }
