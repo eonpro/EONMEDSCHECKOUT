@@ -206,9 +206,14 @@ export function StripeProvider({ children, amount, appearance, customerEmail, cu
 
   // If we don't have enough info yet, don't create an intent (and don't show Payment Element).
   if (!clientSecret && !isReadyToCreateIntent) {
+    const helperText =
+      language === 'es'
+        ? 'Ingrese su dirección de envío para cargar las opciones de pago.'
+        : 'Enter your shipping address to load payment options.';
+
     return (
       <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
-        <p className="text-gray-700">Enter your shipping address to load payment options.</p>
+        <p className="text-gray-700">{helperText}</p>
       </div>
     );
   }

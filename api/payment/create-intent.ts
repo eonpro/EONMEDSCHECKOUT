@@ -234,15 +234,39 @@ export default async function handler(
       return res.status(400).json({ error: 'Invalid amount' });
     }
 
+    // Validate shipping address (required for fulfillment + GHL automations)
+    if (
+      !shipping_address ||
+      typeof shipping_address !== 'object' ||
+      !shipping_address.addressLine1?.trim?.() ||
+      !shipping_address.city?.trim?.() ||
+      !shipping_address.state?.trim?.() ||
+      !shipping_address.zipCode?.trim?.()
+    ) {
+      return res.status(400).json({
+        error: 'Shipping address required',
+        message: 'Please enter a complete shipping address (street, city, state, zip).',
+      });
+    }
+
+    const normalizedShippingAddress = {
+      addressLine1: String(shipping_address.addressLine1 || '').trim(),
+      addressLine2: String(shipping_address.addressLine2 || '').trim(),
+      city: String(shipping_address.city || '').trim(),
+      state: String(shipping_address.state || '').trim().toUpperCase(),
+      zipCode: String(shipping_address.zipCode || '').trim(),
+      country: String(shipping_address.country || 'US').trim().toUpperCase(),
+    };
+
     // Build billing address from shipping address
-    const billingAddress = shipping_address ? {
-      line1: shipping_address.addressLine1,
-      line2: shipping_address.addressLine2 || undefined,
-      city: shipping_address.city,
-      state: shipping_address.state,
-      postal_code: shipping_address.zipCode,
-      country: shipping_address.country || 'US',
-    } : undefined;
+    const billingAddress = {
+      line1: normalizedShippingAddress.addressLine1,
+      line2: normalizedShippingAddress.addressLine2 || undefined,
+      city: normalizedShippingAddress.city,
+      state: normalizedShippingAddress.state,
+      postal_code: normalizedShippingAddress.zipCode,
+      country: normalizedShippingAddress.country || 'US',
+    };
 
     // Create or retrieve customer with full profile
     const customer = await getOrCreateCustomer(
@@ -325,10 +349,10 @@ export default async function handler(
       // Language preference for GHL SMS automations
       language: language || 'en',
       // Shipping address fields (flat for easier access in webhook)
-      shipping_line1: shipping_address?.addressLine1 || '',
-      shipping_city: shipping_address?.city || '',
-      shipping_state: shipping_address?.state || '',
-      shipping_zip: shipping_address?.zipCode || '',
+      shipping_line1: normalizedShippingAddress.addressLine1,
+      shipping_city: normalizedShippingAddress.city,
+      shipping_state: normalizedShippingAddress.state,
+      shipping_zip: normalizedShippingAddress.zipCode,
       // Order details
       timestamp: new Date().toISOString(),
       terms_accepted_at: new Date().toISOString(), // Timestamp when customer accepted terms
@@ -343,14 +367,14 @@ export default async function handler(
       shipping_cost: order_data?.shippingCost?.toString() || '',
       total: order_data?.total?.toString() || '',
       // Shipping address in clean JSON format (for reference)
-      shipping_address: shipping_address ? JSON.stringify({
-        line1: shipping_address.addressLine1,
-        line2: shipping_address.addressLine2,
-        city: shipping_address.city,
-        state: shipping_address.state,
-        zip: shipping_address.zipCode,
-        country: shipping_address.country || 'US',
-      }) : '',
+      shipping_address: JSON.stringify({
+        line1: normalizedShippingAddress.addressLine1,
+        line2: normalizedShippingAddress.addressLine2,
+        city: normalizedShippingAddress.city,
+        state: normalizedShippingAddress.state,
+        zip: normalizedShippingAddress.zipCode,
+        country: normalizedShippingAddress.country || 'US',
+      }),
     };
 
     // Validate email format before using
@@ -369,17 +393,17 @@ export default async function handler(
       receipt_email: isValidEmail ? customer_email : undefined, // Only include if valid email
       metadata: orderMetadata,
       // Add shipping address to Stripe
-      shipping: shipping_address ? {
-        name: isValidEmail ? customer_email : 'Customer',
+      shipping: {
+        name: customer_name || (isValidEmail ? customer_email : 'Customer'),
         address: {
-          line1: shipping_address.addressLine1,
-          line2: shipping_address.addressLine2 || undefined,
-          city: shipping_address.city,
-          state: shipping_address.state,
-          postal_code: shipping_address.zipCode,
-          country: shipping_address.country || 'US',
+          line1: normalizedShippingAddress.addressLine1,
+          line2: normalizedShippingAddress.addressLine2 || undefined,
+          city: normalizedShippingAddress.city,
+          state: normalizedShippingAddress.state,
+          postal_code: normalizedShippingAddress.zipCode,
+          country: normalizedShippingAddress.country || 'US',
         },
-      } : undefined,
+      },
       // Enable specific payment methods
       payment_method_options: {
         card: {

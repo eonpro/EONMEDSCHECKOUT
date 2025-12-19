@@ -814,6 +814,7 @@ export function GLP1CheckoutPageImproved() {
         language={language}
         medication={selectedMed?.name}
         plan={selectedPlanData?.type}
+        planPrice={selectedPlanData?.price}
         addons={selectedAddons.map(id => addons.find(a => a.id === id)?.name || '').filter(Boolean)}
         expeditedShipping={expeditedShipping}
         total={total}

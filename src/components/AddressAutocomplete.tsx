@@ -161,6 +161,8 @@ export function AddressAutocomplete({ value, onChange, language = 'en' }: Addres
           className="px-4 py-2 border rounded-lg w-full"
           onFocus={() => setIsUserTyping(true)}
           onBlur={() => setIsUserTyping(false)}
+          // Capture manual typing as a fallback (some users don't select an autocomplete suggestion)
+          onChange={(e) => onChange({ ...value, addressLine1: e.target.value })}
         />
         <p className="text-xs text-gray-500 mt-1">
           {language === 'es' ? "Seleccione una dirección de las sugerencias" : "Select an address from the suggestions"}

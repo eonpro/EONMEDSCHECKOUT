@@ -6,6 +6,7 @@ interface ThankYouPageProps {
   language: 'en' | 'es';
   medication?: string;
   plan?: string;
+  planPrice?: number;
   addons?: string[];
   expeditedShipping: boolean;
   total: number;
@@ -24,6 +25,7 @@ export function ThankYouPage({
   language,
   medication,
   plan,
+  planPrice: planPriceProp,
   addons = [],
   expeditedShipping,
   total,
@@ -36,14 +38,6 @@ export function ThankYouPage({
     window.scrollTo(0, 0);
   }, []);
 
-  // Calculate plan price based on plan type
-  const getPlanPrice = () => {
-    if (plan?.toLowerCase().includes('3') || plan?.toLowerCase().includes('three')) return 549.00;
-    if (plan?.toLowerCase().includes('6') || plan?.toLowerCase().includes('six')) return 1038.00;
-    if (plan?.toLowerCase().includes('one')) return 299.00;
-    return 229.00; // Monthly
-  };
-
   // Get addon prices
   const getAddonPrice = (addon: string) => {
     if (addon.toLowerCase().includes('nausea')) return 39.00;
@@ -51,8 +45,11 @@ export function ThankYouPage({
     return 0;
   };
 
-  const planPrice = getPlanPrice();
   const actualShippingCost = expeditedShipping ? 25.00 : 0;
+  const addonsTotal = addons.reduce((sum, addon) => sum + getAddonPrice(addon), 0);
+  const fallbackPlanPrice = Math.max(0, total - actualShippingCost - addonsTotal);
+  const planPrice =
+    typeof planPriceProp === 'number' && planPriceProp > 0 ? planPriceProp : fallbackPlanPrice;
 
   const t = language === 'es' ? {
     title: '¡Gracias por su pedido!',
@@ -120,6 +117,7 @@ export function ThankYouPage({
   const isTirzepatide = medication?.toLowerCase().includes('tirzepatide');
   const medicationName = isTirzepatide ? t.compoundedTirzepatide : t.compoundedSemaglutide;
   const medicationDescription = isTirzepatide ? t.tirzepatideDesc : t.medicationDesc;
+  const accentColor = isTirzepatide ? '#ff6f00' : '#ffd24e';
 
   // Format plan name
   const formatPlanName = () => {
@@ -152,8 +150,8 @@ export function ThankYouPage({
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-2xl mx-auto px-4">
         <div ref={receiptRef} className="bg-white rounded-lg overflow-hidden shadow-lg">
-          {/* Yellow Header Section */}
-          <div className="bg-[#ffd24e] px-6 py-8 text-center">
+          {/* Header Section */}
+          <div className="px-6 py-8 text-center" style={{ backgroundColor: accentColor }}>
             <h1 className="text-2xl font-bold mb-2">{t.title}</h1>
             <p className="text-sm font-medium mb-4">
               {t.transactionId} {paymentIntentId}
@@ -188,7 +186,7 @@ export function ThankYouPage({
               <h3 className="text-sm font-semibold text-gray-700 mb-3">{t.plan}</h3>
               <div className="bg-gray-50 rounded-lg p-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-6 h-6 bg-[#ffd24e] rounded-full flex items-center justify-center">
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: accentColor }}>
                     <span className="text-xs font-bold">✓</span>
                   </div>
                   <span className="font-medium">{formatPlanName()}</span>
@@ -277,7 +275,7 @@ export function ThankYouPage({
           </div>
 
           {/* What's Next Section */}
-          <div className="bg-[#ffd24e] mx-6 mb-6 rounded-lg p-6">
+          <div className="mx-6 mb-6 rounded-lg p-6" style={{ backgroundColor: accentColor }}>
             <h3 className="font-bold text-lg mb-4">{t.whatsNext}</h3>
             <ul className="space-y-3 text-sm">
               <li className="flex items-start gap-2">
