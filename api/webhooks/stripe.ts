@@ -119,18 +119,27 @@ async function createSubscriptionForPayment(paymentIntent: any) {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  console.log('[webhook] ========== INCOMING WEBHOOK ==========');
+  console.log('[webhook] Method:', req.method);
+  console.log('[webhook] Has webhook secret:', !!webhookSecret);
+  console.log('[webhook] Has stripe:', !!stripe);
+  
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' });
     return;
   }
   if (!webhookSecret || !stripe) {
+    console.error('[webhook] Missing config - webhookSecret:', !!webhookSecret, 'stripe:', !!stripe);
     res.status(500).json({ error: 'Stripe webhook not configured' });
     return;
   }
   try {
     const buf = await buffer(req);
     const sig = req.headers['stripe-signature'] as string;
+    console.log('[webhook] Signature header:', sig ? sig.substring(0, 50) + '...' : 'MISSING');
+    console.log('[webhook] Body length:', buf.length);
     const event = stripe.webhooks.constructEvent(buf, sig, webhookSecret);
+    console.log('[webhook] Event constructed successfully:', event.type);
 
     // Idempotent processing (use event.id as key if you persist state)
     switch (event.type) {
@@ -286,9 +295,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.log(`[webhook] Unhandled event type: ${event.type}`);
     }
     
+    console.log('[webhook] ========== WEBHOOK PROCESSING COMPLETE ==========');
     res.json({ received: true });
   } catch (err: any) {
-    console.error('[webhook] Error processing webhook:', err.message || err);
+    console.error('[webhook] ❌ ERROR processing webhook:', err.message || err);
+    console.error('[webhook] Full error:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
     res.status(400).send(`Webhook Error: ${err.message || 'invalid'}`);
   }
 }
