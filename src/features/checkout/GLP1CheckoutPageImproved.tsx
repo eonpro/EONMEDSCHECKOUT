@@ -1016,7 +1016,7 @@ export function GLP1CheckoutPageImproved() {
 
       {/* Progress Steps */}
       <div 
-        className="border-b border-gray-200 transition-colors duration-300"
+        className={`transition-colors duration-300 ${currentStep === 2 ? '' : 'border-b border-gray-200'}`}
         style={{
           backgroundColor: currentStep === 2 && selectedMed
             ? (selectedMed.id === 'tirzepatide' ? '#ff6f00' : '#ffd24e')
