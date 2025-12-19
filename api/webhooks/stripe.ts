@@ -1,7 +1,91 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import Stripe from 'stripe';
 import { buffer } from 'micro';
-import { handlePaymentForGHL, isGHLConfigured } from '../integrations/gohighlevel';
+
+// ============================================================================
+// Inline GHL Integration (to avoid import path issues in Vercel)
+// ============================================================================
+const GHL_API_BASE = 'https://rest.gohighlevel.com/v1';
+const GHL_API_KEY = process.env.GHL_API_KEY || '';
+const GHL_LOCATION_ID = process.env.GHL_LOCATION_ID || '';
+
+function isGHLConfigured(): boolean {
+  return Boolean(GHL_API_KEY && GHL_LOCATION_ID);
+}
+
+async function ghlRequest(endpoint: string, method: string = 'GET', body?: any): Promise<any> {
+  const url = `${GHL_API_BASE}${endpoint}`;
+  console.log(`[GHL] ${method} ${url}`);
+  
+  const response = await fetch(url, {
+    method,
+    headers: {
+      'Authorization': `Bearer ${GHL_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  
+  const text = await response.text();
+  console.log(`[GHL] Response (${response.status}):`, text.substring(0, 300));
+  
+  if (!response.ok) throw new Error(`GHL API error (${response.status}): ${text}`);
+  return JSON.parse(text);
+}
+
+async function handlePaymentForGHL(contactData: any, paymentData: any): Promise<{ contact: any; success: boolean }> {
+  if (!isGHLConfigured()) {
+    console.warn('[GHL] Not configured');
+    return { contact: null, success: false };
+  }
+  
+  const language = paymentData.language || 'en';
+  const isSpanish = language === 'es';
+  
+  const tags = [
+    'payment-completed',
+    isSpanish ? 'payment-completed-es' : 'payment-completed-en',
+    isSpanish ? 'spanish' : 'english',
+    'eonmeds', 'paid',
+  ];
+  
+  if (paymentData.medication) tags.push(paymentData.medication.toLowerCase().replace(/\s+/g, '-'));
+  if (paymentData.plan) tags.push(`plan-${paymentData.plan.toLowerCase().replace(/\s+/g, '-')}`);
+  tags.push(paymentData.isSubscription ? 'subscription' : 'one-time-purchase');
+  
+  const customFields: Record<string, string> = {
+    'language': language,
+    'last_payment_amount': `$${(paymentData.amount / 100).toFixed(2)}`,
+    'last_payment_date': new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+    'medication': paymentData.medication || '',
+    'plan_name': paymentData.plan || '',
+  };
+  
+  try {
+    const result = await ghlRequest('/contacts/', 'POST', {
+      firstName: contactData.firstName,
+      lastName: contactData.lastName,
+      email: contactData.email,
+      phone: contactData.phone ? `+1${contactData.phone.replace(/\\D/g, '').slice(-10)}` : undefined,
+      address1: contactData.address1,
+      city: contactData.city,
+      state: contactData.state,
+      postalCode: contactData.postalCode,
+      country: 'US',
+      source: 'EONMeds Checkout',
+      tags,
+      customField: customFields,
+    });
+    
+    const contact = result.contact || result;
+    console.log(`[GHL] Created/updated contact: ${contact.id}`);
+    return { contact, success: true };
+  } catch (error) {
+    console.error('[GHL] Error:', error);
+    return { contact: null, success: false };
+  }
+}
+// ============================================================================
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || '';
 const stripeSecret = process.env.STRIPE_SECRET_KEY || '';
