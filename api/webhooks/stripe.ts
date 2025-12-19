@@ -1,23 +1,20 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import Stripe from 'stripe';
+import { buffer } from 'micro';
 import { handlePaymentForGHL, isGHLConfigured } from '../integrations/gohighlevel';
 
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET as string | undefined;
-const stripeSecret = process.env.STRIPE_SECRET_KEY as string | undefined;
-// Use a stable, valid Stripe API version compatible with stripe typings
-const stripe = stripeSecret ? new Stripe(stripeSecret, { apiVersion: '2024-06-20' as any }) : (null as any);
+const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || '';
+const stripeSecret = process.env.STRIPE_SECRET_KEY || '';
 
+// Initialize Stripe with secret key
+const stripe = new Stripe(stripeSecret, { apiVersion: '2024-06-20' as any });
+
+// Disable body parsing, we need raw body for webhook signature verification
 export const config = {
   api: {
-    bodyParser: false, // we need raw body for signature verification
+    bodyParser: false,
   },
-} as const;
-
-async function buffer(readable: any) {
-  const chunks: Uint8Array[] = [];
-  for await (const chunk of readable) chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
-  return Buffer.concat(chunks);
-}
+};
 
 // Helper function to create subscription for FUTURE billing only
 // The initial payment was already collected via PaymentIntent
@@ -124,45 +121,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ 
       status: 'webhook endpoint active',
       hasWebhookSecret: !!webhookSecret,
-      hasStripe: !!stripe,
+      hasStripeKey: !!stripeSecret,
       hasGHL: isGHLConfigured(),
     });
   }
   
-  console.log('[webhook] ========== INCOMING WEBHOOK ==========');
-  console.log('[webhook] Method:', req.method);
-  console.log('[webhook] Has webhook secret:', !!webhookSecret);
-  console.log('[webhook] Has stripe:', !!stripe);
-  
   if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method not allowed' });
-    return;
-  }
-  if (!webhookSecret || !stripe) {
-    console.error('[webhook] Missing config - webhookSecret:', !!webhookSecret, 'stripe:', !!stripe);
-    res.status(500).json({ error: 'Stripe webhook not configured', hasWebhookSecret: !!webhookSecret, hasStripe: !!stripe });
-    return;
+    return res.status(405).json({ error: 'Method not allowed' });
   }
   
-  let buf: Buffer;
-  try {
-    buf = await buffer(req);
-    console.log('[webhook] Buffer read successfully, length:', buf.length);
-  } catch (bufErr: any) {
-    console.error('[webhook] Error reading buffer:', bufErr);
-    return res.status(500).json({ error: 'Failed to read request body', message: bufErr.message });
-  }
-  
+  // Read raw body
+  const buf = await buffer(req);
   const sig = req.headers['stripe-signature'] as string;
-  console.log('[webhook] Signature header:', sig ? sig.substring(0, 50) + '...' : 'MISSING');
   
-  let event;
+  let event: Stripe.Event;
+  
   try {
+    // Verify webhook signature
     event = stripe.webhooks.constructEvent(buf, sig, webhookSecret);
-    console.log('[webhook] Event constructed successfully:', event.type);
-  } catch (sigErr: any) {
-    console.error('[webhook] Signature verification failed:', sigErr.message);
-    return res.status(400).json({ error: 'Invalid signature', message: sigErr.message });
+    console.log('[webhook] Event received:', event.type, event.id);
+  } catch (err: any) {
+    console.error('[webhook] Signature verification failed:', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
   }
   
   try {
