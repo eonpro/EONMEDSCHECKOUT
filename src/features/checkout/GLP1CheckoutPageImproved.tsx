@@ -1015,7 +1015,14 @@ export function GLP1CheckoutPageImproved() {
       </div>
 
       {/* Progress Steps */}
-      <div className="bg-[#f7f5f1] border-b border-gray-200">
+      <div 
+        className="border-b border-gray-200 transition-colors duration-300"
+        style={{
+          backgroundColor: currentStep === 2 && selectedMed
+            ? (selectedMed.id === 'tirzepatide' ? '#ff6f00' : '#ffd24e')
+            : '#f7f5f1'
+        }}
+      >
         <div className="max-w-7xl mx-auto px-6 py-4 space-y-4">
           <div className="flex justify-end">
             {/* Language Toggle Switch */}
@@ -1205,9 +1212,9 @@ export function GLP1CheckoutPageImproved() {
             {currentStep === 2 && selectedMed && (
               <div className={`relative w-screen -ml-[50vw] left-[50%] transition-all duration-300 ease-out ${isTransitioning ? 'opacity-0 scale-98 translate-y-4' : 'opacity-100 scale-100 translate-y-0'}`} style={{
                 background: selectedMed.id === 'tirzepatide'
-                  ? 'linear-gradient(to bottom, #ff6f00 0%, #f7f5f1 60%)'
-                  : 'linear-gradient(to bottom, #ffd24e 0%, #f7f5f1 60%)',
-                paddingTop: '2rem',
+                  ? 'linear-gradient(to bottom, #ff6f00 0%, #ff6f00 10%, #f7f5f1 70%)'
+                  : 'linear-gradient(to bottom, #ffd24e 0%, #ffd24e 10%, #f7f5f1 70%)',
+                paddingTop: '0',
                 paddingBottom: '2rem'
               }}>
                 <div className="max-w-7xl mx-auto px-[26px] sm:px-6 lg:px-8">
