@@ -135,15 +135,37 @@ export function ThankYouPage({
   const handleDownload = async () => {
     if (receiptRef.current) {
       try {
-        const canvas = await html2canvas(receiptRef.current, {
+        // Clone the element to avoid modifying the original
+        const element = receiptRef.current;
+        
+        const canvas = await html2canvas(element, {
           scale: 2,
           useCORS: true,
+          allowTaint: true,
           logging: false,
+          backgroundColor: '#ffffff',
+          width: element.scrollWidth,
+          height: element.scrollHeight,
+          windowWidth: element.scrollWidth,
+          windowHeight: element.scrollHeight,
+          x: 0,
+          y: 0,
+          scrollX: 0,
+          scrollY: 0,
+          // Ensure images load properly
+          imageTimeout: 15000,
+          onclone: (clonedDoc) => {
+            // Force any lazy-loaded images to display
+            const clonedElement = clonedDoc.querySelector('[data-receipt]');
+            if (clonedElement) {
+              (clonedElement as HTMLElement).style.width = `${element.scrollWidth}px`;
+            }
+          },
         });
         
         const link = document.createElement('a');
         link.download = `eonmeds-receipt-${paymentIntentId}.png`;
-        link.href = canvas.toDataURL();
+        link.href = canvas.toDataURL('image/png', 1.0);
         link.click();
       } catch (error) {
         console.error('Error generating receipt image:', error);
@@ -154,9 +176,14 @@ export function ThankYouPage({
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-2xl mx-auto px-4">
-        <div ref={receiptRef} className="bg-white rounded-lg overflow-hidden shadow-lg">
+        <div 
+          ref={receiptRef} 
+          data-receipt="true"
+          className="bg-white rounded-lg overflow-hidden shadow-lg"
+          style={{ width: '100%', maxWidth: '600px', margin: '0 auto' }}
+        >
           {/* Header Section */}
-          <div className="px-6 py-8 text-center" style={{ backgroundColor: accentColor }}>
+          <div className="px-6 py-8 text-center" style={{ backgroundColor: accentColor, width: '100%' }}>
             <h1 className="text-2xl font-bold mb-2">{t.title}</h1>
             <p className="text-sm font-medium mb-4">
               {t.transactionId} {paymentIntentId}
@@ -166,33 +193,34 @@ export function ThankYouPage({
             </p>
             
             {/* Medication Vial Image */}
-            <div className="mb-6 flex justify-center">
+            <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'center' }}>
               <img 
                 src={isTirzepatide 
                   ? "https://static.wixstatic.com/media/c49a9b_00c1ff5076814c8e93e3c53a132b962e~mv2.png"
                   : "https://static.wixstatic.com/media/c49a9b_4da809344f204a088d1d4708b4c1609b~mv2.webp"
                 }
                 alt={medicationName}
-                className="max-w-[140px] max-h-[140px] w-auto h-auto object-contain"
+                style={{ maxWidth: '140px', maxHeight: '140px', width: 'auto', height: 'auto', objectFit: 'contain' }}
+                crossOrigin="anonymous"
               />
             </div>
             
-            <div className="text-left max-w-md mx-auto">
-              <p className="text-sm font-medium mb-2">{t.treatmentSelected}</p>
-              <h2 className="text-xl font-bold mb-1">{medicationName}</h2>
-              <p className="text-sm text-gray-800">{medicationDescription}</p>
+            <div style={{ textAlign: 'left', maxWidth: '400px', margin: '0 auto' }}>
+              <p style={{ fontSize: '14px', fontWeight: '500', marginBottom: '8px' }}>{t.treatmentSelected}</p>
+              <h2 style={{ fontSize: '20px', fontWeight: 'bold', marginBottom: '4px' }}>{medicationName}</h2>
+              <p style={{ fontSize: '14px', color: '#1f2937' }}>{medicationDescription}</p>
             </div>
           </div>
 
           {/* Order Details Section */}
-          <div className="p-6 space-y-4">
+          <div className="p-6" style={{ padding: '24px' }}>
             {/* Plan Section */}
-            <div>
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">{t.plan}</h3>
-              <div className="bg-gray-50 rounded-lg p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: accentColor }}>
-                    <span className="text-xs font-bold">✓</span>
+            <div style={{ marginBottom: '16px' }}>
+              <h3 className="text-sm font-semibold text-gray-700" style={{ marginBottom: '12px' }}>{t.plan}</h3>
+              <div className="bg-gray-50 rounded-lg p-4" style={{ backgroundColor: '#f9fafb', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: accentColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 'bold' }}>✓</span>
                   </div>
                   <span className="font-medium">{formatPlanName()}</span>
                 </div>
@@ -202,29 +230,30 @@ export function ThankYouPage({
 
             {/* Add-ons Section */}
             {addons.length > 0 && (
-              <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-3">{t.addOns}</h3>
-                <div className="space-y-3">
+              <div style={{ marginBottom: '16px' }}>
+                <h3 className="text-sm font-semibold text-gray-700" style={{ marginBottom: '12px' }}>{t.addOns}</h3>
+                <div>
                   {addons.map((addon, index) => {
                     const isNausea = addon.toLowerCase().includes('nausea');
                     const addonPrice = getAddonPrice(addon);
                     return (
-                      <div key={index} className="bg-gray-50 rounded-lg p-4">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-start gap-3">
+                      <div key={index} style={{ backgroundColor: '#f9fafb', borderRadius: '8px', padding: '16px', marginBottom: index < addons.length - 1 ? '12px' : '0' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
                             <img 
                               src={isNausea 
                                 ? "https://static.wixstatic.com/media/c49a9b_6c1b30c9e184401cbc20788d869fccdf~mv2.png"
                                 : "https://static.wixstatic.com/media/c49a9b_7cf96a7c6da041d2ae156b2f0436343d~mv2.png"
                               }
                               alt={addon}
-                              className="w-8 h-8 object-contain mt-1"
+                              style={{ width: '32px', height: '32px', objectFit: 'contain', marginTop: '4px' }}
+                              crossOrigin="anonymous"
                             />
                             <div>
                               <p className="font-medium text-sm">
                                 {isNausea ? t.nauseaRelief : t.fatBurner}
                               </p>
-                              <p className="text-xs text-gray-600 mt-1">
+                              <p className="text-xs text-gray-600" style={{ marginTop: '4px' }}>
                                 {isNausea ? t.nauseaDesc : t.fatBurnerDesc}
                               </p>
                             </div>
@@ -239,12 +268,12 @@ export function ThankYouPage({
             )}
 
             {/* Shipping Section */}
-            <div>
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">{t.shipping}</h3>
-              <div className="bg-gray-50 rounded-lg p-4 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-full border-2 border-green-600 flex items-center justify-center">
-                    <div className="w-2.5 h-2.5 bg-green-600 rounded-full"></div>
+            <div style={{ marginBottom: '16px' }}>
+              <h3 className="text-sm font-semibold text-gray-700" style={{ marginBottom: '12px' }}>{t.shipping}</h3>
+              <div className="bg-gray-50 rounded-lg p-4" style={{ backgroundColor: '#f9fafb', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: '2px solid #16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ width: '10px', height: '10px', backgroundColor: '#16a34a', borderRadius: '50%' }}></div>
                   </div>
                   <span className="font-medium text-sm">
                     {expeditedShipping ? t.expedited : t.standard}
@@ -257,8 +286,8 @@ export function ThankYouPage({
             </div>
 
             {/* Total Section */}
-            <div className="border-t pt-4">
-              <div className="flex justify-between items-center">
+            <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: '16px', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span className="text-lg font-bold">{t.totalPaid}</span>
                 <span className="text-2xl font-bold">${total.toFixed(2)}</span>
               </div>
@@ -266,8 +295,8 @@ export function ThankYouPage({
 
             {/* Shipping Address */}
             {shippingAddress && (
-              <div className="border-t pt-4">
-                <h3 className="text-sm font-semibold text-gray-700 mb-2">{t.shippingAddress}</h3>
+              <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: '16px' }}>
+                <h3 className="text-sm font-semibold text-gray-700" style={{ marginBottom: '8px' }}>{t.shippingAddress}</h3>
                 <div className="text-sm text-gray-600">
                   <p>{shippingAddress.addressLine1}</p>
                   {shippingAddress.addressLine2 && <p>{shippingAddress.addressLine2}</p>}
@@ -278,35 +307,23 @@ export function ThankYouPage({
           </div>
 
           {/* What's Next Section */}
-          <div className="mx-6 mb-6 rounded-lg p-6" style={{ backgroundColor: accentColor }}>
-            <h3 className="font-bold text-lg mb-4">{t.whatsNext}</h3>
-            <ul className="space-y-3 text-sm">
-              <li className="flex items-start gap-2">
-                <span>•</span>
-                <span>{t.step1}</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span>•</span>
-                <span>{t.step2}</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span>•</span>
-                <span>{t.step3}</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span>•</span>
-                <span>{t.step4}</span>
-              </li>
+          <div className="mx-6 mb-6 rounded-lg p-6" style={{ backgroundColor: accentColor, width: 'calc(100% - 48px)' }}>
+            <h3 className="font-bold text-lg mb-4" style={{ marginBottom: '16px' }}>{t.whatsNext}</h3>
+            <ul className="text-sm" style={{ listStyleType: 'disc', paddingLeft: '20px', lineHeight: '1.8' }}>
+              <li style={{ marginBottom: '8px' }}>{t.step1}</li>
+              <li style={{ marginBottom: '8px' }}>{t.step2}</li>
+              <li style={{ marginBottom: '8px' }}>{t.step3}</li>
+              <li style={{ marginBottom: '0' }}>{t.step4}</li>
             </ul>
           </div>
 
           {/* Contact Section */}
-          <div className="px-6 pb-6 text-center text-sm text-gray-600">
+          <div style={{ padding: '0 24px 24px 24px', textAlign: 'center', fontSize: '14px', color: '#4b5563' }}>
             <p>{t.questions}</p>
             <p>
               <a 
                 href="mailto:support@eonmeds.com" 
-                className="font-semibold text-gray-900 hover:underline"
+                style={{ fontWeight: '600', color: '#111827' }}
               >
                 support@eonmeds.com
               </a>
@@ -315,7 +332,7 @@ export function ThankYouPage({
               {t.orCall}{' '}
               <a 
                 href="tel:+18889206025" 
-                className="font-semibold text-gray-900 hover:underline"
+                style={{ fontWeight: '600', color: '#111827' }}
               >
                 1-888-920-6025
               </a>
