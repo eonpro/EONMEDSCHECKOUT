@@ -1,26 +1,33 @@
 ## Background and Motivation
-- Confirmed the checkout build is healthy and Stripe integration works on Vercel production.
+- Ensure the checkout flow is production-ready end-to-end (Heyflow → checkout → Stripe → webhook → GoHighLevel), with bilingual (EN/ES) automations for payment confirmations and internal notifications.
 - Local development has a known issue with `vercel dev` due to spaces in the project path.
 
 ## Key Challenges and Analysis
-- **RESOLVED**: Production is fully operational - frontend loads (HTTP 200), API endpoints respond correctly.
+- **Payment intents duplication / stale metadata**: PaymentIntent creation must avoid churn, but must also refresh when customer/shipping details change to prevent stale Stripe metadata and downstream GHL contact fields.
+- **Webhook security**: Stripe webhook must fail-closed if `STRIPE_WEBHOOK_SECRET` / `STRIPE_SECRET_KEY` are missing; never accept requests with empty secrets.
+- **Data quality for automations**: GHL workflows depend on consistent tags + custom fields; customer phone/address must be present on the contact to send SMS.
 - **LOCAL DEV ISSUE**: `vercel dev` fails to execute serverless functions when the project path contains spaces (e.g., `/Users/italo/Desktop/checkout page eonmeds/`). This is a Vercel CLI bug where it splits the path at the space character.
-- Stripe LIVE keys are in use (both locally and in production). All env vars are correctly configured.
 
 ## High-level Task Breakdown
-1. ~~Validate local environment via `vercel dev`~~ — **Blocked** by path-with-spaces issue
-2. ~~Review Vercel project status~~ — **DONE**: All deployments show "Ready", production is healthy
-3. ~~Verify payment initialization works~~ — **DONE**: Tested on production successfully
+1. Implement Heyflow redirect intake handoff to checkout with safe parsing and manual shipping entry.
+2. Implement Stripe webhook → GoHighLevel contact creation with language-specific tags (EN/ES) for workflows.
+3. Add GHL custom fields for SMS templates and validate end-to-end delivery.
+4. Fix PaymentIntent creation to prevent duplicates while ensuring metadata is not stale when customer/shipping changes.
+5. Harden webhook security to fail-closed when Stripe env vars are missing.
 
 ## Project Status Board
-- [x] Verify Vercel deployment status — **DONE** (all deployments "Ready")
-- [x] Test production frontend — **DONE** (HTTP 200, HTML served correctly)
-- [x] Test production API /api/ping — **DONE** (returns `{"ok":true,"time":"..."}`)
-- [x] Test production /api/payment/create-intent — **DONE** (returns clientSecret, paymentIntentId)
+- [x] Checkout loads in production and Stripe intents work
+- [x] Stripe webhook endpoint stable and processes `payment_intent.succeeded`
+- [x] GoHighLevel contacts created/updated with tags: `payment-completed`, `payment-completed-en`, `payment-completed-es`
+- [x] Custom fields populated: `contact.last_payment_amount`, `contact.medication`, `contact.plan_name`, `contact.last_payment_date`
+- [x] EN/ES SMS workflows triggered correctly via tags
+- [x] PaymentIntent creation keyed by request fingerprint (amount + customer + shipping + order) to avoid stale metadata
+- [x] Webhook security: fail-closed if Stripe env vars missing; requires signature header
 - [ ] Local development with `vercel dev` — **BLOCKED** (path-with-spaces bug in Vercel CLI)
 
 ## Executor's Feedback or Assistance Requests
-- **Production is healthy and fully functional.**
+- **Production flow is healthy and fully functional (EN/ES).**
+- If any remaining “undefined address” appears in internal notifications, it was from older test contacts or intents created before shipping was required.
 - To enable local API development, recommend moving the project to a path without spaces:
   ```bash
   mv "/Users/italo/Desktop/checkout page eonmeds" /Users/italo/Desktop/checkout-eonmeds
@@ -30,4 +37,5 @@
 ## Lessons
 - `vercel dev` cannot handle project paths containing spaces — it splits the path at space characters when spawning serverless functions.
 - Always use paths without spaces for Vercel projects to avoid local development issues.
-- Production deployment health can be verified via: `curl https://eonmeds-checkout.vercel.app/api/ping`
+- Never default secrets to empty strings in webhook handlers; always fail-closed when missing.
+- PaymentIntent creation should be keyed by a stable request fingerprint, not only amount, to prevent stale metadata/fulfillment data.

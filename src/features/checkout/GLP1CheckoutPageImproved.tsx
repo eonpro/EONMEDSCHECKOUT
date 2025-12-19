@@ -43,14 +43,15 @@ const translations = {
     medicationSubtitle: "Select the medication that's right for your weight loss journey",
     selectPlan: "Select Your Plan & Add-ons",
     planSubtitle: "Choose your subscription plan and optional enhancements",
-    shippingPayment: "Shipping & Payment",
-    shippingSubtitle: "Complete your order",
+    shippingPayment: "Shipping Information",
+    shippingSubtitle: "Enter your shipping details",
     orderSummary: "Order Summary",
     subtotal: "Subtotal",
     shipping: "Shipping",
     total: "Total",
     continuePlan: "Continue to Plan Selection",
     continueShipping: "Continue to Shipping",
+    continuePayment: "Continue to Payment",
     completePurchase: "Complete Purchase",
     back: "Back",
     monthlyRecurring: "Monthly Recurring",
@@ -75,14 +76,15 @@ const translations = {
     medicationSubtitle: "Seleccione el medicamento adecuado para su viaje de pérdida de peso",
     selectPlan: "Seleccione Su Plan y Complementos",
     planSubtitle: "Elija su plan de suscripción y mejoras opcionales",
-    shippingPayment: "Envío y Pago",
-    shippingSubtitle: "Complete su pedido",
+    shippingPayment: "Información de Envío",
+    shippingSubtitle: "Ingrese sus datos de envío",
     orderSummary: "Resumen del Pedido",
     subtotal: "Subtotal",
     shipping: "Envío",
     total: "Total",
     continuePlan: "Continuar a Selección de Plan",
     continueShipping: "Continuar a Envío",
+    continuePayment: "Continuar a Pago",
     completePurchase: "Completar Compra",
     back: "Atrás",
     monthlyRecurring: "Mensual Recurrente",
@@ -112,7 +114,9 @@ export function GLP1CheckoutPageImproved() {
   const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
   const [expeditedShipping, setExpeditedShipping] = useState<boolean>(false);
   const [fatBurnerDuration] = useState<string>('1');
-  const [promoApplied] = useState<boolean>(false);
+  const [promoCode, setPromoCode] = useState<string>('');
+  const [promoApplied, setPromoApplied] = useState<boolean>(false);
+  const [promoError, setPromoError] = useState<string | null>(null);
   const [language, setLanguage] = useState<'en' | 'es'>('en');
   const [showAddressConfirmation, setShowAddressConfirmation] = useState<boolean>(false);
   const [shippingAddress, setShippingAddress] = useState<ShippingAddress>({
@@ -489,7 +493,7 @@ export function GLP1CheckoutPageImproved() {
   const selectedMed = medications.find(m => m.id === selectedMedication);
   const selectedPlanData = selectedMed?.plans.find(p => p.id === selectedPlan);
 
-  const { subtotal, total, shippingCost } = computeTotals({
+  const { subtotal, total, shippingCost, discount } = computeTotals({
     selectedPlanData,
     selectedAddons,
     addons,
@@ -497,6 +501,46 @@ export function GLP1CheckoutPageImproved() {
     expeditedShipping,
     promoApplied,
   });
+
+  const isShippingComplete = useMemo(() => {
+    return Boolean(
+      shippingAddress.addressLine1?.trim() &&
+        shippingAddress.city?.trim() &&
+        shippingAddress.state?.trim() &&
+        shippingAddress.zipCode?.trim()
+    );
+  }, [shippingAddress.addressLine1, shippingAddress.city, shippingAddress.state, shippingAddress.zipCode]);
+
+  const allowedPromoCodes = useMemo(() => {
+    const raw = (import.meta.env.VITE_PROMO_CODES as string | undefined) || '';
+    const codes = raw
+      .split(',')
+      .map(c => c.trim().toUpperCase())
+      .filter(Boolean);
+    const finalCodes = codes.length > 0 ? codes : ['EON25'];
+    return new Set(finalCodes);
+  }, []);
+
+  function applyPromo() {
+    setPromoError(null);
+    const code = promoCode.trim().toUpperCase();
+    if (!code) {
+      setPromoError(language === 'es' ? 'Ingrese un código promocional.' : 'Please enter a promo code.');
+      return;
+    }
+    if (!allowedPromoCodes.has(code)) {
+      setPromoError(language === 'es' ? 'Código promocional inválido.' : 'Invalid promo code.');
+      return;
+    }
+    setPromoCode(code);
+    setPromoApplied(true);
+  }
+
+  function removePromo() {
+    setPromoApplied(false);
+    setPromoCode('');
+    setPromoError(null);
+  }
 
   // Read status from URL
   useMemo(() => {
@@ -550,6 +594,15 @@ export function GLP1CheckoutPageImproved() {
       setIsTransitioning(true);
       setTimeout(() => {
         setCurrentStep(3);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        requestAnimationFrame(() => {
+          setTimeout(() => setIsTransitioning(false), 100);
+        });
+      }, 250);
+    } else if (currentStep === 3 && isShippingComplete) {
+      setIsTransitioning(true);
+      setTimeout(() => {
+        setCurrentStep(4);
         window.scrollTo({ top: 0, behavior: 'smooth' });
         requestAnimationFrame(() => {
           setTimeout(() => setIsTransitioning(false), 100);
@@ -640,6 +693,59 @@ export function GLP1CheckoutPageImproved() {
                   {expeditedShipping ? `$${shippingCost}.00` : 'FREE'}
                 </span>
               </div>
+              {discount > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">{language === 'es' ? 'Descuento' : 'Discount'}</span>
+                  <span className="text-green-700 font-medium">-${discount.toFixed(2)}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Promo Code */}
+            <div className="mt-4">
+              {promoApplied ? (
+                <div className="flex items-center justify-between gap-2 bg-green-50 border border-green-200 rounded-lg p-3">
+                  <div className="text-sm text-green-800">
+                    <span className="font-medium">{language === 'es' ? 'Promo aplicada' : 'Promo applied'}</span>
+                    {promoCode ? <span className="ml-2 text-green-700">({promoCode})</span> : null}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={removePromo}
+                    className="text-sm font-medium text-green-800 hover:text-green-900 underline"
+                  >
+                    {language === 'es' ? 'Quitar' : 'Remove'}
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={promoCode}
+                      onChange={(e) => {
+                        setPromoCode(e.target.value);
+                        if (promoError) setPromoError(null);
+                      }}
+                      placeholder={language === 'es' ? 'Código promocional' : 'Promo code'}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      autoComplete="off"
+                      inputMode="text"
+                    />
+                    <button
+                      type="button"
+                      onClick={applyPromo}
+                      className="px-4 py-2 rounded-lg bg-black text-white text-sm font-medium hover:bg-gray-800"
+                    >
+                      {language === 'es' ? 'Aplicar' : 'Apply'}
+                    </button>
+                  </div>
+                  {promoError && <p className="mt-1 text-xs text-red-600">{promoError}</p>}
+                  <p className="mt-1 text-xs text-gray-500">
+                    {language === 'es' ? 'Los códigos válidos aplican un descuento de $25.' : 'Valid codes apply a $25 discount.'}
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="mt-3 pt-3 border-t border-gray-200">
@@ -994,9 +1100,20 @@ export function GLP1CheckoutPageImproved() {
               <span className="hidden sm:inline">{language === 'es' ? 'Plan' : 'Plan'}</span>
             </div>
             <div className="flex-1 h-0.5 mx-2 sm:mx-4" style={{ backgroundColor: currentStep >= 3 ? '#13a97b' : '#e5e7eb' }} />
-            <div className={`flex items-center gap-2 ${currentStep === 3 ? 'text-[#13a97b] font-semibold' : 'text-gray-400'}`}>
+            <div className={`flex items-center gap-2 ${currentStep === 3 ? 'text-[#13a97b] font-semibold' : currentStep > 3 ? 'text-gray-600' : 'text-gray-400'}`}>
               <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${currentStep >= 3 ? 'bg-[#13a97b] text-white' : 'bg-gray-200'}`}>
-                3
+                {currentStep > 3 ? (
+                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+                  </svg>
+                ) : '3'}
+              </div>
+              <span className="hidden sm:inline">{language === 'es' ? 'Envío' : 'Shipping'}</span>
+            </div>
+            <div className="flex-1 h-0.5 mx-2 sm:mx-4" style={{ backgroundColor: currentStep >= 4 ? '#13a97b' : '#e5e7eb' }} />
+            <div className={`flex items-center gap-2 ${currentStep === 4 ? 'text-[#13a97b] font-semibold' : 'text-gray-400'}`}>
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${currentStep >= 4 ? 'bg-[#13a97b] text-white' : 'bg-gray-200'}`}>
+                4
               </div>
               <span className="hidden sm:inline">{language === 'es' ? 'Pago' : 'Payment'}</span>
             </div>
@@ -1351,7 +1468,7 @@ export function GLP1CheckoutPageImproved() {
               </div>
             )}
 
-            {/* Step 3: Shipping & Payment */}
+            {/* Step 3: Shipping */}
             {currentStep === 3 && (
               <div className={`lg:max-w-xl lg:mx-auto transition-all duration-300 ease-out ${isTransitioning ? 'opacity-0 scale-98 translate-y-4' : 'opacity-100 scale-100 translate-y-0'}`}>
                 <div className="mb-6">
@@ -1525,6 +1642,67 @@ export function GLP1CheckoutPageImproved() {
                           : 'Your medication will be shipped with special cooling packs.'}
                       </p>
                     </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={handlePreviousStep}
+                    className="w-full sm:w-auto px-5 py-2 rounded-full border border-gray-300 font-medium"
+                  >
+                    {t.back}
+                  </button>
+                  <button
+                    onClick={handleNextStep}
+                    disabled={!isShippingComplete}
+                    className="flex-1 px-8 py-2 rounded-full bg-black text-white font-medium hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {t.continuePayment}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 4: Payment */}
+            {currentStep === 4 && (
+              <div className={`lg:max-w-xl lg:mx-auto transition-all duration-300 ease-out ${isTransitioning ? 'opacity-0 scale-98 translate-y-4' : 'opacity-100 scale-100 translate-y-0'}`}>
+                <div className="mb-6">
+                  <h2 className="text-xl font-medium text-gray-900 mb-2">
+                    {patientData.firstName
+                      ? (language === 'es'
+                          ? `${patientData.firstName}, ${t.payment}`
+                          : `${patientData.firstName}, ${t.payment}`)
+                      : t.payment}
+                  </h2>
+                  <p className="text-gray-600">
+                    {language === 'es' ? 'Complete su compra de forma segura' : 'Securely complete your purchase'}
+                  </p>
+                </div>
+
+                {/* Shipping Summary */}
+                <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900">{language === 'es' ? 'Envío' : 'Shipping'}</p>
+                      <p className="text-sm text-gray-700 mt-1">
+                        {shippingAddress.addressLine1}
+                        {shippingAddress.addressLine2 ? `, ${shippingAddress.addressLine2}` : ''}
+                        <br />
+                        {shippingAddress.city}, {shippingAddress.state} {shippingAddress.zipCode}
+                      </p>
+                      <p className="text-xs text-gray-600 mt-2">
+                        {expeditedShipping
+                          ? (language === 'es' ? 'Rápido (3-5 días hábiles)' : 'Expedited (3-5 business days)')
+                          : (language === 'es' ? 'Estándar (5-7 días hábiles)' : 'Standard (5-7 business days)')}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentStep(3)}
+                      className="text-sm font-medium text-[#13a97b] hover:text-[#0e8661] underline"
+                    >
+                      {language === 'es' ? 'Editar' : 'Edit'}
+                    </button>
                   </div>
                 </div>
 
