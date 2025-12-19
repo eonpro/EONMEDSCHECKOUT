@@ -62,15 +62,28 @@ async function handlePaymentForGHL(contactData: any, paymentData: any): Promise<
   };
   
   try {
+    // Format phone number correctly - remove all non-digits and add +1
+    let formattedPhone = '';
+    if (contactData.phone) {
+      const digits = contactData.phone.replace(/\D/g, ''); // Remove all non-digits
+      const last10 = digits.slice(-10); // Get last 10 digits
+      if (last10.length === 10) {
+        formattedPhone = `+1${last10}`;
+      }
+    }
+    
+    console.log('[GHL] Creating contact with phone:', formattedPhone);
+    console.log('[GHL] Address:', contactData.address1, contactData.city, contactData.state, contactData.postalCode);
+    
     const result = await ghlRequest('/contacts/', 'POST', {
-      firstName: contactData.firstName,
-      lastName: contactData.lastName,
+      firstName: contactData.firstName || '',
+      lastName: contactData.lastName || '',
       email: contactData.email,
-      phone: contactData.phone ? `+1${contactData.phone.replace(/\\D/g, '').slice(-10)}` : undefined,
-      address1: contactData.address1,
-      city: contactData.city,
-      state: contactData.state,
-      postalCode: contactData.postalCode,
+      phone: formattedPhone || undefined,
+      address1: contactData.address1 || '',
+      city: contactData.city || '',
+      state: contactData.state || '',
+      postalCode: contactData.postalCode || '',
       country: 'US',
       source: 'EONMeds Checkout',
       tags,
