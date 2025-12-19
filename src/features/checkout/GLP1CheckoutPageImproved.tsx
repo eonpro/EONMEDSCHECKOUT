@@ -115,6 +115,7 @@ export function GLP1CheckoutPageImproved() {
   const [expeditedShipping, setExpeditedShipping] = useState<boolean>(false);
   const [fatBurnerDuration] = useState<string>('1');
   const [promoCode, setPromoCode] = useState<string>('');
+  const [appliedPromoCode, setAppliedPromoCode] = useState<string>('');
   const [promoApplied, setPromoApplied] = useState<boolean>(false);
   const [promoError, setPromoError] = useState<string | null>(null);
   const [language, setLanguage] = useState<'en' | 'es'>('en');
@@ -532,12 +533,14 @@ export function GLP1CheckoutPageImproved() {
       setPromoError(language === 'es' ? 'Código promocional inválido.' : 'Invalid promo code.');
       return;
     }
-    setPromoCode(code);
+    setAppliedPromoCode(code);
     setPromoApplied(true);
+    setPromoCode(''); // Clear input after successful apply
   }
 
   function removePromo() {
     setPromoApplied(false);
+    setAppliedPromoCode('');
     setPromoCode('');
     setPromoError(null);
   }
@@ -701,52 +704,33 @@ export function GLP1CheckoutPageImproved() {
               )}
             </div>
 
-            {/* Promo Code */}
-            <div className="mt-4">
-              {promoApplied ? (
-                <div className="flex items-center justify-between gap-2 bg-green-50 border border-green-200 rounded-lg p-3">
-                  <div className="text-sm text-green-800">
-                    <span className="font-medium">{language === 'es' ? 'Promo aplicada' : 'Promo applied'}</span>
-                    {promoCode ? <span className="ml-2 text-green-700">({promoCode})</span> : null}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={removePromo}
-                    className="text-sm font-medium text-green-800 hover:text-green-900 underline"
-                  >
-                    {language === 'es' ? 'Quitar' : 'Remove'}
-                  </button>
-                </div>
-              ) : (
-                <div>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={promoCode}
-                      onChange={(e) => {
-                        setPromoCode(e.target.value);
-                        if (promoError) setPromoError(null);
-                      }}
-                      placeholder={language === 'es' ? 'Código promocional' : 'Promo code'}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                      autoComplete="off"
-                      inputMode="text"
-                    />
+            {/* Promo Code - Only show on Step 4 (Payment) */}
+            {currentStep === 4 && (
+              <div className="mt-4">
+                {promoApplied ? (
+                  <div className="flex items-center justify-between gap-2 bg-green-50 border border-green-200 rounded-lg p-3">
+                    <div className="text-sm text-green-800">
+                      <span className="font-medium">{language === 'es' ? 'Promo aplicada' : 'Promo applied'}</span>
+                      {appliedPromoCode ? <span className="ml-2 text-green-700">({appliedPromoCode})</span> : null}
+                    </div>
                     <button
                       type="button"
-                      onClick={applyPromo}
-                      className="px-4 py-2 rounded-lg bg-black text-white text-sm font-medium hover:bg-gray-800"
+                      onClick={removePromo}
+                      className="text-sm font-medium text-green-800 hover:text-green-900 underline"
                     >
-                      {language === 'es' ? 'Aplicar' : 'Apply'}
+                      {language === 'es' ? 'Quitar' : 'Remove'}
                     </button>
                   </div>
-                  {promoError && <p className="mt-1 text-xs text-red-600">{promoError}</p>}
-                  <p className="mt-1 text-xs text-gray-500">
-                    {language === 'es' ? 'Los códigos válidos aplican un descuento de $25.' : 'Valid codes apply a $25 discount.'}
-                  </p>
-                </div>
-              )}
-            </div>
+                ) : (
+                  <div>
+                    <p className="text-xs text-gray-600 mb-2">
+                      {language === 'es' ? '¿Tienes un código promocional?' : 'Have a promo code?'}
+                    </p>
+                    {promoError && <p className="mb-1 text-xs text-red-600">{promoError}</p>}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="mt-3 pt-3 border-t border-gray-200">
               <div className="flex justify-between items-center">
@@ -1645,17 +1629,17 @@ export function GLP1CheckoutPageImproved() {
                   </div>
                 </div>
 
-                <div className="flex gap-3">
+                <div className="mt-8 flex gap-3">
                   <button
                     onClick={handlePreviousStep}
-                    className="w-full sm:w-auto px-5 py-2 rounded-full border border-gray-300 font-medium"
+                    className="px-6 py-2.5 rounded-full border border-gray-300 font-medium bg-white hover:bg-gray-50"
                   >
                     {t.back}
                   </button>
                   <button
                     onClick={handleNextStep}
                     disabled={!isShippingComplete}
-                    className="flex-1 px-8 py-2 rounded-full bg-black text-white font-medium hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 px-8 py-2.5 rounded-full bg-black text-white font-medium hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {t.continuePayment}
                   </button>
@@ -1705,6 +1689,61 @@ export function GLP1CheckoutPageImproved() {
                     </button>
                   </div>
                 </div>
+
+                {/* Promo Code Section - Step 4 only */}
+                {!promoApplied && (
+                  <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                    <p className="text-sm font-medium text-gray-900 mb-3">
+                      {language === 'es' ? '¿Tienes un código promocional?' : 'Have a promo code?'}
+                    </p>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={promoCode}
+                        onChange={(e) => {
+                          setPromoCode(e.target.value.toUpperCase());
+                          if (promoError) setPromoError(null);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            applyPromo();
+                          }
+                        }}
+                        placeholder={language === 'es' ? 'Ej: EON25' : 'e.g. EON25'}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm uppercase"
+                        autoComplete="off"
+                        autoCapitalize="characters"
+                        spellCheck={false}
+                      />
+                      <button
+                        type="button"
+                        onClick={applyPromo}
+                        className="px-4 py-2 rounded-lg bg-black text-white text-sm font-medium hover:bg-gray-800"
+                      >
+                        {language === 'es' ? 'Aplicar' : 'Apply'}
+                      </button>
+                    </div>
+                    {promoError && <p className="mt-2 text-xs text-red-600">{promoError}</p>}
+                  </div>
+                )}
+
+                {promoApplied && (
+                  <div className="mb-6 flex items-center justify-between gap-2 bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="text-sm text-green-800">
+                      <span className="font-medium">{language === 'es' ? '¡Código aplicado!' : 'Code applied!'}</span>
+                      <span className="ml-2 text-green-700 font-semibold">{appliedPromoCode}</span>
+                      <span className="ml-2 text-green-600">(-$25.00)</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={removePromo}
+                      className="text-sm font-medium text-green-800 hover:text-green-900 underline"
+                    >
+                      {language === 'es' ? 'Quitar' : 'Remove'}
+                    </button>
+                  </div>
+                )}
 
                 {/* Payment Section */}
                 <div className="mb-6">
