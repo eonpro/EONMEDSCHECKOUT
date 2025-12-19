@@ -53,8 +53,8 @@ async function handlePaymentForGHL(contactData: any, paymentData: any): Promise<
   if (paymentData.plan) tags.push(`plan-${paymentData.plan.toLowerCase().replace(/\s+/g, '-')}`);
   tags.push(paymentData.isSubscription ? 'subscription' : 'one-time-purchase');
   
+  // Custom fields matching GHL field keys (without 'contact.' prefix)
   const customFields: Record<string, string> = {
-    'language': language,
     'last_payment_amount': `$${(paymentData.amount / 100).toFixed(2)}`,
     'last_payment_date': new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
     'medication': paymentData.medication || '',
