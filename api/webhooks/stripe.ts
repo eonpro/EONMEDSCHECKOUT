@@ -119,6 +119,16 @@ async function createSubscriptionForPayment(paymentIntent: any) {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Basic diagnostic response for non-POST
+  if (req.method === 'GET') {
+    return res.status(200).json({ 
+      status: 'webhook endpoint active',
+      hasWebhookSecret: !!webhookSecret,
+      hasStripe: !!stripe,
+      hasGHL: isGHLConfigured(),
+    });
+  }
+  
   console.log('[webhook] ========== INCOMING WEBHOOK ==========');
   console.log('[webhook] Method:', req.method);
   console.log('[webhook] Has webhook secret:', !!webhookSecret);
@@ -130,17 +140,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
   if (!webhookSecret || !stripe) {
     console.error('[webhook] Missing config - webhookSecret:', !!webhookSecret, 'stripe:', !!stripe);
-    res.status(500).json({ error: 'Stripe webhook not configured' });
+    res.status(500).json({ error: 'Stripe webhook not configured', hasWebhookSecret: !!webhookSecret, hasStripe: !!stripe });
     return;
   }
+  
+  let buf: Buffer;
   try {
-    const buf = await buffer(req);
-    const sig = req.headers['stripe-signature'] as string;
-    console.log('[webhook] Signature header:', sig ? sig.substring(0, 50) + '...' : 'MISSING');
-    console.log('[webhook] Body length:', buf.length);
-    const event = stripe.webhooks.constructEvent(buf, sig, webhookSecret);
+    buf = await buffer(req);
+    console.log('[webhook] Buffer read successfully, length:', buf.length);
+  } catch (bufErr: any) {
+    console.error('[webhook] Error reading buffer:', bufErr);
+    return res.status(500).json({ error: 'Failed to read request body', message: bufErr.message });
+  }
+  
+  const sig = req.headers['stripe-signature'] as string;
+  console.log('[webhook] Signature header:', sig ? sig.substring(0, 50) + '...' : 'MISSING');
+  
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(buf, sig, webhookSecret);
     console.log('[webhook] Event constructed successfully:', event.type);
-
+  } catch (sigErr: any) {
+    console.error('[webhook] Signature verification failed:', sigErr.message);
+    return res.status(400).json({ error: 'Invalid signature', message: sigErr.message });
+  }
+  
+  try {
     // Idempotent processing (use event.id as key if you persist state)
     switch (event.type) {
       case 'payment_intent.succeeded': {
