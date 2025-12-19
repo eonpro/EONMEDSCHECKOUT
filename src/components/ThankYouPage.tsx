@@ -51,6 +51,11 @@ export function ThankYouPage({
   const planPrice =
     typeof planPriceProp === 'number' && planPriceProp > 0 ? planPriceProp : fallbackPlanPrice;
 
+  // Shipping time based on selection
+  const shippingTime = expeditedShipping
+    ? (language === 'es' ? '3-5 días hábiles' : '3-5 business days')
+    : (language === 'es' ? '5-7 días hábiles' : '5-7 business days');
+
   const t = language === 'es' ? {
     title: '¡Gracias por su pedido!',
     transactionId: 'ID de Transacción:',
@@ -70,14 +75,14 @@ export function ThankYouPage({
     shipping: 'Envío:',
     expedited: 'Expedito (3-5 días hábiles)',
     standard: 'Estándar (5-7 días hábiles)',
-    getItFaster: 'Recíbelo más rápido',
+    freeShipping: 'Envío gratuito',
     totalPaid: 'Total Pagado',
     shippingAddress: 'Dirección de Envío:',
     whatsNext: '¿Qué sigue?',
-    step1: 'Recibirá un correo de confirmación con los detalles de su pedido.',
-    step2: 'Su medicamento será enviado dentro de 1-2 días hábiles.',
-    step3: 'Recibirá información de seguimiento cuando su pedido sea enviado.',
-    step4: 'Un médico revisará su información y aprobará su prescripción.',
+    step1: 'Un médico revisará su información y aprobará su prescripción.',
+    step2: 'Recibirá un correo de confirmación con los detalles de su pedido.',
+    step3: `Su medicamento será enviado dentro de ${shippingTime}.`,
+    step4: 'Recibirá información de seguimiento una vez que la farmacia dispense su tratamiento.',
     questions: '¿Preguntas? Contáctenos en',
     orCall: 'o llame al',
     downloadReceipt: 'Descargar Recibo',
@@ -100,14 +105,14 @@ export function ThankYouPage({
     shipping: 'Shipping:',
     expedited: 'Expedited (3-5 business days)',
     standard: 'Standard (5-7 business days)',
-    getItFaster: 'Get it faster',
+    freeShipping: 'Free shipping',
     totalPaid: 'Total Paid',
     shippingAddress: 'Shipping Address:',
     whatsNext: "What's Next?",
-    step1: 'You will receive a confirmation email with your order details.',
-    step2: 'Your medication will be shipped within 1-2 business days.',
-    step3: 'You will receive tracking information once your order ships.',
-    step4: 'A physician will review your information and approve your prescription.',
+    step1: 'A physician will review your information and approve your prescription.',
+    step2: 'You will receive a confirmation email with your order details.',
+    step3: `Your medication will be shipped within ${shippingTime}.`,
+    step4: 'You will receive tracking information once the pharmacy dispensed your treatment.',
     questions: 'Questions? Contact us at',
     orCall: 'or call',
     downloadReceipt: 'Download Receipt',
@@ -237,19 +242,17 @@ export function ThankYouPage({
             <div>
               <h3 className="text-sm font-semibold text-gray-700 mb-3">{t.shipping}</h3>
               <div className="bg-gray-50 rounded-lg p-4 flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <input 
-                      type="radio" 
-                      checked={expeditedShipping}
-                      readOnly
-                      className="text-green-600"
-                    />
-                    <span className="font-medium text-sm">{t.expedited}</span>
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 rounded-full border-2 border-green-600 flex items-center justify-center">
+                    <div className="w-2.5 h-2.5 bg-green-600 rounded-full"></div>
                   </div>
-                  <p className="text-xs text-gray-600 ml-6 mt-1">{t.getItFaster}</p>
+                  <span className="font-medium text-sm">
+                    {expeditedShipping ? t.expedited : t.standard}
+                  </span>
                 </div>
-                <span className="font-semibold text-sm">${actualShippingCost.toFixed(2)}</span>
+                <span className="font-semibold text-sm">
+                  {expeditedShipping ? `$${actualShippingCost.toFixed(2)}` : t.freeShipping}
+                </span>
               </div>
             </div>
 
@@ -300,8 +303,23 @@ export function ThankYouPage({
           {/* Contact Section */}
           <div className="px-6 pb-6 text-center text-sm text-gray-600">
             <p>{t.questions}</p>
-            <p className="font-semibold">support@eonmeds.com</p>
-            <p>{t.orCall} 1-888-EON-MEDS</p>
+            <p>
+              <a 
+                href="mailto:support@eonmeds.com" 
+                className="font-semibold text-gray-900 hover:underline"
+              >
+                support@eonmeds.com
+              </a>
+            </p>
+            <p>
+              {t.orCall}{' '}
+              <a 
+                href="tel:+18889206025" 
+                className="font-semibold text-gray-900 hover:underline"
+              >
+                1-888-920-6025
+              </a>
+            </p>
           </div>
         </div>
 
