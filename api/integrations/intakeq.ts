@@ -113,16 +113,31 @@ export async function createClient(input: CreateIntakeQClientInput): Promise<Int
   };
 
   if (input.phone) payload.Phone = input.phone;
-  if (input.dateOfBirth) payload.DateOfBirth = input.dateOfBirth;
+  if (input.dateOfBirth) {
+    // IntakeQ expects Unix timestamp (ms) for DOB per docs.
+    const dob = new Date(input.dateOfBirth);
+    if (!Number.isNaN(dob.getTime())) {
+      payload.DateOfBirth = dob.getTime();
+    }
+  }
   if (input.gender) payload.Gender = input.gender;
 
   if (input.address) {
-    payload.Address = {
-      Street: input.address.street || '',
-      City: input.address.city || '',
-      State: input.address.state || '',
-      Zip: input.address.zip || '',
-    };
+    // IntakeQ client API uses flat address fields (not nested object).
+    const street = input.address.street || '';
+    const city = input.address.city || '';
+    const state = (input.address.state || '').toUpperCase().slice(0, 2);
+    const zip = input.address.zip || '';
+
+    if (street) payload.StreetAddress = street;
+    if (city) payload.City = city;
+    if (state) payload.StateShort = state;
+    if (zip) payload.PostalCode = zip;
+    payload.Country = 'USA';
+
+    // Optional full address string (some IntakeQ accounts display this field)
+    const full = [street, `${city}${city && state ? ',' : ''} ${state}`.trim(), zip, 'USA'].filter(Boolean).join(' ');
+    if (full.trim()) payload.Address = full.trim();
   }
 
   // Docs: POST /clients
