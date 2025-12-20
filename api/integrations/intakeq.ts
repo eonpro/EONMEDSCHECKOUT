@@ -11,44 +11,66 @@ function requireIntakeQ(): string {
   return intakeQApiKey;
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function intakeQRequest<T>(
   endpoint: string,
   {
     method = 'GET',
     body,
     headers,
+    maxRetries = 3,
   }: {
     method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
     body?: unknown;
     headers?: Record<string, string>;
+    maxRetries?: number;
   } = {}
 ): Promise<T> {
   const apiKey = requireIntakeQ();
 
-  const res = await fetch(`${INTAKEQ_API_BASE}${endpoint}`, {
-    method,
-    headers: {
-      'X-Auth-Key': apiKey,
-      ...(body ? { 'Content-Type': 'application/json' } : {}),
-      ...(headers || {}),
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const res = await fetch(`${INTAKEQ_API_BASE}${endpoint}`, {
+      method,
+      headers: {
+        'X-Auth-Key': apiKey,
+        ...(body ? { 'Content-Type': 'application/json' } : {}),
+        ...(headers || {}),
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
 
-  const text = await res.text();
-  if (!res.ok) {
-    throw new Error(`IntakeQ API error (${res.status}) on ${endpoint}: ${text.substring(0, 500)}`);
+    const text = await res.text();
+
+    if (res.status === 429 && attempt < maxRetries) {
+      const retryAfter = res.headers.get('retry-after');
+      const retryAfterMs = retryAfter ? Number(retryAfter) * 1000 : NaN;
+      const backoffMs = Number.isFinite(retryAfterMs)
+        ? retryAfterMs
+        : Math.min(5000, 300 * 2 ** attempt) + Math.floor(Math.random() * 150);
+      await sleep(backoffMs);
+      continue;
+    }
+
+    if (!res.ok) {
+      throw new Error(`IntakeQ API error (${res.status}) on ${endpoint}: ${text.substring(0, 500)}`);
+    }
+
+    // Some endpoints may return an empty body.
+    if (!text) return {} as T;
+
+    try {
+      return JSON.parse(text) as T;
+    } catch {
+      // If it's not JSON, return as any.
+      return text as unknown as T;
+    }
   }
 
-  // Some endpoints may return an empty body.
-  if (!text) return {} as T;
-
-  try {
-    return JSON.parse(text) as T;
-  } catch {
-    // If it's not JSON, return as any.
-    return text as unknown as T;
-  }
+  // Unreachable, but TS requires a return.
+  throw new Error(`IntakeQ API error (429) on ${endpoint}: Too many requests.`);
 }
 
 export type IntakeQAddress = {
@@ -93,6 +115,8 @@ export type CreateIntakeQClientInput = {
 function normalizeTextKey(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, '');
 }
+
+let cachedCustomFieldIdByName: Record<string, string> | null = null;
 
 const findClientsResponseSchema = z.array(
   z
@@ -192,19 +216,37 @@ export async function uploadClientPdf(params: {
   const blob = new Blob([new Uint8Array(bytes)], { type: 'application/pdf' });
   form.append('file', blob, params.filename);
 
-  const res = await fetch(`${INTAKEQ_API_BASE}/files/${params.clientId}`, {
-    method: 'POST',
-    headers: {
-      'X-Auth-Key': apiKey,
-      // NOTE: fetch will set the multipart boundary automatically
-    },
-    body: form,
-  });
+  const maxRetries = 3;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const res = await fetch(`${INTAKEQ_API_BASE}/files/${params.clientId}`, {
+      method: 'POST',
+      headers: {
+        'X-Auth-Key': apiKey,
+        // NOTE: fetch will set the multipart boundary automatically
+      },
+      body: form,
+    });
 
-  const text = await res.text();
-  if (!res.ok) {
-    throw new Error(`IntakeQ upload file error (${res.status}): ${text.substring(0, 500)}`);
+    const text = await res.text();
+
+    if (res.status === 429 && attempt < maxRetries) {
+      const retryAfter = res.headers.get('retry-after');
+      const retryAfterMs = retryAfter ? Number(retryAfter) * 1000 : NaN;
+      const backoffMs = Number.isFinite(retryAfterMs)
+        ? retryAfterMs
+        : Math.min(5000, 400 * 2 ** attempt) + Math.floor(Math.random() * 150);
+      await sleep(backoffMs);
+      continue;
+    }
+
+    if (!res.ok) {
+      throw new Error(`IntakeQ upload file error (${res.status}): ${text.substring(0, 500)}`);
+    }
+
+    return;
   }
+
+  throw new Error('IntakeQ upload file error (429): Too many requests.');
 }
 
 export async function ensureClient(params: CreateIntakeQClientInput): Promise<{ client: IntakeQClient; created: boolean }> {
@@ -250,61 +292,49 @@ export async function updateClientCustomFieldsByEmail(params: {
     return { clientId: fallback, updated: [], missing: [] };
   }
 
-  const profileResult = await getClientProfileByEmail(email);
-  const clientId = profileResult?.clientId ?? (params.clientId ? Number(params.clientId) : 0);
-  if (!clientId) {
-    throw new Error('IntakeQ client not found for custom field update');
-  }
+  const resolvedClientId = params.clientId ? Number(params.clientId) : 0;
+  const clientId = resolvedClientId || (await findClientByEmail(email))?.Id || 0;
+  if (!clientId) throw new Error('IntakeQ client not found for custom field update');
 
-  const existingCustomFields: IntakeQCustomField[] = Array.isArray(profileResult?.profile?.CustomFields)
-    ? (profileResult?.profile?.CustomFields as any[]).map((f) => ({
-        FieldId: String(f?.FieldId ?? ''),
-        Text: typeof f?.Text === 'string' ? f.Text : undefined,
-        Value: typeof f?.Value === 'string' ? f.Value : f?.Value != null ? String(f.Value) : undefined,
-      }))
-    : [];
-
-  const desiredMap = new Map<string, { originalKey: string; value: string }>();
-  for (const [k, v] of desiredEntries) {
-    desiredMap.set(normalizeTextKey(k), { originalKey: k, value: v });
+  // Cache custom field ids (they're consistent across the account)
+  if (!cachedCustomFieldIdByName) {
+    const profile = await getClientProfileByEmail(email);
+    const customFields: any[] = Array.isArray(profile?.profile?.CustomFields) ? profile?.profile?.CustomFields : [];
+    const map: Record<string, string> = {};
+    for (const f of customFields) {
+      const text = typeof f?.Text === 'string' ? f.Text : '';
+      const fieldId = f?.FieldId != null ? String(f.FieldId) : '';
+      if (!text || !fieldId) continue;
+      map[normalizeTextKey(text)] = fieldId;
+    }
+    cachedCustomFieldIdByName = map;
   }
 
   const updated: string[] = [];
-  const seenDesiredKeys = new Set<string>();
-
-  const merged = existingCustomFields.map((field) => {
-    const textKey = field.Text ? normalizeTextKey(field.Text) : '';
-    const desired = textKey ? desiredMap.get(textKey) : undefined;
-    if (desired) {
-      seenDesiredKeys.add(textKey);
-      updated.push(desired.originalKey);
-      return {
-        FieldId: String(field.FieldId),
-        Text: field.Text,
-        Value: desired.value,
-      } satisfies IntakeQCustomField;
-    }
-    return field;
-  });
-
   const missing: string[] = [];
-  for (const [norm, info] of desiredMap.entries()) {
-    if (!seenDesiredKeys.has(norm)) missing.push(info.originalKey);
+  const updatesPayload: Array<{ FieldId: string; Value: string }> = [];
+
+  for (const [fieldName, value] of desiredEntries) {
+    const fieldId = cachedCustomFieldIdByName?.[normalizeTextKey(fieldName)];
+    if (!fieldId) {
+      missing.push(fieldName);
+      continue;
+    }
+    updated.push(fieldName);
+    updatesPayload.push({ FieldId: fieldId, Value: value });
   }
 
-  // Update via POST /clients with ClientId and CustomFields (per IntakeQ client API)
-  await intakeQRequest('/clients', {
-    method: 'POST',
-    body: {
-      ClientId: clientId,
-      Email: email,
-      CustomFields: merged.map((f) => ({
-        FieldId: String(f.FieldId),
-        Text: f.Text,
-        Value: f.Value ?? '',
-      })),
-    },
-  });
+  if (updatesPayload.length > 0) {
+    // Update via POST /clients with ClientId and CustomFields (per IntakeQ client API)
+    await intakeQRequest('/clients', {
+      method: 'POST',
+      body: {
+        ClientId: clientId,
+        Email: email,
+        CustomFields: updatesPayload,
+      },
+    });
+  }
 
   return { clientId, updated, missing };
 }
