@@ -1,9 +1,20 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { kv } from '@vercel/kv';
 import { ensureClient, uploadClientPdf } from '../integrations/intakeq';
 import { generateIntakePdf, type PdfKeyValue } from '../utils/pdf-generator';
 
 const TTL_SECONDS = 60 * 60 * 24; // 24h
+
+async function getKV() {
+  // IMPORTANT: Avoid importing @vercel/kv when env vars are missing,
+  // because the module can throw during initialization.
+  if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) return null;
+  try {
+    const mod = await import('@vercel/kv');
+    return mod.kv;
+  } catch {
+    return null;
+  }
+}
 
 function getHeader(req: VercelRequest, name: string): string | undefined {
   const value = req.headers[name.toLowerCase()];
@@ -181,8 +192,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Store minimal link data for later payment webhook use
     let kvStored = true;
     try {
+      const kvClient = await getKV();
+      if (!kvClient) throw new Error('KV not configured');
+
       const key = `intakeq:intake:${intakeId}`;
-      await kv.set(
+      await kvClient.set(
         key,
         {
           intakeId,
@@ -194,7 +208,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       );
 
       // Also store by email as a fallback (avoids broken linkage if intakeId isn't passed)
-      await kv.set(
+      await kvClient.set(
         `intakeq:email:${email.toLowerCase()}`,
         {
           intakeId,

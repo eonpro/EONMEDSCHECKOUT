@@ -1,7 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import Stripe from 'stripe';
 import { buffer } from 'micro';
-import { kv } from '@vercel/kv';
 import { findClientByEmail, uploadClientPdf } from '../integrations/intakeq';
 import { generateInvoicePdf } from '../utils/pdf-generator';
 
@@ -22,6 +21,18 @@ function safeJsonParse<T>(value: unknown, fallback: T): T {
     return JSON.parse(value) as T;
   } catch {
     return fallback;
+  }
+}
+
+async function getKV() {
+  // IMPORTANT: Avoid importing @vercel/kv when env vars are missing,
+  // because the module can throw during initialization.
+  if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) return null;
+  try {
+    const mod = await import('@vercel/kv');
+    return mod.kv;
+  } catch {
+    return null;
   }
 }
 
@@ -265,13 +276,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // Best-effort idempotency to avoid double uploads/side effects on retries.
         // If KV isn't configured, this will throw and we safely ignore it.
         try {
-          const processedKey = `stripe:webhook:processed:${event.id}`;
-          const already = await kv.get(processedKey);
-          if (already) {
-            console.log(`[webhook] Skipping already-processed event: ${event.id}`);
-            break;
+          const kvClient = await getKV();
+          if (kvClient) {
+            const processedKey = `stripe:webhook:processed:${event.id}`;
+            const already = await kvClient.get(processedKey);
+            if (already) {
+              console.log(`[webhook] Skipping already-processed event: ${event.id}`);
+              break;
+            }
+            await kvClient.set(processedKey, { processedAtIso: new Date().toISOString() }, { ex: 60 * 60 * 24 * 7 }); // 7 days
           }
-          await kv.set(processedKey, { processedAtIso: new Date().toISOString() }, { ex: 60 * 60 * 24 * 7 }); // 7 days
         } catch {
           // Ignore KV issues; continue processing.
         }
@@ -318,8 +332,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           let linkedIntakeId: string | undefined;
 
           try {
+            const kvClient = await getKV();
             if (intakeId) {
-              const rec: any = await kv.get(`intakeq:intake:${intakeId}`);
+              const rec: any = kvClient ? await kvClient.get(`intakeq:intake:${intakeId}`) : null;
               if (rec?.intakeQClientId) {
                 intakeQClientId = Number(rec.intakeQClientId);
                 linkedIntakeId = rec.intakeId || intakeId;
@@ -327,7 +342,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
 
             if (!intakeQClientId && email) {
-              const rec: any = await kv.get(`intakeq:email:${email}`);
+              const rec: any = kvClient ? await kvClient.get(`intakeq:email:${email}`) : null;
               if (rec?.intakeQClientId) {
                 intakeQClientId = Number(rec.intakeQClientId);
                 linkedIntakeId = rec.intakeId;
@@ -386,8 +401,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             // Best-effort cleanup of linkage data (PHI moves into IntakeQ).
             try {
-              if (linkedIntakeId) await kv.del(`intakeq:intake:${linkedIntakeId}`);
-              if (email) await kv.del(`intakeq:email:${email}`);
+              const kvClient = await getKV();
+              if (kvClient) {
+                if (linkedIntakeId) await kvClient.del(`intakeq:intake:${linkedIntakeId}`);
+                if (email) await kvClient.del(`intakeq:email:${email}`);
+              }
             } catch {
               // ignore
             }
