@@ -138,13 +138,14 @@ export async function createClient(input: CreateIntakeQClientInput): Promise<Int
 export async function uploadClientPdf(params: {
   clientId: number;
   filename: string;
-  pdfBuffer: Uint8Array;
+  pdfBuffer: Uint8Array | Buffer;
 }): Promise<void> {
   const apiKey = requireIntakeQ();
 
   // Docs: POST /files/{clientId} (multipart/form-data, field name: file)
   const form = new FormData();
-  const blob = new Blob([params.pdfBuffer], { type: 'application/pdf' });
+  const bytes = Buffer.isBuffer(params.pdfBuffer) ? params.pdfBuffer : Buffer.from(params.pdfBuffer);
+  const blob = new Blob([bytes], { type: 'application/pdf' });
   form.append('file', blob, params.filename);
 
   const res = await fetch(`${INTAKEQ_API_BASE}/files/${params.clientId}`, {

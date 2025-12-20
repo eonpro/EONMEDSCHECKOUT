@@ -128,8 +128,8 @@ async function handlePaymentForGHL(contactData: any, paymentData: any): Promise<
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 const stripeSecret = process.env.STRIPE_SECRET_KEY;
 
-// Initialize Stripe only if we have a secret key
-const stripe = stripeSecret ? new Stripe(stripeSecret, { apiVersion: '2024-06-20' as any }) : null;
+// Initialize Stripe client (handler will fail-closed if keys are missing)
+const stripe = new Stripe(stripeSecret || '', { apiVersion: '2024-06-20' as any });
 
 // Disable body parsing, we need raw body for webhook signature verification
 export const config = {
@@ -243,7 +243,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // Ensure Stripe webhook is properly configured
-  if (!webhookSecret || !stripeSecret || !stripe) {
+  if (!webhookSecret || !stripeSecret) {
     console.error('[webhook] Stripe webhook not configured (missing STRIPE_WEBHOOK_SECRET and/or STRIPE_SECRET_KEY)');
     return res.status(500).json({ error: 'Stripe webhook not configured' });
   }
