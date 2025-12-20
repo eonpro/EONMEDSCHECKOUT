@@ -14,11 +14,13 @@ export type IntakePdfInput = {
     email?: string;
     phone?: string;
     dateOfBirth?: string;
+    gender?: string;
     addressLine1?: string;
     addressLine2?: string;
     city?: string;
     state?: string;
     zipCode?: string;
+    country?: string;
   };
   qualification?: {
     eligible?: string;
@@ -146,57 +148,139 @@ function bullet(doc: PDFKit.PDFDocument, text: string) {
   doc.font('Helvetica').fontSize(10).text(`• ${text}`);
 }
 
+function categorizeAnswers(answers: PdfKeyValue[]): {
+  medicalHistory: PdfKeyValue[];
+  treatmentReadiness: PdfKeyValue[];
+  consents: PdfKeyValue[];
+  other: PdfKeyValue[];
+} {
+  const medicalHistory: PdfKeyValue[] = [];
+  const treatmentReadiness: PdfKeyValue[] = [];
+  const consents: PdfKeyValue[] = [];
+  const other: PdfKeyValue[] = [];
+
+  const medicalKeywords = [
+    'glp-1', 'glp1', 'medication', 'diabetes', 'thyroid', 'cancer', 'endocrine', 'neoplasia', 'men',
+    'pancreatitis', 'pancrea', 'pregnant', 'pregnancy', 'breastfeeding', 'nursing', 'allerg',
+    'blood pressure', 'bp', 'medical', 'condition', 'diagnosis', 'health', 'disease'
+  ];
+
+  const treatmentKeywords = [
+    'committed', 'commitment', 'ready', 'age', '18', 'hear about', 'referral', 'source',
+    'how did you', 'found us', 'interest', 'motivated'
+  ];
+
+  const consentKeywords = [
+    'consent', 'agree', 'terms', 'condition', 'policy', 'telehealth', 'privacy',
+    'cancellation', 'subscription', 'hipaa', 'acknowledge', 'understand', 'accept'
+  ];
+
+  for (const item of answers) {
+    const labelLower = item.label.toLowerCase();
+    
+    if (medicalKeywords.some(kw => labelLower.includes(kw))) {
+      medicalHistory.push(item);
+    } else if (treatmentKeywords.some(kw => labelLower.includes(kw))) {
+      treatmentReadiness.push(item);
+    } else if (consentKeywords.some(kw => labelLower.includes(kw))) {
+      consents.push(item);
+    } else {
+      other.push(item);
+    }
+  }
+
+  return { medicalHistory, treatmentReadiness, consents, other };
+}
+
 export async function generateIntakePdf(input: IntakePdfInput): Promise<Uint8Array> {
   const doc = createDoc();
 
   const subtitleParts: string[] = [];
-  if (input.intakeId) subtitleParts.push(`Intake ID: ${input.intakeId}`);
-  if (input.submittedAtIso) subtitleParts.push(`Submitted: ${formatIsoDate(input.submittedAtIso)}`);
+  if (input.submittedAtIso) subtitleParts.push(`Submitted via HeyFlow on ${formatIsoDate(input.submittedAtIso)}`);
 
-  header(doc, 'Medical Intake Submission', subtitleParts.join('  |  '));
+  header(doc, 'Patient Intake Form', subtitleParts.join('  |  '));
 
-  sectionTitle(doc, 'Patient');
-  keyValueRow(doc, 'Name', `${toSafeText(input.patient.firstName)} ${toSafeText(input.patient.lastName)}`.trim());
-  keyValueRow(doc, 'Email', toSafeText(input.patient.email));
-  keyValueRow(doc, 'Phone', toSafeText(input.patient.phone));
-  keyValueRow(doc, 'DOB', toSafeText(input.patient.dateOfBirth));
+  // Patient Information Section
+  sectionTitle(doc, 'Patient Information');
+  keyValueRow(doc, 'FIRST NAME', toSafeText(input.patient.firstName));
+  keyValueRow(doc, 'LAST NAME', toSafeText(input.patient.lastName));
+  keyValueRow(doc, 'DATE OF BIRTH', toSafeText(input.patient.dateOfBirth));
+  if (input.patient.gender) keyValueRow(doc, 'SEX', toSafeText(input.patient.gender));
+  keyValueRow(doc, 'EMAIL ADDRESS', toSafeText(input.patient.email));
+  keyValueRow(doc, 'PHONE NUMBER', toSafeText(input.patient.phone));
+  doc.moveDown(0.8);
 
-  const addressLine = [
-    input.patient.addressLine1,
-    input.patient.addressLine2,
-    `${toSafeText(input.patient.city)}, ${toSafeText(input.patient.state)} ${toSafeText(input.patient.zipCode)}`.trim(),
-  ]
-    .map(toSafeText)
-    .filter(Boolean)
-    .join(', ');
+  // Shipping Information Section
+  sectionTitle(doc, 'Shipping Information');
+  if (input.patient.addressLine1) keyValueRow(doc, 'STREET ADDRESS', toSafeText(input.patient.addressLine1));
+  if (input.patient.addressLine2) keyValueRow(doc, 'APARTMENT/SUITE NUMBER', toSafeText(input.patient.addressLine2));
+  if (input.patient.city) keyValueRow(doc, 'CITY', toSafeText(input.patient.city));
+  if (input.patient.state) keyValueRow(doc, 'STATE', toSafeText(input.patient.state));
+  if (input.patient.zipCode) keyValueRow(doc, 'POSTAL CODE', toSafeText(input.patient.zipCode));
+  if (input.patient.country) keyValueRow(doc, 'COUNTRY', toSafeText(input.patient.country));
+  doc.moveDown(0.8);
 
-  if (addressLine) {
-    keyValueRow(doc, 'Address', addressLine);
-  }
+  // Categorize answers into sections
+  const categorized = categorizeAnswers(input.answers || []);
 
-  if (input.qualification) {
-    sectionTitle(doc, 'Qualification');
-    if (input.qualification.eligible) keyValueRow(doc, 'Eligibility', input.qualification.eligible);
-    if (input.qualification.bmi) keyValueRow(doc, 'BMI', input.qualification.bmi);
-    if (input.qualification.height) keyValueRow(doc, 'Height', input.qualification.height);
-    if (input.qualification.weight) keyValueRow(doc, 'Weight', input.qualification.weight);
-  }
-
-  sectionTitle(doc, 'Responses');
-
-  if (Array.isArray(input.answers) && input.answers.length > 0) {
-    for (const item of input.answers) {
+  // Medical History Section
+  if (categorized.medicalHistory.length > 0) {
+    sectionTitle(doc, 'Medical History');
+    for (const item of categorized.medicalHistory) {
       const label = toSafeText(item.label).trim();
       const value = toSafeText(item.value).trim();
-      if (!label && !value) continue;
-      ensureSpace(doc, 22);
-      doc.font('Helvetica-Bold').fontSize(10).text(label || 'Question');
-      doc.font('Helvetica').fontSize(10).fillColor('#111827').text(value || '-');
-      doc.fillColor('#000000');
-      doc.moveDown(0.6);
+      if (!label) continue;
+      ensureSpace(doc, 24);
+      doc.font('Helvetica').fontSize(9).fillColor('#6B7280').text(label.toUpperCase());
+      doc.font('Helvetica-Bold').fontSize(10).fillColor('#000000').text(value || '-');
+      doc.moveDown(0.5);
     }
-  } else {
-    doc.font('Helvetica').fontSize(10).text('No responses provided.');
+    doc.moveDown(0.8);
+  }
+
+  // Treatment Readiness Section
+  if (categorized.treatmentReadiness.length > 0) {
+    sectionTitle(doc, 'Treatment Readiness');
+    for (const item of categorized.treatmentReadiness) {
+      const label = toSafeText(item.label).trim();
+      const value = toSafeText(item.value).trim();
+      if (!label) continue;
+      ensureSpace(doc, 24);
+      doc.font('Helvetica').fontSize(9).fillColor('#6B7280').text(label.toUpperCase());
+      doc.font('Helvetica-Bold').fontSize(10).fillColor('#000000').text(value || '-');
+      doc.moveDown(0.5);
+    }
+    doc.moveDown(0.8);
+  }
+
+  // Consent Agreements Section
+  if (categorized.consents.length > 0) {
+    sectionTitle(doc, 'Consent Agreements');
+    for (const item of categorized.consents) {
+      const label = toSafeText(item.label).trim();
+      const value = toSafeText(item.value).trim();
+      if (!label) continue;
+      ensureSpace(doc, 24);
+      doc.font('Helvetica-Bold').fontSize(10).text(label);
+      doc.font('Helvetica').fontSize(10).fillColor('#16A34A').text(value || '-');
+      doc.fillColor('#000000');
+      doc.moveDown(0.5);
+    }
+    doc.moveDown(0.8);
+  }
+
+  // Additional Information (catch-all for other questions)
+  if (categorized.other.length > 0) {
+    sectionTitle(doc, 'Additional Information');
+    for (const item of categorized.other) {
+      const label = toSafeText(item.label).trim();
+      const value = toSafeText(item.value).trim();
+      if (!label) continue;
+      ensureSpace(doc, 24);
+      doc.font('Helvetica').fontSize(9).fillColor('#6B7280').text(label.toUpperCase());
+      doc.font('Helvetica').fontSize(10).fillColor('#000000').text(value || '-');
+      doc.moveDown(0.5);
+    }
   }
 
   doc.end();

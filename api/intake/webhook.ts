@@ -282,11 +282,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         email,
         phone,
         dateOfBirth: dob,
+        gender: finalGender || undefined,
         addressLine1,
         addressLine2,
         city,
         state,
         zipCode,
+        country: pickString(payload, ['country', 'Country']) || 'USA',
       },
       qualification: {
         eligible: pickString(payload, ['eligible', 'qualified', 'qualification', 'eligibility']) || undefined,
