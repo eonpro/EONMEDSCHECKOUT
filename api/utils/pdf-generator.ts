@@ -107,7 +107,8 @@ function ensureSpace(doc: PDFKit.PDFDocument, neededHeight: number) {
   const bottom = doc.page.margins.bottom;
   const y = doc.y;
   const pageHeight = doc.page.height;
-  if (y + neededHeight > pageHeight - bottom) {
+  // Add page only if we really can't fit (with small buffer)
+  if (y + neededHeight + 10 > pageHeight - bottom) {
     doc.addPage();
   }
 }
@@ -138,71 +139,59 @@ function sectionBox(doc: PDFKit.PDFDocument, title: string, startY?: number) {
   const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
   const y = startY || doc.y;
   
-  ensureSpace(doc, 40);
+  ensureSpace(doc, 35);
   
   // Draw section background
-  drawBox(doc, doc.page.margins.left, y, pageWidth, 32);
+  drawBox(doc, doc.page.margins.left, y, pageWidth, 28);
   
-  doc.y = y + 10;
-  doc.font('Helvetica-Bold').fontSize(14).fillColor('#000000').text(title);
-  doc.moveDown(0.8);
+  doc.y = y + 8;
+  doc.font('Helvetica-Bold').fontSize(13).fillColor('#000000').text(title);
+  doc.moveDown(0.5);
 }
 
 function labeledField(doc: PDFKit.PDFDocument, label: string, value: string, width?: number, inline?: boolean) {
   const fieldWidth = width || (doc.page.width - doc.page.margins.left - doc.page.margins.right);
   const x = inline ? doc.x : doc.page.margins.left;
-  const y = doc.y;
+  const startY = doc.y;
   
-  // Calculate text heights to determine box size
-  const labelHeight = doc.heightOfString(label.toUpperCase(), {
-    width: fieldWidth - 24,
-    font: 'Helvetica',
-    fontSize: 9,
-  });
+  // Simplified: just render label + value without complex boxes
+  ensureSpace(doc, 40);
   
-  const valueHeight = doc.heightOfString(value || '-', {
-    width: fieldWidth - 24,
-    font: 'Helvetica',
-    fontSize: 10,
-  });
-  
-  const boxHeight = Math.max(55, labelHeight + valueHeight + 28);
-  
-  ensureSpace(doc, boxHeight + 5);
-  
-  // Draw white field box
+  // Gray background bar
   doc
     .save()
-    .fillColor('#FFFFFF')
-    .strokeColor('#D1D5DB')
-    .lineWidth(1)
-    .rect(x, y, fieldWidth, boxHeight)
-    .fillAndStroke()
+    .fillColor('#F3F4F6')
+    .rect(x, startY, fieldWidth, 38)
+    .fill()
+    .strokeColor('#E5E7EB')
+    .lineWidth(0.5)
+    .rect(x, startY, fieldWidth, 38)
+    .stroke()
     .restore();
   
   // Label (small, gray, uppercase)
-  doc.y = y + 10;
-  doc.x = x + 12;
-  doc.font('Helvetica').fontSize(9).fillColor('#6B7280').text(label.toUpperCase(), {
-    width: fieldWidth - 24,
-    lineGap: 2,
+  doc.y = startY + 6;
+  doc.x = x + 10;
+  doc.font('Helvetica').fontSize(8).fillColor('#6B7280').text(label.toUpperCase(), {
+    width: fieldWidth - 20,
+    lineBreak: false,
+    ellipsis: true,
   });
   
-  // Value (normal size, black)
-  const afterLabelY = doc.y;
-  doc.y = afterLabelY + 4;
-  doc.x = x + 12;
-  doc.font('Helvetica').fontSize(10).fillColor('#000000').text(value || '-', {
-    width: fieldWidth - 24,
-    lineGap: 2,
+  // Value (bold, black)
+  doc.y = startY + 18;
+  doc.x = x + 10;
+  doc.font('Helvetica-Bold').fontSize(10).fillColor('#000000').text(value || '-', {
+    width: fieldWidth - 20,
+    lineBreak: false,
+    ellipsis: true,
   });
   
   if (!inline) {
-    doc.y = y + boxHeight + 8;
+    doc.y = startY + 42;
     doc.x = doc.page.margins.left;
   } else {
-    // For inline fields, position for next column
-    doc.y = y;
+    doc.y = startY;
   }
 }
 
@@ -211,24 +200,7 @@ function twoColumnFields(doc: PDFKit.PDFDocument, label1: string, value1: string
   const fieldWidth = (pageWidth - 12) / 2;
   const startY = doc.y;
   
-  // Calculate heights for both fields
-  const height1 = Math.max(
-    55,
-    doc.heightOfString(label1.toUpperCase(), { width: fieldWidth - 24, fontSize: 9 }) +
-      doc.heightOfString(value1 || '-', { width: fieldWidth - 24, fontSize: 10 }) +
-      28
-  );
-  
-  const height2 = Math.max(
-    55,
-    doc.heightOfString(label2.toUpperCase(), { width: fieldWidth - 24, fontSize: 9 }) +
-      doc.heightOfString(value2 || '-', { width: fieldWidth - 24, fontSize: 10 }) +
-      28
-  );
-  
-  const maxHeight = Math.max(height1, height2);
-  
-  ensureSpace(doc, maxHeight + 8);
+  ensureSpace(doc, 45);
   
   // Draw left field
   doc.x = doc.page.margins.left;
@@ -241,7 +213,7 @@ function twoColumnFields(doc: PDFKit.PDFDocument, label1: string, value1: string
   labeledField(doc, label2, value2, fieldWidth, true);
   
   // Move to next row
-  doc.y = startY + maxHeight + 8;
+  doc.y = startY + 42;
   doc.x = doc.page.margins.left;
 }
 
@@ -302,7 +274,7 @@ export async function generateIntakePdf(input: IntakePdfInput): Promise<Uint8Arr
   twoColumnFields(doc, 'First Name', toSafeText(input.patient.firstName), 'Last Name', toSafeText(input.patient.lastName));
   twoColumnFields(doc, 'Date of Birth', toSafeText(input.patient.dateOfBirth), 'Sex', toSafeText(input.patient.gender));
   twoColumnFields(doc, 'Email Address', toSafeText(input.patient.email), 'Phone Number', toSafeText(input.patient.phone));
-  doc.moveDown(1);
+  doc.moveDown(0.5);
 
   // Shipping Information Section
   sectionBox(doc, 'Shipping Information');
@@ -312,7 +284,7 @@ export async function generateIntakePdf(input: IntakePdfInput): Promise<Uint8Arr
   }
   twoColumnFields(doc, 'City', toSafeText(input.patient.city), 'State', toSafeText(input.patient.state));
   twoColumnFields(doc, 'Postal Code', toSafeText(input.patient.zipCode), 'Country', toSafeText(input.patient.country));
-  doc.moveDown(1);
+  doc.moveDown(0.5);
 
   // Categorize answers into sections
   const categorized = categorizeAnswers(input.answers || []);
@@ -326,7 +298,7 @@ export async function generateIntakePdf(input: IntakePdfInput): Promise<Uint8Arr
       if (!label) continue;
       labeledField(doc, label, value);
     }
-    doc.moveDown(1);
+    doc.moveDown(0.5);
   }
 
   // Treatment Readiness Section
@@ -338,7 +310,7 @@ export async function generateIntakePdf(input: IntakePdfInput): Promise<Uint8Arr
       if (!label) continue;
       labeledField(doc, label, value);
     }
-    doc.moveDown(1);
+    doc.moveDown(0.5);
   }
 
   // Consent Agreements Section
@@ -350,7 +322,7 @@ export async function generateIntakePdf(input: IntakePdfInput): Promise<Uint8Arr
       if (!label) continue;
       labeledField(doc, label, `✓ ${value}`);
     }
-    doc.moveDown(1);
+    doc.moveDown(0.5);
   }
 
   // Additional Information (catch-all for other questions)
