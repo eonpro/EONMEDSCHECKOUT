@@ -32,6 +32,7 @@ interface StripeProviderProps {
   shippingAddress?: ShippingAddress;
   orderData?: OrderData;
   language?: 'en' | 'es'; // Language for GHL SMS automations
+  intakeId?: string; // Links Heyflow intake -> payment
 }
 
 // Get publishable key from environment
@@ -44,11 +45,11 @@ if (!STRIPE_PUBLISHABLE_KEY) {
   console.error('Stripe publishable key not found in environment');
 }
 
-export function StripeProvider({ children, amount, appearance, customerEmail, customerName, customerPhone, shippingAddress, orderData, language = 'en' }: StripeProviderProps) {
+export function StripeProvider({ children, amount, appearance, customerEmail, customerName, customerPhone, shippingAddress, orderData, language = 'en', intakeId }: StripeProviderProps) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Memoize amount in cents - ONLY dependency for creating new intent
   const amountInCents = useMemo(() => Math.round(amount * 100), [amount]);
 
@@ -141,6 +142,7 @@ export function StripeProvider({ children, amount, appearance, customerEmail, cu
       shipping: normalizedShippingAddress,
       order: normalizedOrderData,
       language,
+      intakeId: (intakeId || '').trim(),
     });
   }, [
     amountInCents,
@@ -150,6 +152,7 @@ export function StripeProvider({ children, amount, appearance, customerEmail, cu
     normalizedShippingAddress,
     normalizedOrderData,
     language,
+    intakeId,
   ]);
 
   const currentIntentKeyRef = useRef<string | null>(null);
@@ -184,41 +187,44 @@ export function StripeProvider({ children, amount, appearance, customerEmail, cu
       shipping_address: normalizedShippingAddress,
       order_data: normalizedOrderData && Object.keys(normalizedOrderData).length > 0 ? normalizedOrderData : undefined,
       language,
-      metadata: { source: 'eonmeds_checkout' },
+      metadata: {
+        source: 'eonmeds_checkout',
+        intakeId: (intakeId || '').trim() || undefined,
+      },
     };
 
     // Debounce to avoid creating multiple intents while user is typing
     const debounceMs = 350;
     const timeoutId = setTimeout(() => {
-      fetch(getApiUrl('createPaymentIntent'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+    fetch(getApiUrl('createPaymentIntent'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
         body: JSON.stringify(payload),
-        signal: controller.signal,
+      signal: controller.signal,
+    })
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`Failed to create payment intent: ${res.status}`);
+        }
+        return res.json();
       })
-        .then((res) => {
-          if (!res.ok) {
-            throw new Error(`Failed to create payment intent: ${res.status}`);
-          }
-          return res.json();
-        })
-        .then((data) => {
-          if (data.clientSecret) {
+      .then((data) => {
+        if (data.clientSecret) {
             currentIntentKeyRef.current = intentRequestKey;
-            setClientSecret(data.clientSecret);
-            setLoading(false);
-          } else {
-            throw new Error('No client secret received from server');
-          }
-        })
-        .catch((err) => {
-          if (err.name === 'AbortError') return;
-          console.error('[StripeProvider] Error creating payment intent:', err);
-          setError('Failed to initialize payment. Please refresh and try again.');
+          setClientSecret(data.clientSecret);
           setLoading(false);
-        });
+        } else {
+          throw new Error('No client secret received from server');
+        }
+      })
+      .catch((err) => {
+        if (err.name === 'AbortError') return;
+          console.error('[StripeProvider] Error creating payment intent:', err);
+        setError('Failed to initialize payment. Please refresh and try again.');
+        setLoading(false);
+      });
     }, debounceMs);
 
     return () => {

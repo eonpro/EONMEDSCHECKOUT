@@ -1,6 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import Stripe from 'stripe';
 import { buffer } from 'micro';
+import { kv } from '@vercel/kv';
+import { findClientByEmail, uploadClientPdf } from '../integrations/intakeq';
+import { generateInvoicePdf } from '../utils/pdf-generator';
 
 // ============================================================================
 // Inline GHL Integration (to avoid import path issues in Vercel)
@@ -11,6 +14,15 @@ const GHL_LOCATION_ID = process.env.GHL_LOCATION_ID || '';
 
 function isGHLConfigured(): boolean {
   return Boolean(GHL_API_KEY && GHL_LOCATION_ID);
+}
+
+function safeJsonParse<T>(value: unknown, fallback: T): T {
+  if (typeof value !== 'string' || !value.trim()) return fallback;
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return fallback;
+  }
 }
 
 async function ghlRequest(endpoint: string, method: string = 'GET', body?: any): Promise<any> {
@@ -226,8 +238,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
   
   // Read raw body
-  const buf = await buffer(req);
-  const sig = req.headers['stripe-signature'] as string;
+    const buf = await buffer(req);
+    const sig = req.headers['stripe-signature'] as string;
   if (!sig) {
     return res.status(400).send('Webhook Error: Missing stripe-signature header');
   }
@@ -249,6 +261,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       case 'payment_intent.succeeded': {
         const paymentIntent = event.data.object as any;
         const metadata = paymentIntent.metadata || {};
+
+        // Best-effort idempotency to avoid double uploads/side effects on retries.
+        // If KV isn't configured, this will throw and we safely ignore it.
+        try {
+          const processedKey = `stripe:webhook:processed:${event.id}`;
+          const already = await kv.get(processedKey);
+          if (already) {
+            console.log(`[webhook] Skipping already-processed event: ${event.id}`);
+            break;
+          }
+          await kv.set(processedKey, { processedAtIso: new Date().toISOString() }, { ex: 60 * 60 * 24 * 7 }); // 7 days
+        } catch {
+          // Ignore KV issues; continue processing.
+        }
         
         // Detailed logging for debugging
         console.log(`[webhook] ========== PAYMENT SUCCEEDED ==========`);
@@ -277,6 +303,104 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         } else {
           console.log('[webhook] Not a subscription payment (is_subscription !== true)');
         }
+
+        // =========================================================
+        // IntakeQ Integration - Upload invoice + mark ready for Rx
+        // =========================================================
+        try {
+          const emailRaw = (metadata.customer_email || paymentIntent.receipt_email || '').toString();
+          const email = emailRaw.trim().toLowerCase();
+          const intakeId =
+            (metadata.intakeId || metadata.intake_id || metadata.intakeID || metadata.intake || '').toString().trim();
+
+          // Lookup IntakeQ client id from KV (preferred) or by email (fallback)
+          let intakeQClientId: number | undefined;
+          let linkedIntakeId: string | undefined;
+
+          try {
+            if (intakeId) {
+              const rec: any = await kv.get(`intakeq:intake:${intakeId}`);
+              if (rec?.intakeQClientId) {
+                intakeQClientId = Number(rec.intakeQClientId);
+                linkedIntakeId = rec.intakeId || intakeId;
+              }
+            }
+
+            if (!intakeQClientId && email) {
+              const rec: any = await kv.get(`intakeq:email:${email}`);
+              if (rec?.intakeQClientId) {
+                intakeQClientId = Number(rec.intakeQClientId);
+                linkedIntakeId = rec.intakeId;
+              }
+            }
+          } catch {
+            // Ignore KV lookup failures; we'll try email search.
+          }
+
+          if (!intakeQClientId && email) {
+            const existing = await findClientByEmail(email);
+            if (existing?.Id) intakeQClientId = existing.Id;
+          }
+
+          if (intakeQClientId) {
+            const shippingAddress = paymentIntent.shipping?.address || {};
+            const addons = safeJsonParse<string[]>(metadata.addons, []);
+
+            const expeditedShipping =
+              metadata.expedited_shipping === 'yes' ||
+              metadata.expeditedShipping === true ||
+              metadata.expeditedShipping === 'true' ||
+              metadata.shipping_cost === '25' ||
+              metadata.shipping_cost === '25.00';
+
+            const invoicePdf = await generateInvoicePdf({
+              paymentIntentId: paymentIntent.id,
+              paidAtIso: event.created ? new Date(event.created * 1000).toISOString() : undefined,
+              amount: Number(paymentIntent.amount || 0),
+              currency: (paymentIntent.currency || 'usd').toString(),
+              patient: {
+                name: `${metadata.customer_first_name || ''} ${metadata.customer_last_name || ''}`.trim(),
+                email: emailRaw || undefined,
+                phone: (metadata.customer_phone || '').toString() || undefined,
+              },
+              order: {
+                medication: (metadata.medication || '').toString() || undefined,
+                plan: (metadata.plan || '').toString() || undefined,
+                addons,
+                expeditedShipping,
+                shippingAddress: {
+                  line1: (metadata.shipping_line1 || shippingAddress.line1 || '').toString() || undefined,
+                  line2: (shippingAddress.line2 || '').toString() || undefined,
+                  city: (metadata.shipping_city || shippingAddress.city || '').toString() || undefined,
+                  state: (metadata.shipping_state || shippingAddress.state || '').toString() || undefined,
+                  zip: (metadata.shipping_zip || shippingAddress.postal_code || '').toString() || undefined,
+                },
+              },
+            });
+
+            const filenameParts = [`invoice-${paymentIntent.id}`];
+            if (linkedIntakeId) filenameParts.push(`intake-${linkedIntakeId}`);
+            const filename = `${filenameParts.join('-')}.pdf`;
+
+            await uploadClientPdf({ clientId: intakeQClientId, filename, pdfBuffer: invoicePdf });
+
+            // Best-effort cleanup of linkage data (PHI moves into IntakeQ).
+            try {
+              if (linkedIntakeId) await kv.del(`intakeq:intake:${linkedIntakeId}`);
+              if (email) await kv.del(`intakeq:email:${email}`);
+            } catch {
+              // ignore
+            }
+
+            console.log(`[webhook] ✅ Uploaded invoice PDF to IntakeQ client ${intakeQClientId}`);
+          } else {
+            console.warn('[webhook] ⚠️ IntakeQ client not found; invoice upload skipped');
+          }
+        } catch (intakeQErr: any) {
+          // Do not fail Stripe webhook if IntakeQ is unavailable
+          console.error('[webhook] ❌ IntakeQ integration error:', intakeQErr?.message || intakeQErr);
+        }
+        // =========================================================
         
         // =========================================================
         // GoHighLevel Integration - Create/Update Contact

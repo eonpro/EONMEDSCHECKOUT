@@ -1764,6 +1764,7 @@ export function GLP1CheckoutPageImproved() {
                     customerPhone={patientData.phone}
                     shippingAddress={shippingAddress}
                     language={language}
+                    intakeId={intakeId || undefined}
                     orderData={{
                       medication: selectedMed?.name || '',
                       plan: selectedPlanData?.type || '',

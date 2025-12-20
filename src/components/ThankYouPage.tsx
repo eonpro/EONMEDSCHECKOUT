@@ -232,7 +232,7 @@ export function ThankYouPage({
             {addons.length > 0 && (
               <div style={{ marginBottom: '16px' }}>
                 <h3 className="text-sm font-semibold text-gray-700" style={{ marginBottom: '12px' }}>{t.addOns}</h3>
-                <div>
+              <div>
                   {addons.map((addon, index) => {
                     const isNausea = addon.toLowerCase().includes('nausea');
                     const addonPrice = getAddonPrice(addon);
