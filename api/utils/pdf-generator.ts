@@ -107,8 +107,8 @@ function ensureSpace(doc: PDFKit.PDFDocument, neededHeight: number) {
   const bottom = doc.page.margins.bottom;
   const y = doc.y;
   const pageHeight = doc.page.height;
-  // Add page only if we really can't fit (with small buffer)
-  if (y + neededHeight + 10 > pageHeight - bottom) {
+  // Only add page if we're within 80px of the bottom
+  if (y + neededHeight > pageHeight - bottom - 80) {
     doc.addPage();
   }
 }
@@ -125,96 +125,28 @@ function header(doc: PDFKit.PDFDocument, title: string, subtitle?: string) {
   doc.moveDown(1.5);
 }
 
-// Draw a light gray box background
-function drawBox(doc: PDFKit.PDFDocument, x: number, y: number, width: number, height: number) {
+function sectionTitle(doc: PDFKit.PDFDocument, title: string) {
+  const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  const y = doc.y;
+  
+  // Just draw a simple gray bar with title
   doc
     .save()
     .fillColor('#F3F4F6')
-    .rect(x, y, width, height)
+    .rect(doc.page.margins.left, y, pageWidth, 24)
     .fill()
     .restore();
+  
+  doc.y = y + 6;
+  doc.font('Helvetica-Bold').fontSize(12).fillColor('#000000').text(title);
+  doc.moveDown(0.3);
 }
 
-function sectionBox(doc: PDFKit.PDFDocument, title: string, startY?: number) {
-  const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-  const y = startY || doc.y;
-  
-  ensureSpace(doc, 35);
-  
-  // Draw section background
-  drawBox(doc, doc.page.margins.left, y, pageWidth, 28);
-  
-  doc.y = y + 8;
-  doc.font('Helvetica-Bold').fontSize(13).fillColor('#000000').text(title);
-  doc.moveDown(0.5);
-}
-
-function labeledField(doc: PDFKit.PDFDocument, label: string, value: string, width?: number, inline?: boolean) {
-  const fieldWidth = width || (doc.page.width - doc.page.margins.left - doc.page.margins.right);
-  const x = inline ? doc.x : doc.page.margins.left;
-  const startY = doc.y;
-  
-  // Simplified: just render label + value without complex boxes
-  ensureSpace(doc, 40);
-  
-  // Gray background bar
-  doc
-    .save()
-    .fillColor('#F3F4F6')
-    .rect(x, startY, fieldWidth, 38)
-    .fill()
-    .strokeColor('#E5E7EB')
-    .lineWidth(0.5)
-    .rect(x, startY, fieldWidth, 38)
-    .stroke()
-    .restore();
-  
-  // Label (small, gray, uppercase)
-  doc.y = startY + 6;
-  doc.x = x + 10;
-  doc.font('Helvetica').fontSize(8).fillColor('#6B7280').text(label.toUpperCase(), {
-    width: fieldWidth - 20,
-    lineBreak: false,
-    ellipsis: true,
-  });
-  
-  // Value (bold, black)
-  doc.y = startY + 18;
-  doc.x = x + 10;
-  doc.font('Helvetica-Bold').fontSize(10).fillColor('#000000').text(value || '-', {
-    width: fieldWidth - 20,
-    lineBreak: false,
-    ellipsis: true,
-  });
-  
-  if (!inline) {
-    doc.y = startY + 42;
-    doc.x = doc.page.margins.left;
-  } else {
-    doc.y = startY;
-  }
-}
-
-function twoColumnFields(doc: PDFKit.PDFDocument, label1: string, value1: string, label2: string, value2: string) {
-  const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-  const fieldWidth = (pageWidth - 12) / 2;
-  const startY = doc.y;
-  
-  ensureSpace(doc, 45);
-  
-  // Draw left field
-  doc.x = doc.page.margins.left;
-  doc.y = startY;
-  labeledField(doc, label1, value1, fieldWidth, true);
-  
-  // Draw right field
-  doc.x = doc.page.margins.left + fieldWidth + 12;
-  doc.y = startY;
-  labeledField(doc, label2, value2, fieldWidth, true);
-  
-  // Move to next row
-  doc.y = startY + 42;
-  doc.x = doc.page.margins.left;
+function simpleField(doc: PDFKit.PDFDocument, label: string, value: string) {
+  // Ultra-simple: label on one line, value on next
+  doc.font('Helvetica').fontSize(8).fillColor('#6B7280').text(label.toUpperCase());
+  doc.font('Helvetica-Bold').fontSize(10).fillColor('#000000').text(value || '-');
+  doc.moveDown(0.4);
 }
 
 function categorizeAnswers(answers: PdfKeyValue[]): {
@@ -270,20 +202,23 @@ export async function generateIntakePdf(input: IntakePdfInput): Promise<Uint8Arr
   header(doc, 'Patient Intake Form', subtitleParts.join('  |  '));
 
   // Patient Information Section
-  sectionBox(doc, 'Patient Information');
-  twoColumnFields(doc, 'First Name', toSafeText(input.patient.firstName), 'Last Name', toSafeText(input.patient.lastName));
-  twoColumnFields(doc, 'Date of Birth', toSafeText(input.patient.dateOfBirth), 'Sex', toSafeText(input.patient.gender));
-  twoColumnFields(doc, 'Email Address', toSafeText(input.patient.email), 'Phone Number', toSafeText(input.patient.phone));
+  sectionTitle(doc, 'Patient Information');
+  simpleField(doc, 'First Name', toSafeText(input.patient.firstName));
+  simpleField(doc, 'Last Name', toSafeText(input.patient.lastName));
+  simpleField(doc, 'Date of Birth', toSafeText(input.patient.dateOfBirth));
+  if (input.patient.gender) simpleField(doc, 'Sex', toSafeText(input.patient.gender));
+  simpleField(doc, 'Email Address', toSafeText(input.patient.email));
+  simpleField(doc, 'Phone Number', toSafeText(input.patient.phone));
   doc.moveDown(0.5);
 
   // Shipping Information Section
-  sectionBox(doc, 'Shipping Information');
-  labeledField(doc, 'Street Address', toSafeText(input.patient.addressLine1));
-  if (input.patient.addressLine2) {
-    labeledField(doc, 'Apartment/Suite Number', toSafeText(input.patient.addressLine2));
-  }
-  twoColumnFields(doc, 'City', toSafeText(input.patient.city), 'State', toSafeText(input.patient.state));
-  twoColumnFields(doc, 'Postal Code', toSafeText(input.patient.zipCode), 'Country', toSafeText(input.patient.country));
+  sectionTitle(doc, 'Shipping Information');
+  if (input.patient.addressLine1) simpleField(doc, 'Street Address', toSafeText(input.patient.addressLine1));
+  if (input.patient.addressLine2) simpleField(doc, 'Apartment/Suite Number', toSafeText(input.patient.addressLine2));
+  if (input.patient.city) simpleField(doc, 'City', toSafeText(input.patient.city));
+  if (input.patient.state) simpleField(doc, 'State', toSafeText(input.patient.state));
+  if (input.patient.zipCode) simpleField(doc, 'Postal Code', toSafeText(input.patient.zipCode));
+  if (input.patient.country) simpleField(doc, 'Country', toSafeText(input.patient.country));
   doc.moveDown(0.5);
 
   // Categorize answers into sections
@@ -291,48 +226,48 @@ export async function generateIntakePdf(input: IntakePdfInput): Promise<Uint8Arr
 
   // Medical History Section
   if (categorized.medicalHistory.length > 0) {
-    sectionBox(doc, 'Medical History');
+    sectionTitle(doc, 'Medical History');
     for (const item of categorized.medicalHistory) {
       const label = toSafeText(item.label).trim();
       const value = toSafeText(item.value).trim();
       if (!label) continue;
-      labeledField(doc, label, value);
+      simpleField(doc, label, value);
     }
     doc.moveDown(0.5);
   }
 
   // Treatment Readiness Section
   if (categorized.treatmentReadiness.length > 0) {
-    sectionBox(doc, 'Treatment Readiness');
+    sectionTitle(doc, 'Treatment Readiness');
     for (const item of categorized.treatmentReadiness) {
       const label = toSafeText(item.label).trim();
       const value = toSafeText(item.value).trim();
       if (!label) continue;
-      labeledField(doc, label, value);
+      simpleField(doc, label, value);
     }
     doc.moveDown(0.5);
   }
 
   // Consent Agreements Section
   if (categorized.consents.length > 0) {
-    sectionBox(doc, 'Consent Agreements');
+    sectionTitle(doc, 'Consent Agreements');
     for (const item of categorized.consents) {
       const label = toSafeText(item.label).trim();
       const value = toSafeText(item.value).trim();
       if (!label) continue;
-      labeledField(doc, label, `✓ ${value}`);
+      simpleField(doc, label, `✓ ${value}`);
     }
     doc.moveDown(0.5);
   }
 
   // Additional Information (catch-all for other questions)
   if (categorized.other.length > 0) {
-    sectionBox(doc, 'Additional Information');
+    sectionTitle(doc, 'Additional Information');
     for (const item of categorized.other) {
       const label = toSafeText(item.label).trim();
       const value = toSafeText(item.value).trim();
       if (!label) continue;
-      labeledField(doc, label, value);
+      simpleField(doc, label, value);
     }
   }
 
