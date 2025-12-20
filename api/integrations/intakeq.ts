@@ -69,6 +69,12 @@ export type IntakeQClient = {
   Address?: IntakeQAddress;
 };
 
+export type IntakeQCustomField = {
+  FieldId: string;
+  Text?: string;
+  Value?: string;
+};
+
 export type CreateIntakeQClientInput = {
   firstName: string;
   lastName: string;
@@ -83,6 +89,10 @@ export type CreateIntakeQClientInput = {
     zip?: string;
   };
 };
+
+function normalizeTextKey(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
 
 const findClientsResponseSchema = z.array(
   z
@@ -203,4 +213,98 @@ export async function ensureClient(params: CreateIntakeQClientInput): Promise<{ 
 
   const created = await createClient(params);
   return { client: created, created: true };
+}
+
+export async function getClientProfileByEmail(email: string): Promise<{ clientId: number; profile: any } | null> {
+  const trimmed = email.trim();
+  if (!trimmed) return null;
+
+  const res = await intakeQRequest<unknown>(
+    `/clients?search=${encodeURIComponent(trimmed)}&includeProfile=true`
+  );
+
+  if (!Array.isArray(res)) return null;
+
+  const normalized = trimmed.toLowerCase();
+  const match: any = (res as any[]).find((c) => (c?.Email || '').toString().toLowerCase() === normalized);
+  if (!match) return null;
+
+  const clientId = Number(match?.ClientId ?? match?.Id);
+  if (!clientId || Number.isNaN(clientId)) return null;
+
+  return { clientId, profile: match };
+}
+
+export async function updateClientCustomFieldsByEmail(params: {
+  email: string;
+  clientId?: number;
+  updatesByFieldName: Record<string, string | undefined>;
+}): Promise<{ clientId: number; updated: string[]; missing: string[] }> {
+  const email = params.email.trim();
+  const desiredEntries = Object.entries(params.updatesByFieldName)
+    .map(([k, v]) => [k.trim(), (v || '').toString().trim()] as const)
+    .filter(([k, v]) => Boolean(k) && Boolean(v));
+
+  if (desiredEntries.length === 0) {
+    const fallback = params.clientId ? Number(params.clientId) : 0;
+    return { clientId: fallback, updated: [], missing: [] };
+  }
+
+  const profileResult = await getClientProfileByEmail(email);
+  const clientId = profileResult?.clientId ?? (params.clientId ? Number(params.clientId) : 0);
+  if (!clientId) {
+    throw new Error('IntakeQ client not found for custom field update');
+  }
+
+  const existingCustomFields: IntakeQCustomField[] = Array.isArray(profileResult?.profile?.CustomFields)
+    ? (profileResult?.profile?.CustomFields as any[]).map((f) => ({
+        FieldId: String(f?.FieldId ?? ''),
+        Text: typeof f?.Text === 'string' ? f.Text : undefined,
+        Value: typeof f?.Value === 'string' ? f.Value : f?.Value != null ? String(f.Value) : undefined,
+      }))
+    : [];
+
+  const desiredMap = new Map<string, { originalKey: string; value: string }>();
+  for (const [k, v] of desiredEntries) {
+    desiredMap.set(normalizeTextKey(k), { originalKey: k, value: v });
+  }
+
+  const updated: string[] = [];
+  const seenDesiredKeys = new Set<string>();
+
+  const merged = existingCustomFields.map((field) => {
+    const textKey = field.Text ? normalizeTextKey(field.Text) : '';
+    const desired = textKey ? desiredMap.get(textKey) : undefined;
+    if (desired) {
+      seenDesiredKeys.add(textKey);
+      updated.push(desired.originalKey);
+      return {
+        FieldId: String(field.FieldId),
+        Text: field.Text,
+        Value: desired.value,
+      } satisfies IntakeQCustomField;
+    }
+    return field;
+  });
+
+  const missing: string[] = [];
+  for (const [norm, info] of desiredMap.entries()) {
+    if (!seenDesiredKeys.has(norm)) missing.push(info.originalKey);
+  }
+
+  // Update via POST /clients with ClientId and CustomFields (per IntakeQ client API)
+  await intakeQRequest('/clients', {
+    method: 'POST',
+    body: {
+      ClientId: clientId,
+      Email: email,
+      CustomFields: merged.map((f) => ({
+        FieldId: String(f.FieldId),
+        Text: f.Text,
+        Value: f.Value ?? '',
+      })),
+    },
+  });
+
+  return { clientId, updated, missing };
 }

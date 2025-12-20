@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { ensureClient, uploadClientPdf } from '../integrations/intakeq.js';
+import { ensureClient, uploadClientPdf, updateClientCustomFieldsByEmail } from '../integrations/intakeq.js';
 import { generateIntakePdf, type PdfKeyValue } from '../utils/pdf-generator.js';
 
 const TTL_SECONDS = 60 * 60 * 24; // 24h
@@ -61,6 +61,10 @@ function safeToText(value: unknown): string {
   }
 }
 
+function normalizeTextKey(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
 function extractAnswers(payload: any): PdfKeyValue[] {
   // Common patterns:
   // - payload.fields: [{ label, value }]
@@ -107,6 +111,25 @@ function extractAnswers(payload: any): PdfKeyValue[] {
   }
 
   return [];
+}
+
+function buildAnswerIndex(answers: PdfKeyValue[]): Map<string, string> {
+  const index = new Map<string, string>();
+  for (const a of answers) {
+    const key = normalizeTextKey(a.label || '');
+    const value = (a.value || '').toString().trim();
+    if (!key || !value) continue;
+    if (!index.has(key)) index.set(key, value);
+  }
+  return index;
+}
+
+function firstNonEmpty(...values: Array<string | undefined | null>): string {
+  for (const v of values) {
+    const s = (v || '').toString().trim();
+    if (s) return s;
+  }
+  return '';
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -161,6 +184,65 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const submittedAtIso = new Date().toISOString();
     const answers = extractAnswers(payload);
+    const answerIndex = buildAnswerIndex(answers);
+
+    // Populate IntakeQ custom fields from Heyflow (if present)
+    try {
+      const height = firstNonEmpty(
+        pickString(payload, ['height', 'Height']),
+        answerIndex.get('height')
+      );
+      const startingWeight = firstNonEmpty(
+        pickString(payload, ['startingWeight', 'starting_weight', 'starting weight', 'weight', 'Weight']),
+        answerIndex.get('startingweight'),
+        answerIndex.get('weight'),
+        answerIndex.get('startinglbs'),
+        answerIndex.get('startingweightlbs')
+      );
+      const bmi = firstNonEmpty(
+        pickString(payload, ['bmi', 'BMI', 'startingBmi', 'starting_bmi', 'starting bmi']),
+        answerIndex.get('bmi'),
+        answerIndex.get('startingbmi')
+      );
+      const idealWeight = firstNonEmpty(
+        pickString(payload, ['idealWeight', 'ideal_weight', 'ideal weight']),
+        answerIndex.get('idealweight')
+      );
+      const trackingNumber = firstNonEmpty(
+        pickString(payload, ['tracking', 'trackingNumber', 'tracking_number', 'tracking #']),
+        answerIndex.get('tracking'),
+        answerIndex.get('trackingnumber'),
+        answerIndex.get('tracking')
+      );
+
+      const updates: Record<string, string | undefined> = {
+        Height: height || undefined,
+        'Starting Weight': startingWeight || undefined,
+        BMI: bmi || undefined,
+        'Ideal Weight': idealWeight || undefined,
+      };
+
+      // Only set Tracking # if Heyflow provided it (do not repurpose)
+      if (trackingNumber) updates['Tracking #'] = trackingNumber;
+
+      const hasAnyUpdate = Object.values(updates).some(Boolean);
+      if (hasAnyUpdate) {
+        const result = await updateClientCustomFieldsByEmail({
+          email,
+          clientId: client.Id,
+          updatesByFieldName: updates,
+        });
+
+        // Don't log values (PHI). Only log which fields were updated.
+        console.log('[intake-webhook] IntakeQ custom fields updated', {
+          clientId: result.clientId,
+          updated: result.updated,
+          missing: result.missing,
+        });
+      }
+    } catch (e: any) {
+      console.error('[intake-webhook] Custom field update failed (continuing):', e?.message || e);
+    }
 
     const pdf = await generateIntakePdf({
       intakeId,
