@@ -145,7 +145,9 @@ export async function uploadClientPdf(params: {
   // Docs: POST /files/{clientId} (multipart/form-data, field name: file)
   const form = new FormData();
   const bytes = Buffer.isBuffer(params.pdfBuffer) ? params.pdfBuffer : Buffer.from(params.pdfBuffer);
-  const blob = new Blob([bytes], { type: 'application/pdf' });
+  // NOTE: TS 5.9 on Vercel is strict about BlobPart's ArrayBuffer type.
+  // Wrapping as Uint8Array ensures ArrayBuffer (not ArrayBufferLike).
+  const blob = new Blob([new Uint8Array(bytes)], { type: 'application/pdf' });
   form.append('file', blob, params.filename);
 
   const res = await fetch(`${INTAKEQ_API_BASE}/files/${params.clientId}`, {
