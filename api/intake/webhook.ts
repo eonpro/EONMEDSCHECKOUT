@@ -188,10 +188,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Populate IntakeQ custom fields from Heyflow (if present)
     try {
-      const height = firstNonEmpty(
-        pickString(payload, ['height', 'Height']),
-        answerIndex.get('height')
-      );
+      let height = firstNonEmpty(pickString(payload, ['height', 'Height']), answerIndex.get('height'));
+      if (!height) {
+        const feet = firstNonEmpty(
+          pickString(payload, ['feet', 'Feet', 'heightFeet', 'height_feet']),
+          answerIndex.get('feet'),
+          answerIndex.get('heightfeet')
+        );
+        const inches = firstNonEmpty(
+          pickString(payload, ['inches', 'Inches', 'heightInches', 'height_inches']),
+          answerIndex.get('inches'),
+          answerIndex.get('heightinches')
+        );
+        if (feet || inches) {
+          const left = feet ? `${feet}'` : '';
+          const right = inches ? `${inches}"` : '';
+          height = `${left} ${right}`.trim();
+        }
+      }
       const startingWeight = firstNonEmpty(
         pickString(payload, ['startingWeight', 'starting_weight', 'starting weight', 'weight', 'Weight']),
         answerIndex.get('startingweight'),
