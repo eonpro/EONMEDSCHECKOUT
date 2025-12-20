@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { buffer } from 'micro';
 import { findClientByEmail, uploadClientPdf } from '../integrations/intakeq.js';
 import { generateInvoicePdf } from '../utils/pdf-generator.js';
+import { findAirtableRecordByEmail, updateAirtablePaymentStatus } from '../integrations/airtable.js';
 
 // ============================================================================
 // Inline GHL Integration (to avoid import path issues in Vercel)
@@ -417,6 +418,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         } catch (intakeQErr: any) {
           // Do not fail Stripe webhook if IntakeQ is unavailable
           console.error('[webhook] ❌ IntakeQ integration error:', intakeQErr?.message || intakeQErr);
+        }
+        // =========================================================
+        
+        // =========================================================
+        // Airtable Integration - Update Payment Status
+        // =========================================================
+        try {
+          const airtableRecord = await findAirtableRecordByEmail(email);
+          if (airtableRecord) {
+            await updateAirtablePaymentStatus({
+              recordId: airtableRecord.id,
+              paymentAmount: paymentIntent.amount,
+              paymentDate: new Date(paymentIntent.created * 1000).toISOString(),
+              paymentId: paymentIntent.id,
+              medication: (metadata.medication || '').toString(),
+              plan: (metadata.plan || '').toString(),
+              shippingMethod: metadata.expedited_shipping === 'true' ? 'Expedited' : 'Standard',
+              orderTotal: paymentIntent.amount,
+              stripeCustomerId: paymentIntent.customer as string,
+            });
+            console.log(`[webhook] ✅ Updated Airtable record ${airtableRecord.id} with payment data`);
+          } else {
+            console.warn(`[webhook] ⚠️ Airtable record not found for email: ${email}`);
+          }
+        } catch (airtableErr: any) {
+          // Do not fail Stripe webhook if Airtable is unavailable
+          console.error('[webhook] ❌ Airtable integration error:', airtableErr?.message || airtableErr);
         }
         // =========================================================
         
