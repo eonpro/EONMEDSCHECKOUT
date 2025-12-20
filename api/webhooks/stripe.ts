@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import Stripe from 'stripe';
 import { buffer } from 'micro';
-import { findClientByEmail, uploadClientPdf } from '../integrations/intakeq';
-import { generateInvoicePdf } from '../utils/pdf-generator';
+import { findClientByEmail, uploadClientPdf } from '../integrations/intakeq.js';
+import { generateInvoicePdf } from '../utils/pdf-generator.js';
 
 // ============================================================================
 // Inline GHL Integration (to avoid import path issues in Vercel)

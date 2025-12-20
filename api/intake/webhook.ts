@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { ensureClient, uploadClientPdf } from '../integrations/intakeq';
-import { generateIntakePdf, type PdfKeyValue } from '../utils/pdf-generator';
+import { ensureClient, uploadClientPdf } from '../integrations/intakeq.js';
+import { generateIntakePdf, type PdfKeyValue } from '../utils/pdf-generator.js';
 
 const TTL_SECONDS = 60 * 60 * 24; // 24h
 
