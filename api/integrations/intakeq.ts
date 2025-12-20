@@ -257,6 +257,25 @@ export async function ensureClient(params: CreateIntakeQClientInput): Promise<{ 
   return { client: created, created: true };
 }
 
+/**
+ * Add tag to IntakeQ client
+ */
+export async function addClientTag(clientId: number, tag: string): Promise<void> {
+  try {
+    await intakeQRequest('/clientTags', {
+      method: 'POST',
+      body: {
+        ClientId: clientId,
+        Tag: tag,
+      },
+    });
+    console.log(`[intakeq] Added tag "${tag}" to client ${clientId}`);
+  } catch (e: any) {
+    // Don't fail if tag already exists or other non-critical error
+    console.warn(`[intakeq] Could not add tag "${tag}" to client ${clientId}:`, e?.message || e);
+  }
+}
+
 export async function getClientProfileByEmail(email: string): Promise<{ clientId: number; profile: any } | null> {
   const trimmed = email.trim();
   if (!trimmed) return null;

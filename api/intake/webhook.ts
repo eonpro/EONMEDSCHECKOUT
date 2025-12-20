@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { ensureClient, uploadClientPdf, updateClientCustomFieldsByEmail } from '../integrations/intakeq.js';
+import { ensureClient, uploadClientPdf, updateClientCustomFieldsByEmail, addClientTag } from '../integrations/intakeq.js';
 import { generateIntakePdf, type PdfKeyValue } from '../utils/pdf-generator.js';
 
 const TTL_SECONDS = 60 * 60 * 24; // 24h
@@ -304,6 +304,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     } catch (e: any) {
       console.error('[intake-webhook] Custom field update failed (continuing):', e?.message || e);
+    }
+
+    // Add tags to IntakeQ client
+    try {
+      // Detect language from flow ID or URL
+      const flowId = String(payload.flowID || payload.flowId || '').toLowerCase();
+      const isSpanish = flowId.includes('espanol') || 
+                       flowId.includes('spanish') ||
+                       String(payload.url || payload.URL || '').includes('espanol');
+      
+      const languageTag = isSpanish ? 'spanish' : 'english';
+      
+      // Add tags
+      await addClientTag(client.Id, '#weightloss');
+      await addClientTag(client.Id, languageTag);
+      
+      console.log(`[intake-webhook] Added tags to client ${client.Id}: #weightloss, ${languageTag}`);
+    } catch (e: any) {
+      console.error('[intake-webhook] Tag addition failed (continuing):', e?.message || e);
     }
 
     const pdf = await generateIntakePdf({
