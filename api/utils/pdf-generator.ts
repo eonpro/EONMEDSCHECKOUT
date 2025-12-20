@@ -113,39 +113,93 @@ function ensureSpace(doc: PDFKit.PDFDocument, neededHeight: number) {
 }
 
 function header(doc: PDFKit.PDFDocument, title: string, subtitle?: string) {
-  doc.font('Helvetica-Bold').fontSize(20).text('EONMeds', { align: 'left' });
-  doc.moveDown(0.25);
-  doc.font('Helvetica-Bold').fontSize(16).text(title);
+  doc.font('Helvetica-Bold').fontSize(24).text('EONMeds', { align: 'left' });
+  doc.moveDown(0.5);
+  doc.font('Helvetica-Bold').fontSize(20).text(title);
   if (subtitle) {
-    doc.moveDown(0.15);
-    doc.font('Helvetica').fontSize(10).fillColor('#374151').text(subtitle);
+    doc.moveDown(0.3);
+    doc.font('Helvetica').fontSize(10).fillColor('#6B7280').text(subtitle);
     doc.fillColor('#000000');
   }
-  doc.moveDown(0.8);
+  doc.moveDown(1.5);
+}
+
+// Draw a light gray box background
+function drawBox(doc: PDFKit.PDFDocument, x: number, y: number, width: number, height: number) {
   doc
-    .moveTo(doc.page.margins.left, doc.y)
-    .lineTo(doc.page.width - doc.page.margins.right, doc.y)
-    .strokeColor('#E5E7EB')
-    .stroke();
-  doc.strokeColor('#000000');
-  doc.moveDown(1);
+    .save()
+    .fillColor('#F3F4F6')
+    .rect(x, y, width, height)
+    .fill()
+    .restore();
 }
 
-function sectionTitle(doc: PDFKit.PDFDocument, title: string) {
-  ensureSpace(doc, 28);
-  doc.font('Helvetica-Bold').fontSize(12).text(title);
-  doc.moveDown(0.4);
+function sectionBox(doc: PDFKit.PDFDocument, title: string, startY?: number) {
+  const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  const y = startY || doc.y;
+  
+  ensureSpace(doc, 40);
+  
+  // Draw section background
+  drawBox(doc, doc.page.margins.left, y, pageWidth, 32);
+  
+  doc.y = y + 10;
+  doc.font('Helvetica-Bold').fontSize(14).fillColor('#000000').text(title);
+  doc.moveDown(0.8);
 }
 
-function keyValueRow(doc: PDFKit.PDFDocument, label: string, value: string) {
-  ensureSpace(doc, 18);
-  doc.font('Helvetica-Bold').fontSize(10).text(`${label}:`, { continued: true });
-  doc.font('Helvetica').fontSize(10).text(` ${value || '-'}`);
+function labeledField(doc: PDFKit.PDFDocument, label: string, value: string, width?: number, inline?: boolean) {
+  const fieldWidth = width || (doc.page.width - doc.page.margins.left - doc.page.margins.right);
+  const x = doc.x;
+  const y = doc.y;
+  
+  ensureSpace(doc, 60);
+  
+  // Draw white field box
+  doc
+    .save()
+    .fillColor('#FFFFFF')
+    .strokeColor('#D1D5DB')
+    .lineWidth(1)
+    .rect(x, y, fieldWidth, 50)
+    .fillAndStroke()
+    .restore();
+  
+  // Label
+  doc.y = y + 8;
+  doc.x = x + 12;
+  doc.font('Helvetica').fontSize(9).fillColor('#6B7280').text(label.toUpperCase(), { width: fieldWidth - 24 });
+  
+  // Value
+  doc.y = y + 22;
+  doc.x = x + 12;
+  doc.font('Helvetica').fontSize(11).fillColor('#000000').text(value || '-', { width: fieldWidth - 24 });
+  
+  if (!inline) {
+    doc.y = y + 60;
+    doc.x = doc.page.margins.left;
+  }
 }
 
-function bullet(doc: PDFKit.PDFDocument, text: string) {
-  ensureSpace(doc, 18);
-  doc.font('Helvetica').fontSize(10).text(`• ${text}`);
+function twoColumnFields(doc: PDFKit.PDFDocument, label1: string, value1: string, label2: string, value2: string) {
+  const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  const fieldWidth = (pageWidth - 10) / 2;
+  const y = doc.y;
+  
+  ensureSpace(doc, 60);
+  
+  // Left field
+  doc.x = doc.page.margins.left;
+  doc.y = y;
+  labeledField(doc, label1, value1, fieldWidth, true);
+  
+  // Right field
+  doc.x = doc.page.margins.left + fieldWidth + 10;
+  doc.y = y;
+  labeledField(doc, label2, value2, fieldWidth, true);
+  
+  doc.y = y + 60;
+  doc.x = doc.page.margins.left;
 }
 
 function categorizeAnswers(answers: PdfKeyValue[]): {
@@ -201,85 +255,69 @@ export async function generateIntakePdf(input: IntakePdfInput): Promise<Uint8Arr
   header(doc, 'Patient Intake Form', subtitleParts.join('  |  '));
 
   // Patient Information Section
-  sectionTitle(doc, 'Patient Information');
-  keyValueRow(doc, 'FIRST NAME', toSafeText(input.patient.firstName));
-  keyValueRow(doc, 'LAST NAME', toSafeText(input.patient.lastName));
-  keyValueRow(doc, 'DATE OF BIRTH', toSafeText(input.patient.dateOfBirth));
-  if (input.patient.gender) keyValueRow(doc, 'SEX', toSafeText(input.patient.gender));
-  keyValueRow(doc, 'EMAIL ADDRESS', toSafeText(input.patient.email));
-  keyValueRow(doc, 'PHONE NUMBER', toSafeText(input.patient.phone));
-  doc.moveDown(0.8);
+  sectionBox(doc, 'Patient Information');
+  twoColumnFields(doc, 'First Name', toSafeText(input.patient.firstName), 'Last Name', toSafeText(input.patient.lastName));
+  twoColumnFields(doc, 'Date of Birth', toSafeText(input.patient.dateOfBirth), 'Sex', toSafeText(input.patient.gender));
+  twoColumnFields(doc, 'Email Address', toSafeText(input.patient.email), 'Phone Number', toSafeText(input.patient.phone));
+  doc.moveDown(1);
 
   // Shipping Information Section
-  sectionTitle(doc, 'Shipping Information');
-  if (input.patient.addressLine1) keyValueRow(doc, 'STREET ADDRESS', toSafeText(input.patient.addressLine1));
-  if (input.patient.addressLine2) keyValueRow(doc, 'APARTMENT/SUITE NUMBER', toSafeText(input.patient.addressLine2));
-  if (input.patient.city) keyValueRow(doc, 'CITY', toSafeText(input.patient.city));
-  if (input.patient.state) keyValueRow(doc, 'STATE', toSafeText(input.patient.state));
-  if (input.patient.zipCode) keyValueRow(doc, 'POSTAL CODE', toSafeText(input.patient.zipCode));
-  if (input.patient.country) keyValueRow(doc, 'COUNTRY', toSafeText(input.patient.country));
-  doc.moveDown(0.8);
+  sectionBox(doc, 'Shipping Information');
+  labeledField(doc, 'Street Address', toSafeText(input.patient.addressLine1));
+  if (input.patient.addressLine2) {
+    labeledField(doc, 'Apartment/Suite Number', toSafeText(input.patient.addressLine2));
+  }
+  twoColumnFields(doc, 'City', toSafeText(input.patient.city), 'State', toSafeText(input.patient.state));
+  twoColumnFields(doc, 'Postal Code', toSafeText(input.patient.zipCode), 'Country', toSafeText(input.patient.country));
+  doc.moveDown(1);
 
   // Categorize answers into sections
   const categorized = categorizeAnswers(input.answers || []);
 
   // Medical History Section
   if (categorized.medicalHistory.length > 0) {
-    sectionTitle(doc, 'Medical History');
+    sectionBox(doc, 'Medical History');
     for (const item of categorized.medicalHistory) {
       const label = toSafeText(item.label).trim();
       const value = toSafeText(item.value).trim();
       if (!label) continue;
-      ensureSpace(doc, 24);
-      doc.font('Helvetica').fontSize(9).fillColor('#6B7280').text(label.toUpperCase());
-      doc.font('Helvetica-Bold').fontSize(10).fillColor('#000000').text(value || '-');
-      doc.moveDown(0.5);
+      labeledField(doc, label, value);
     }
-    doc.moveDown(0.8);
+    doc.moveDown(1);
   }
 
   // Treatment Readiness Section
   if (categorized.treatmentReadiness.length > 0) {
-    sectionTitle(doc, 'Treatment Readiness');
+    sectionBox(doc, 'Treatment Readiness');
     for (const item of categorized.treatmentReadiness) {
       const label = toSafeText(item.label).trim();
       const value = toSafeText(item.value).trim();
       if (!label) continue;
-      ensureSpace(doc, 24);
-      doc.font('Helvetica').fontSize(9).fillColor('#6B7280').text(label.toUpperCase());
-      doc.font('Helvetica-Bold').fontSize(10).fillColor('#000000').text(value || '-');
-      doc.moveDown(0.5);
+      labeledField(doc, label, value);
     }
-    doc.moveDown(0.8);
+    doc.moveDown(1);
   }
 
   // Consent Agreements Section
   if (categorized.consents.length > 0) {
-    sectionTitle(doc, 'Consent Agreements');
+    sectionBox(doc, 'Consent Agreements');
     for (const item of categorized.consents) {
       const label = toSafeText(item.label).trim();
       const value = toSafeText(item.value).trim();
       if (!label) continue;
-      ensureSpace(doc, 24);
-      doc.font('Helvetica-Bold').fontSize(10).text(label);
-      doc.font('Helvetica').fontSize(10).fillColor('#16A34A').text(value || '-');
-      doc.fillColor('#000000');
-      doc.moveDown(0.5);
+      labeledField(doc, label, `✓ ${value}`);
     }
-    doc.moveDown(0.8);
+    doc.moveDown(1);
   }
 
   // Additional Information (catch-all for other questions)
   if (categorized.other.length > 0) {
-    sectionTitle(doc, 'Additional Information');
+    sectionBox(doc, 'Additional Information');
     for (const item of categorized.other) {
       const label = toSafeText(item.label).trim();
       const value = toSafeText(item.value).trim();
       if (!label) continue;
-      ensureSpace(doc, 24);
-      doc.font('Helvetica').fontSize(9).fillColor('#6B7280').text(label.toUpperCase());
-      doc.font('Helvetica').fontSize(10).fillColor('#000000').text(value || '-');
-      doc.moveDown(0.5);
+      labeledField(doc, label, value);
     }
   }
 
