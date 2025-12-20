@@ -89,6 +89,14 @@ function extractAnswers(payload: any): PdfKeyValue[] {
       .filter((x: PdfKeyValue) => x.label || x.value);
   }
 
+  // Heyflow format: fields is an object with key-value pairs
+  if (payload?.fields && typeof payload.fields === 'object' && !Array.isArray(payload.fields)) {
+    return Object.entries(payload.fields)
+      .filter(([k]) => !['address', 'phone-input-id-cc54007b'].includes(k)) // Skip already-extracted fields
+      .map(([k, v]) => ({ label: safeToText(k).trim(), value: safeToText(v).trim() }))
+      .filter((x) => x.label || x.value);
+  }
+
   if (payload?.answers && typeof payload.answers === 'object') {
     return Object.entries(payload.answers)
       .map(([k, v]) => ({ label: safeToText(k).trim(), value: safeToText(v).trim() }))
@@ -148,21 +156,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const payload = req.body;
-    const intakeId = extractIntakeId(payload);
+    
+    // Heyflow sends data in a 'fields' object: { flowID, id, createdAt, fields: {...} }
+    // Normalize to top-level for easier extraction
+    const normalizedPayload = payload.fields && typeof payload.fields === 'object'
+      ? { ...payload, ...payload.fields }
+      : payload;
+    
+    const intakeId = extractIntakeId(normalizedPayload);
 
-    // Extract patient fields (best-effort)
-    const firstName = pickString(payload, ['firstName', 'firstname', 'first_name']);
-    const lastName = pickString(payload, ['lastName', 'lastname', 'last_name']);
-    const email = pickString(payload, ['email', 'Email']);
-    const phone = pickString(payload, ['phone', 'phonenumber', 'phone_number', 'tel', 'Phone']);
-    const dob = pickString(payload, ['dob', 'dateOfBirth', 'date_of_birth', 'DateOfBirth']);
-    const gender = pickString(payload, ['gender', 'Gender', 'sex', 'Sex']);
+    // Extract patient fields (best-effort, checking both top-level and fields object)
+    const firstName = pickString(normalizedPayload, ['firstName', 'firstname', 'first_name']);
+    const lastName = pickString(normalizedPayload, ['lastName', 'lastname', 'last_name']);
+    const email = pickString(normalizedPayload, ['email', 'Email']);
+    
+    // Heyflow phone format: "phone-input-id-cc54007b"
+    const phone = pickString(normalizedPayload, ['phone', 'phonenumber', 'phone_number', 'phone-input-id-cc54007b', 'tel', 'Phone']);
+    const dob = pickString(normalizedPayload, ['dob', 'dateOfBirth', 'date_of_birth', 'DateOfBirth']);
+    const gender = pickString(normalizedPayload, ['gender', 'Gender', 'sex', 'Sex']);
 
-    const addressLine1 = pickString(payload, ['address1', 'addressLine1', 'street', 'shipping_line1']);
-    const addressLine2 = pickString(payload, ['address2', 'addressLine2', 'apt', 'apartment']);
-    const city = pickString(payload, ['city']);
-    const state = pickString(payload, ['state']);
-    const zipCode = pickString(payload, ['zip', 'zipCode', 'zipcode', 'postal']);
+    // Heyflow address can be nested object
+    let addressLine1 = pickString(normalizedPayload, ['address1', 'addressLine1', 'street', 'shipping_line1']);
+    let addressLine2 = pickString(normalizedPayload, ['address2', 'addressLine2', 'apt', 'apartment', 'apartment#']);
+    let city = pickString(normalizedPayload, ['city']);
+    let state = pickString(normalizedPayload, ['state', 'state_code']);
+    let zipCode = pickString(normalizedPayload, ['zip', 'zipCode', 'zipcode', 'postal']);
+    
+    // If address is an object (Heyflow format), extract from there
+    const addressObj = normalizedPayload.address;
+    if (addressObj && typeof addressObj === 'object') {
+      if (!addressLine1) addressLine1 = [addressObj.house, addressObj.street].filter(Boolean).join(' ').trim();
+      if (!city) city = String(addressObj.city || '');
+      if (!state) state = String(addressObj.state_code || addressObj.state || '');
+      if (!zipCode) zipCode = String(addressObj.zip || '');
+    }
 
     if (!email) {
       // For Heyflow test mode, return success without processing
@@ -175,8 +202,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    const submittedAtIso = new Date().toISOString();
-    const answers = extractAnswers(payload);
+    const submittedAtIso = payload.createdAt || new Date().toISOString();
+    const answers = extractAnswers(normalizedPayload);
     const answerIndex = buildAnswerIndex(answers);
 
     // Fallback: extract gender from answers if not found in top-level payload
