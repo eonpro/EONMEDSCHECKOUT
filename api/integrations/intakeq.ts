@@ -59,7 +59,9 @@ export type IntakeQAddress = {
 };
 
 export type IntakeQClient = {
+  // IntakeQ APIs are inconsistent: some responses use Id, others use ClientId.
   Id: number;
+  ClientId?: number;
   Name?: string;
   Email?: string;
   Phone?: string;
@@ -83,12 +85,17 @@ export type CreateIntakeQClientInput = {
 };
 
 const findClientsResponseSchema = z.array(
-  z.object({
-    Id: z.number(),
-    Name: z.string().optional(),
-    Email: z.string().optional(),
-    Phone: z.string().optional(),
-  })
+  z
+    .object({
+      Id: z.number().optional(),
+      ClientId: z.number().optional(),
+      Name: z.string().optional(),
+      Email: z.string().optional(),
+      Phone: z.string().optional(),
+    })
+    .refine((v) => typeof (v.Id ?? v.ClientId) === 'number', {
+      message: 'Client record missing Id/ClientId',
+    })
 );
 
 export async function findClientByEmail(email: string): Promise<IntakeQClient | null> {
@@ -102,7 +109,12 @@ export async function findClientByEmail(email: string): Promise<IntakeQClient | 
 
   const normalized = trimmed.toLowerCase();
   const match = parsed.data.find((c) => (c.Email || '').toLowerCase() === normalized);
-  return match ? (match as IntakeQClient) : null;
+  if (!match) return null;
+
+  return {
+    ...(match as any),
+    Id: (match as any).Id ?? (match as any).ClientId,
+  } as IntakeQClient;
 }
 
 export async function createClient(input: CreateIntakeQClientInput): Promise<IntakeQClient> {
@@ -141,13 +153,18 @@ export async function createClient(input: CreateIntakeQClientInput): Promise<Int
   }
 
   // Docs: POST /clients
-  const created = await intakeQRequest<IntakeQClient>('/clients', { method: 'POST', body: payload });
+  const created = await intakeQRequest<any>('/clients', { method: 'POST', body: payload });
 
-  if (!created || typeof created.Id !== 'number') {
+  const id = typeof created?.Id === 'number' ? created.Id : typeof created?.ClientId === 'number' ? created.ClientId : null;
+  if (!id) {
     throw new Error('IntakeQ create client returned unexpected response');
   }
 
-  return created;
+  return {
+    ...(created || {}),
+    Id: id,
+    ClientId: created?.ClientId,
+  } as IntakeQClient;
 }
 
 export async function uploadClientPdf(params: {
