@@ -231,7 +231,7 @@ export function StripeProvider({ children, amount, appearance, customerEmail, cu
       clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [isReadyToCreateIntent, intentRequestKey, amountInCents, clientSecret, language, normalizedCustomerEmail, normalizedCustomerName, normalizedCustomerPhoneE164, normalizedOrderData, normalizedShippingAddress]);
+  }, [isReadyToCreateIntent, intentRequestKey, language, normalizedCustomerEmail, normalizedCustomerName, normalizedCustomerPhoneE164, normalizedOrderData, normalizedShippingAddress]);
 
   // Memoize Elements options to prevent unnecessary re-renders
   const options = useMemo(() => ({
