@@ -26,47 +26,112 @@ const CONFIG = {
   WEBHOOK_URL: 'https://checkout.eonmeds.com/api/intake/webhook',
   
   // Status column (where we mark "Sent to IntakeQ" or errors)
-  // Column BA = 53 for "Intake Spanish" sheet
-  STATUS_COLUMN: 53,
+  // Column C = 3 (recommended for new clean sheet structure)
+  STATUS_COLUMN: 3,
   
   // Sheet name to process
   SHEET_NAME: 'Intake Spanish',
   
   // Skip rows that already have a status
-  SKIP_PROCESSED: true
+  SKIP_PROCESSED: true,
+  
+  // Retry settings
+  MAX_RETRIES: 3,
+  RETRY_DELAY_MS: 1000
 };
 
 // =============================================
-// COLUMN MAPPINGS (from your Google Sheets)
+// COLUMN MAPPINGS (New Clean Structure)
 // =============================================
 
-// Based on the structure from your shared sheet
+/**
+ * RECOMMENDED COLUMN LAYOUT:
+ * 
+ * A: Timestamp
+ * B: Response ID
+ * C: IntakeQ Status (our sync status)
+ * 
+ * DEMOGRAPHICS (D-L)
+ * D: State Selected
+ * E: First Name
+ * F: Last Name  
+ * G: Date of Birth
+ * H: 18+ Disclosure
+ * I: Email
+ * J: Phone Number
+ * K: Gender
+ * L: Marketing Consent
+ * 
+ * ADDRESS (M-U)
+ * M: Address Full
+ * N: Street
+ * O: House Number
+ * P: Apartment/Suite
+ * Q: City
+ * R: State Name
+ * S: State Code
+ * T: Zip
+ * U: Country
+ * 
+ * HEALTH METRICS (V-Z)
+ * V: Ideal Weight
+ * W: Starting Weight
+ * X: Feet
+ * Y: Inches
+ * Z: BMI
+ * 
+ * MEDICAL HISTORY & QUESTIONS (AA onward)
+ * AA: Physical Activity Level
+ * AB: Mental Health Condition
+ * AC: Mental Health Details
+ * AD: Chronic Illnesses
+ * AE: Chronic Illness Details
+ * ... (add more as needed)
+ */
+
 const COLUMN_MAP = {
-  // Column letters → 1-based index
+  // Core fields (adjust these to match YOUR sheet structure)
+  timestamp: 1,           // Column A
   responseId: 2,          // Column B
-  firstName: 6,           // Column F (firstname)
-  lastName: 7,            // Column G (lastname)
-  dob: 8,                 // Column H (dob)
-  country: 11,            // Column K (address[country])
-  city: 13,               // Column M (address[city])
-  zip: 14,                // Column N (address[zip])
-  addressStreet: 15,      // Column O (address[street])
-  addressHouse: 16,       // Column P (address[house])
-  stateCode: 17,          // Column R (address[state_code])
-  idealWeight: 21,        // Column U (idealweight)
-  startingWeight: 22,     // Column V (starting_weight)
-  feet: 23,               // Column W (feet)
-  inches: 24,             // Column X (inches)
-  bmi: 25,                // Column Y (BMI)
-  email: 26,              // Column Z (email)
-  phoneCountry: 27,       // Column AA (Phone Number country code)
-  phoneNumber: 28,        // Column AB (Phone Number)
-  gender: 30,             // Column AD (gender)
-  apartment: 50,          // Column AY (apartment#)
+  statusColumn: 3,        // Column C (where we write "Sent to IntakeQ")
   
-  // Medical history questions (sample - add more as needed)
-  glp1History: 48,        // Column AV (id-d2f1eaa4)
-  // Add more question columns here based on your needs
+  // Demographics
+  stateSelected: 4,       // Column D
+  firstName: 5,           // Column E
+  lastName: 6,            // Column F
+  dob: 7,                 // Column G
+  disclosure18: 8,        // Column H
+  email: 9,               // Column I
+  phoneNumber: 10,        // Column J
+  gender: 11,             // Column K
+  marketingConsent: 12,   // Column L
+  
+  // Address
+  addressFull: 13,        // Column M
+  addressStreet: 14,      // Column N
+  addressHouse: 15,       // Column O
+  apartment: 16,          // Column P
+  city: 17,               // Column Q
+  state: 18,              // Column R
+  stateCode: 19,          // Column S
+  zip: 20,                // Column T
+  country: 21,            // Column U
+  
+  // Health Metrics
+  idealWeight: 22,        // Column V
+  startingWeight: 23,     // Column W
+  feet: 24,               // Column X
+  inches: 25,             // Column Y
+  bmi: 26,                // Column Z
+  
+  // Medical History (add more as you reorganize)
+  physicalActivity: 27,   // Column AA
+  mentalHealth: 28,       // Column AB
+  mentalHealthDetails: 29, // Column AC
+  chronicIllness: 30,     // Column AD
+  chronicDetails: 31,     // Column AE
+  glp1History: 32,        // Column AF
+  // Add more medical questions here...
 };
 
 // =============================================
@@ -120,17 +185,14 @@ function formatDOB(dob) {
 
 function sendToIntakeQ(rowData, rowNumber) {
   try {
-    // Extract fields from row
+    // Extract core fields
     const responseId = getRowValue(rowData, COLUMN_MAP.responseId);
     const firstName = getRowValue(rowData, COLUMN_MAP.firstName);
     const lastName = getRowValue(rowData, COLUMN_MAP.lastName);
     const email = getRowValue(rowData, COLUMN_MAP.email);
     const dob = formatDOB(getRowValue(rowData, COLUMN_MAP.dob));
     const gender = getRowValue(rowData, COLUMN_MAP.gender);
-    
-    const phoneCountry = getRowValue(rowData, COLUMN_MAP.phoneCountry);
-    const phoneNumber = getRowValue(rowData, COLUMN_MAP.phoneNumber);
-    const phone = formatPhone(phoneCountry, phoneNumber);
+    const phone = getRowValue(rowData, COLUMN_MAP.phoneNumber);
     
     // Address
     const addressHouse = getRowValue(rowData, COLUMN_MAP.addressHouse);
@@ -138,7 +200,7 @@ function sendToIntakeQ(rowData, rowNumber) {
     const address1 = [addressHouse, addressStreet].filter(Boolean).join(' ').trim();
     const address2 = getRowValue(rowData, COLUMN_MAP.apartment);
     const city = getRowValue(rowData, COLUMN_MAP.city);
-    const state = getRowValue(rowData, COLUMN_MAP.stateCode);
+    const stateCode = getRowValue(rowData, COLUMN_MAP.stateCode);
     const zip = getRowValue(rowData, COLUMN_MAP.zip);
     const country = getRowValue(rowData, COLUMN_MAP.country) || 'US';
     
@@ -149,38 +211,57 @@ function sendToIntakeQ(rowData, rowNumber) {
     const bmi = getRowValue(rowData, COLUMN_MAP.bmi);
     const idealWeight = getRowValue(rowData, COLUMN_MAP.idealWeight);
     
+    // Medical history (add all question columns here)
+    const physicalActivity = getRowValue(rowData, COLUMN_MAP.physicalActivity);
+    const mentalHealth = getRowValue(rowData, COLUMN_MAP.mentalHealth);
+    const chronicIllness = getRowValue(rowData, COLUMN_MAP.chronicIllness);
+    const glp1History = getRowValue(rowData, COLUMN_MAP.glp1History);
+    
     // Validate required fields
     if (!email) {
       throw new Error('Missing required field: email');
     }
     
-    // Build Heyflow-compatible payload
+    // Build Heyflow-compatible payload for IntakeQ webhook
     const payload = {
       flowID: 'Vho2vAPoENipbDaRusGU',
       id: responseId || `gs-row-${rowNumber}-${Date.now()}`,
       createdAt: new Date().toISOString(),
       fields: {
+        // Demographics
         firstname: firstName,
         lastname: lastName,
         email: email,
         'phone-input-id-cc54007b': phone,
         dob: dob,
         gender: gender,
+        
+        // Address (as nested object - Heyflow format)
         address: {
           street: addressStreet,
           house: addressHouse,
           city: city,
-          state_code: state,
+          state_code: stateCode,
           zip: zip,
           country: country
         },
         'apartment#': address2,
+        
+        // Health Metrics
         feet: feet,
         inches: inches,
         starting_weight: startingWeight,
         BMI: bmi,
-        idealweight: idealWeight
-        // Add more fields here as needed from your Google Sheets columns
+        idealweight: idealWeight,
+        
+        // Medical Questions (will appear in PDF)
+        'Physical Activity Level': physicalActivity,
+        'Mental Health Condition': mentalHealth,
+        'Chronic Illnesses': chronicIllness,
+        'GLP-1 Medication History': glp1History
+        
+        // TODO: Add all other medical questions from your columns here
+        // Format: 'Question Label': getRowValue(rowData, COLUMN_MAP.questionColumn)
       }
     };
     
@@ -228,7 +309,7 @@ function sendToIntakeQ(rowData, rowNumber) {
 // =============================================
 
 function processRow(sheet, rowNumber) {
-  const statusColumn = CONFIG.STATUS_COLUMN;
+  const statusColumn = COLUMN_MAP.statusColumn || CONFIG.STATUS_COLUMN;
   
   // Check if already processed
   if (CONFIG.SKIP_PROCESSED) {
