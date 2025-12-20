@@ -156,6 +156,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const email = pickString(payload, ['email', 'Email']);
     const phone = pickString(payload, ['phone', 'phonenumber', 'phone_number', 'tel', 'Phone']);
     const dob = pickString(payload, ['dob', 'dateOfBirth', 'date_of_birth', 'DateOfBirth']);
+    const gender = pickString(payload, ['gender', 'Gender', 'sex', 'Sex']);
 
     const addressLine1 = pickString(payload, ['address1', 'addressLine1', 'street', 'shipping_line1']);
     const addressLine2 = pickString(payload, ['address2', 'addressLine2', 'apt', 'apartment']);
@@ -168,12 +169,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'Missing required field: email' });
     }
 
+    const submittedAtIso = new Date().toISOString();
+    const answers = extractAnswers(payload);
+    const answerIndex = buildAnswerIndex(answers);
+
+    // Fallback: extract gender from answers if not found in top-level payload
+    const finalGender = gender || answerIndex.get('gender') || answerIndex.get('sex') || '';
+
     const { client } = await ensureClient({
       firstName,
       lastName,
       email,
       phone,
       dateOfBirth: dob,
+      gender: finalGender || undefined,
       address: {
         street: addressLine1,
         city,
@@ -181,10 +190,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         zip: zipCode,
       },
     });
-
-    const submittedAtIso = new Date().toISOString();
-    const answers = extractAnswers(payload);
-    const answerIndex = buildAnswerIndex(answers);
 
     // Populate IntakeQ custom fields from Heyflow (if present)
     try {
