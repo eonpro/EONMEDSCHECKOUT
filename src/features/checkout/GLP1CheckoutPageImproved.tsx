@@ -1741,7 +1741,7 @@ export function GLP1CheckoutPageImproved() {
                     <div className="text-sm text-green-800">
                       <span className="font-medium">{language === 'es' ? '¡Código aplicado!' : 'Code applied!'}</span>
                       <span className="ml-2 text-green-700 font-semibold">{appliedPromoCode}</span>
-                      <span className="ml-2 text-green-600">(-$25.00)</span>
+                      <span className="ml-2 text-green-600">(-${discount.toFixed(2)})</span>
                     </div>
                     <button
                       type="button"
