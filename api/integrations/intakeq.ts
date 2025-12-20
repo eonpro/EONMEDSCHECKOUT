@@ -280,6 +280,17 @@ export async function getClientProfileByEmail(email: string): Promise<{ clientId
 export async function updateClientCustomFieldsByEmail(params: {
   email: string;
   clientId?: number;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  dateOfBirth?: string; // YYYY-MM-DD
+  gender?: string;
+  address?: {
+    street?: string;
+    city?: string;
+    state?: string;
+    zip?: string;
+  };
   updatesByFieldName: Record<string, string | undefined>;
 }): Promise<{ clientId: number; updated: string[]; missing: string[] }> {
   const email = params.email.trim();
@@ -296,45 +307,132 @@ export async function updateClientCustomFieldsByEmail(params: {
   const clientId = resolvedClientId || (await findClientByEmail(email))?.Id || 0;
   if (!clientId) throw new Error('IntakeQ client not found for custom field update');
 
+  // Fetch full profile (includeProfile=true) so we can:
+  // - Map FieldId <-> Text for CustomFields
+  // - Preserve existing client profile fields (IntakeQ overwrites missing fields with null)
+  const profileResult = await getClientProfileByEmail(email);
+  if (!profileResult) {
+    throw new Error('IntakeQ client profile not found for custom field update');
+  }
+  const base: any = profileResult?.profile || {};
+
+  const baseCustomFields: IntakeQCustomField[] = Array.isArray(base?.CustomFields)
+    ? (base.CustomFields as any[]).map((f) => ({
+        FieldId: String(f?.FieldId ?? ''),
+        Text: typeof f?.Text === 'string' ? f.Text : undefined,
+        Value: typeof f?.Value === 'string' ? f.Value : f?.Value != null ? String(f.Value) : undefined,
+      }))
+    : [];
+
   // Cache custom field ids (they're consistent across the account)
   if (!cachedCustomFieldIdByName) {
-    const profile = await getClientProfileByEmail(email);
-    const customFields: any[] = Array.isArray(profile?.profile?.CustomFields) ? profile?.profile?.CustomFields : [];
     const map: Record<string, string> = {};
-    for (const f of customFields) {
-      const text = typeof f?.Text === 'string' ? f.Text : '';
-      const fieldId = f?.FieldId != null ? String(f.FieldId) : '';
+    for (const f of baseCustomFields) {
+      const text = f.Text ? f.Text : '';
+      const fieldId = f.FieldId || '';
       if (!text || !fieldId) continue;
       map[normalizeTextKey(text)] = fieldId;
     }
     cachedCustomFieldIdByName = map;
   }
 
+  const desiredMap = new Map<string, { originalKey: string; value: string }>();
+  for (const [k, v] of desiredEntries) {
+    desiredMap.set(normalizeTextKey(k), { originalKey: k, value: v });
+  }
+
   const updated: string[] = [];
   const missing: string[] = [];
-  const updatesPayload: Array<{ FieldId: string; Value: string }> = [];
+  const seenDesiredKeys = new Set<string>();
 
-  for (const [fieldName, value] of desiredEntries) {
-    const fieldId = cachedCustomFieldIdByName?.[normalizeTextKey(fieldName)];
-    if (!fieldId) {
-      missing.push(fieldName);
-      continue;
+  const mergedCustomFields = baseCustomFields.map((field) => {
+    const textKey = field.Text ? normalizeTextKey(field.Text) : '';
+    const desired = textKey ? desiredMap.get(textKey) : undefined;
+    if (desired) {
+      seenDesiredKeys.add(textKey);
+      updated.push(desired.originalKey);
+      return { ...field, Value: desired.value } satisfies IntakeQCustomField;
     }
-    updated.push(fieldName);
-    updatesPayload.push({ FieldId: fieldId, Value: value });
+    return field;
+  });
+
+  for (const [norm, info] of desiredMap.entries()) {
+    if (!seenDesiredKeys.has(norm)) missing.push(info.originalKey);
   }
 
-  if (updatesPayload.length > 0) {
-    // Update via POST /clients with ClientId and CustomFields (per IntakeQ client API)
-    await intakeQRequest('/clients', {
-      method: 'POST',
-      body: {
-        ClientId: clientId,
-        Email: email,
-        CustomFields: updatesPayload,
-      },
-    });
+  // Build update payload preserving base profile fields.
+  // IntakeQ requires FirstName/LastName and will null-out omitted fields.
+  const payload: any = {
+    ClientId: clientId,
+    FirstName: params.firstName?.trim() || base?.FirstName || base?.Name?.split?.(' ')?.[0] || '',
+    LastName:
+      params.lastName?.trim() ||
+      base?.LastName ||
+      (typeof base?.Name === 'string' ? base.Name.split(' ').slice(1).join(' ') : '') ||
+      '',
+    Email: email,
+    CustomFields: mergedCustomFields.map((f) => ({
+      FieldId: String(f.FieldId),
+      Text: f.Text,
+      Value: f.Value ?? null,
+    })),
+  };
+
+  // Preserve common profile fields; prefer current webhook payload values when provided.
+  const phone = (params.phone || '').trim() || (base?.Phone || base?.MobilePhone || '').toString().trim();
+  if (phone) {
+    payload.Phone = phone;
+    // Many accounts store mobile separately; set both to avoid null-outs.
+    payload.MobilePhone = phone;
+  } else if (base?.Phone != null) {
+    payload.Phone = base.Phone;
   }
+
+  if (params.dateOfBirth) {
+    const dob = new Date(params.dateOfBirth);
+    if (!Number.isNaN(dob.getTime())) payload.DateOfBirth = dob.getTime();
+  } else if (base?.DateOfBirth != null) {
+    payload.DateOfBirth = base.DateOfBirth;
+  }
+
+  if (params.gender?.trim()) payload.Gender = params.gender.trim();
+  else if (base?.Gender != null) payload.Gender = base.Gender;
+
+  // Address preservation (flat fields preferred by API)
+  const street = (params.address?.street || '').trim() || (base?.StreetAddress || '').toString().trim();
+  const city = (params.address?.city || '').trim() || (base?.City || '').toString().trim();
+  const state = (params.address?.state || '').trim() || (base?.StateShort || base?.State || '').toString().trim();
+  const zip = (params.address?.zip || '').trim() || (base?.PostalCode || '').toString().trim();
+
+  if (street) payload.StreetAddress = street;
+  else if (base?.StreetAddress != null) payload.StreetAddress = base.StreetAddress;
+
+  if (city) payload.City = city;
+  else if (base?.City != null) payload.City = base.City;
+
+  if (state) payload.StateShort = state.toUpperCase().slice(0, 2);
+  else if (base?.StateShort != null) payload.StateShort = base.StateShort;
+
+  if (zip) payload.PostalCode = zip;
+  else if (base?.PostalCode != null) payload.PostalCode = base.PostalCode;
+
+  if (street || city || state || zip) {
+    payload.Country = 'USA';
+    payload.Address = [street, `${city}${city && state ? ',' : ''} ${state}`.trim(), zip, 'USA']
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+  } else if (base?.Address != null) {
+    payload.Address = base.Address;
+  }
+
+  if (Array.isArray(base?.Tags)) payload.Tags = base.Tags;
+  if (base?.BillingType != null) payload.BillingType = base.BillingType;
+  if (base?.Archived != null) payload.Archived = base.Archived;
+  if (base?.PractitionerId != null) payload.PractitionerId = base.PractitionerId;
+  if (base?.AdditionalInformation != null) payload.AdditionalInformation = base.AdditionalInformation;
+
+  await intakeQRequest('/clients', { method: 'POST', body: payload });
 
   return { clientId, updated, missing };
 }

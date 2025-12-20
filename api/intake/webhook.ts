@@ -230,6 +230,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const result = await updateClientCustomFieldsByEmail({
           email,
           clientId: client.Id,
+          firstName,
+          lastName,
+          phone,
+          dateOfBirth: dob,
+          address: {
+            street: addressLine1,
+            city,
+            state,
+            zip: zipCode,
+          },
           updatesByFieldName: updates,
         });
 
