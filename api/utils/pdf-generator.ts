@@ -150,10 +150,25 @@ function sectionBox(doc: PDFKit.PDFDocument, title: string, startY?: number) {
 
 function labeledField(doc: PDFKit.PDFDocument, label: string, value: string, width?: number, inline?: boolean) {
   const fieldWidth = width || (doc.page.width - doc.page.margins.left - doc.page.margins.right);
-  const x = doc.x;
+  const x = inline ? doc.x : doc.page.margins.left;
   const y = doc.y;
   
-  ensureSpace(doc, 60);
+  // Calculate text heights to determine box size
+  const labelHeight = doc.heightOfString(label.toUpperCase(), {
+    width: fieldWidth - 24,
+    font: 'Helvetica',
+    fontSize: 9,
+  });
+  
+  const valueHeight = doc.heightOfString(value || '-', {
+    width: fieldWidth - 24,
+    font: 'Helvetica',
+    fontSize: 10,
+  });
+  
+  const boxHeight = Math.max(55, labelHeight + valueHeight + 28);
+  
+  ensureSpace(doc, boxHeight + 5);
   
   // Draw white field box
   doc
@@ -161,44 +176,72 @@ function labeledField(doc: PDFKit.PDFDocument, label: string, value: string, wid
     .fillColor('#FFFFFF')
     .strokeColor('#D1D5DB')
     .lineWidth(1)
-    .rect(x, y, fieldWidth, 50)
+    .rect(x, y, fieldWidth, boxHeight)
     .fillAndStroke()
     .restore();
   
-  // Label
-  doc.y = y + 8;
+  // Label (small, gray, uppercase)
+  doc.y = y + 10;
   doc.x = x + 12;
-  doc.font('Helvetica').fontSize(9).fillColor('#6B7280').text(label.toUpperCase(), { width: fieldWidth - 24 });
+  doc.font('Helvetica').fontSize(9).fillColor('#6B7280').text(label.toUpperCase(), {
+    width: fieldWidth - 24,
+    lineGap: 2,
+  });
   
-  // Value
-  doc.y = y + 22;
+  // Value (normal size, black)
+  const afterLabelY = doc.y;
+  doc.y = afterLabelY + 4;
   doc.x = x + 12;
-  doc.font('Helvetica').fontSize(11).fillColor('#000000').text(value || '-', { width: fieldWidth - 24 });
+  doc.font('Helvetica').fontSize(10).fillColor('#000000').text(value || '-', {
+    width: fieldWidth - 24,
+    lineGap: 2,
+  });
   
   if (!inline) {
-    doc.y = y + 60;
+    doc.y = y + boxHeight + 8;
     doc.x = doc.page.margins.left;
+  } else {
+    // For inline fields, position for next column
+    doc.y = y;
   }
 }
 
 function twoColumnFields(doc: PDFKit.PDFDocument, label1: string, value1: string, label2: string, value2: string) {
   const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-  const fieldWidth = (pageWidth - 10) / 2;
-  const y = doc.y;
+  const fieldWidth = (pageWidth - 12) / 2;
+  const startY = doc.y;
   
-  ensureSpace(doc, 60);
+  // Calculate heights for both fields
+  const height1 = Math.max(
+    55,
+    doc.heightOfString(label1.toUpperCase(), { width: fieldWidth - 24, fontSize: 9 }) +
+      doc.heightOfString(value1 || '-', { width: fieldWidth - 24, fontSize: 10 }) +
+      28
+  );
   
-  // Left field
+  const height2 = Math.max(
+    55,
+    doc.heightOfString(label2.toUpperCase(), { width: fieldWidth - 24, fontSize: 9 }) +
+      doc.heightOfString(value2 || '-', { width: fieldWidth - 24, fontSize: 10 }) +
+      28
+  );
+  
+  const maxHeight = Math.max(height1, height2);
+  
+  ensureSpace(doc, maxHeight + 8);
+  
+  // Draw left field
   doc.x = doc.page.margins.left;
-  doc.y = y;
+  doc.y = startY;
   labeledField(doc, label1, value1, fieldWidth, true);
   
-  // Right field
-  doc.x = doc.page.margins.left + fieldWidth + 10;
-  doc.y = y;
+  // Draw right field
+  doc.x = doc.page.margins.left + fieldWidth + 12;
+  doc.y = startY;
   labeledField(doc, label2, value2, fieldWidth, true);
   
-  doc.y = y + 60;
+  // Move to next row
+  doc.y = startY + maxHeight + 8;
   doc.x = doc.page.margins.left;
 }
 
