@@ -190,6 +190,50 @@ if (!clientId) {
 console.log(`✅ Client created: ${clientId}`);
 
 // ============================================================================
+// UPDATE APARTMENT (CRITICAL - Must be done separately)
+// ============================================================================
+
+if (apartment) {
+    try {
+        console.log(`Updating apartment for client ${clientId}...`);
+        
+        // Get the full client data first
+        const getResponse = await fetch(`${INTAKEQ_API_BASE}/clients/${clientId}`, {
+            method: 'GET',
+            headers: {
+                'X-Auth-Key': INTAKEQ_API_KEY,
+                'Content-Type': 'application/json',
+            }
+        });
+        
+        if (getResponse.ok) {
+            const clientData = JSON.parse(await getResponse.text());
+            
+            // Update with apartment
+            clientData.UnitNumber = apartment;
+            
+            const updateResponse = await fetch(`${INTAKEQ_API_BASE}/clients`, {
+                method: 'POST',
+                headers: {
+                    'X-Auth-Key': INTAKEQ_API_KEY,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(clientData)
+            });
+            
+            if (updateResponse.ok) {
+                console.log(`✅ Apartment updated to: "${apartment}"`);
+            } else {
+                const updateError = await updateResponse.text();
+                console.log(`Warning: Apartment update failed (${updateResponse.status}): ${updateError}`);
+            }
+        }
+    } catch (e) {
+        console.log("Warning: Could not update apartment:", e.toString());
+    }
+}
+
+// ============================================================================
 // UPDATE CUSTOM FIELDS
 // ============================================================================
 
