@@ -21,7 +21,7 @@
     "@vercel/kv": "^3.0.0",
     "html2canvas": "^1.4.1",
     "micro": "^10.0.1",
-    "pdfkit": "^0.17.2",
+    "pdf-lib": "^1.17.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "stripe": "^14.25.0",
@@ -30,7 +30,6 @@
   "devDependencies": {
     "@types/google.maps": "^3.58.1",
     "@types/node": "^24.5.2",
-    "@types/pdfkit": "^0.17.4",
     "@types/react": "^18.2.66",
     "@types/react-dom": "^18.2.22",
     "@vercel/node": "^3.2.10",

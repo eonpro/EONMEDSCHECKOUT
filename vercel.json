@@ -18,8 +18,7 @@
     "api/**/*.ts": {
       "runtime": "@vercel/node@3.2.10",
       "maxDuration": 60,
-      "memory": 1024,
-      "includeFiles": "node_modules/pdfkit/**"
+      "memory": 512
     }
   }
 }
