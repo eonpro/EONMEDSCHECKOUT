@@ -687,13 +687,18 @@ try {
 // ============================================================================
 
 const updateFields = {
-    'IntakeQ Status': 'Sent ✓',
+    'IntakeQ Status': pdfUrl ? 'Sent ✓ (PDF Ready)' : 'Sent ✓',
     'IntakeQ Client ID': clientId.toString()
 };
 
-// Only add PDF URL if the field exists in your Airtable
-// Remove this line if you don't have a "PDF URL" field:
-// if (pdfUrl) updateFields['PDF URL'] = pdfUrl;
+// Try to update PDF URL field if it exists in your Airtable
+if (pdfUrl) {
+    try {
+        updateFields['PDF URL'] = pdfUrl;
+    } catch (e) {
+        // Field doesn't exist, skip it
+    }
+}
 
 await table.updateRecordAsync(recordId, updateFields);
 
