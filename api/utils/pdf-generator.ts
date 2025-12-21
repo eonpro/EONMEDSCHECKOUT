@@ -4,11 +4,17 @@ let PDFDocument: any;
 async function loadPDFKit() {
   if (!PDFDocument) {
     try {
+      console.log('[pdf] Loading PDFKit module...');
       // Use require for better compatibility with native modules
       PDFDocument = require('pdfkit');
+      console.log('[pdf] PDFKit loaded successfully');
     } catch (e: any) {
-      console.error('[pdf] Failed to load PDFKit:', e?.message || e);
-      throw new Error('PDF generation unavailable');
+      console.error('[pdf] Failed to load PDFKit:', {
+        message: e?.message,
+        code: e?.code,
+        stack: e?.stack?.split('\n').slice(0, 3).join('\n'),
+      });
+      throw new Error(`PDF generation unavailable: ${e?.message || 'Unknown error'}`);
     }
   }
   return PDFDocument;
@@ -111,23 +117,61 @@ function formatIsoDate(iso?: string): string {
 
 async function createDoc(): Promise<any> {
   const PDFDoc = await loadPDFKit();
-  return new PDFDoc({
+  
+  // Create document with configuration optimized for serverless
+  const doc = new PDFDoc({
     size: 'LETTER',
     margins: { top: 48, bottom: 48, left: 48, right: 48 },
-    info: { Producer: 'EONMeds Checkout' },
+    info: {
+      Title: 'EONMeds Medical Intake Form',
+      Author: 'EONMeds',
+      Producer: 'EONMeds Checkout',
+      Creator: 'EONMeds Platform',
+    },
+    autoFirstPage: true,
+    bufferPages: true,
   });
+  
+  // PDFKit uses built-in fonts by default (Helvetica family)
+  // No need to register fonts - they're embedded in the library
+  
+  return doc;
 }
 
 function collectPdf(doc: any): Promise<Uint8Array> {
   return new Promise((resolve, reject) => {
     const chunks: Uint8Array[] = [];
-    doc.on('data', (chunk: Uint8Array) => chunks.push(chunk));
-    doc.on('end', () => resolve(Buffer.concat(chunks)));
-    doc.on('error', reject);
+    
+    doc.on('data', (chunk: Uint8Array) => {
+      chunks.push(chunk);
+    });
+    
+    doc.on('end', () => {
+      try {
+        const buffer = Buffer.concat(chunks);
+        console.log(`[pdf] PDF generated successfully (${buffer.length} bytes)`);
+        resolve(new Uint8Array(buffer));
+      } catch (e: any) {
+        console.error('[pdf] Error concatenating PDF chunks:', e?.message || e);
+        reject(e);
+      }
+    });
+    
+    doc.on('error', (err: any) => {
+      console.error('[pdf] PDF document error:', err?.message || err);
+      reject(err);
+    });
+    
+    try {
+      doc.end();
+    } catch (e: any) {
+      console.error('[pdf] Error ending PDF document:', e?.message || e);
+      reject(e);
+    }
   });
 }
 
-function ensureSpace(doc: PDFKit.PDFDocument, neededHeight: number) {
+function ensureSpace(doc: any, neededHeight: number) {
   const bottom = doc.page.margins.bottom;
   const y = doc.y;
   const pageHeight = doc.page.height;
