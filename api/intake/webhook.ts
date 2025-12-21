@@ -422,8 +422,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(200).json({ ok: true, intakeId, intakeQClientId: client.Id, kvStored });
   } catch (err: any) {
-    // Avoid logging PHI.
-    console.error('[intake-webhook] Error processing intake webhook:', err?.message || err);
-    return res.status(500).json({ error: 'Internal server error' });
+    // Log detailed error for debugging (avoid PHI in logs)
+    console.error('[intake-webhook] Error processing intake webhook:', {
+      message: err?.message || String(err),
+      stack: err?.stack?.split('\n').slice(0, 5).join('\n'), // First 5 lines of stack
+      code: err?.code,
+      name: err?.name,
+    });
+    return res.status(500).json({ 
+      error: 'Internal server error',
+      // Include error hint in development
+      hint: process.env.NODE_ENV !== 'production' ? err?.message : undefined
+    });
   }
 }
