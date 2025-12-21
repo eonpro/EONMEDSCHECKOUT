@@ -177,8 +177,15 @@ export async function createClient(input: CreateIntakeQClientInput): Promise<Int
     const state = (input.address.state || '').toUpperCase().slice(0, 2);
     const zip = input.address.zip || '';
 
+    console.log(`[intakeq] Address components: street="${street}", line2="${line2}", city="${city}", state="${state}", zip="${zip}"`);
+
     if (street) payload.StreetAddress = street;
-    if (line2) payload.UnitNumber = line2; // IntakeQ field for apartment/suite
+    if (line2) {
+      payload.UnitNumber = line2; // IntakeQ field for apartment/suite
+      console.log(`[intakeq] ✅ Setting UnitNumber to: "${line2}"`);
+    } else {
+      console.log(`[intakeq] ⚠️ No apartment/unit number provided`);
+    }
     if (city) payload.City = city;
     if (state) payload.StateShort = state;
     if (zip) payload.PostalCode = zip;
@@ -187,6 +194,8 @@ export async function createClient(input: CreateIntakeQClientInput): Promise<Int
     // Optional full address string (some IntakeQ accounts display this field)
     const full = [street, line2, `${city}${city && state ? ',' : ''} ${state}`.trim(), zip, 'USA'].filter(Boolean).join(' ');
     if (full.trim()) payload.Address = full.trim();
+    
+    console.log(`[intakeq] Full payload.Address: "${payload.Address}"`);
   }
 
   // Docs: POST /clients

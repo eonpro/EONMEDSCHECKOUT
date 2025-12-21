@@ -343,11 +343,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       floridaConsent: Boolean(answerIndex.get('floridaconsent')),
     };
 
-    // Generate and upload intake PDF (non-blocking - best effort)
-    try {
-      console.log('[intake-webhook] Starting PDF generation...');
-      
-      const pdf = await generateIntakePdf({
+    // TEMPORARILY DISABLED - PDF upload not working with IntakeQ API
+    // TODO: Fix IntakeQ file upload or use Google Script PDF generation
+    const ENABLE_PDF_UPLOAD = false;
+    
+    if (ENABLE_PDF_UPLOAD) {
+      try {
+        console.log('[intake-webhook] Starting PDF generation...');
+        
+        const pdf = await generateIntakePdf({
         intakeId,
         submittedAtIso,
         ipAddress, // Captured from request headers
@@ -378,13 +382,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const filename = `intake-${intakeId}.pdf`;
       await uploadClientPdf({ clientId: client.Id, filename, pdfBuffer: pdf });
-      console.log('[intake-webhook] PDF uploaded to IntakeQ');
-    } catch (pdfErr: any) {
-      console.error('[intake-webhook] PDF generation/upload failed (continuing):', {
-        message: pdfErr?.message || String(pdfErr),
-        stack: pdfErr?.stack?.split('\n').slice(0, 3).join('\n'),
-      });
-      // Continue even if PDF fails - client is already created
+        console.log('[intake-webhook] PDF uploaded to IntakeQ');
+      } catch (pdfErr: any) {
+        console.error('[intake-webhook] PDF generation/upload failed (continuing):', {
+          message: pdfErr?.message || String(pdfErr),
+          stack: pdfErr?.stack?.split('\n').slice(0, 3).join('\n'),
+        });
+        // Continue even if PDF fails - client is already created
+      }
+    } else {
+      console.log('[intake-webhook] PDF upload temporarily disabled - use Google Script for PDFs');
     }
 
     // Store minimal link data for later payment webhook use
