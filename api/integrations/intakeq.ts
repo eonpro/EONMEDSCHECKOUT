@@ -211,16 +211,22 @@ export async function uploadClientPdf(params: {
 }): Promise<void> {
   const apiKey = requireIntakeQ();
 
+  console.log(`[intakeq] Uploading PDF to client ${params.clientId}, filename: ${params.filename}, size: ${params.pdfBuffer.length} bytes`);
+
   // Docs: POST /files/{clientId} (multipart/form-data, field name: file)
   const form = new FormData();
   const bytes = Buffer.isBuffer(params.pdfBuffer) ? params.pdfBuffer : Buffer.from(params.pdfBuffer);
-  // NOTE: TS 5.9 on Vercel is strict about BlobPart's ArrayBuffer type.
-  // Wrapping as Uint8Array ensures ArrayBuffer (not ArrayBufferLike).
-  const blob = new Blob([new Uint8Array(bytes)], { type: 'application/pdf' });
+  
+  console.log(`[intakeq] Converted to Buffer, size: ${bytes.length} bytes`);
+  
+  // Create blob with proper content type
+  const blob = new Blob([bytes], { type: 'application/pdf' });
   form.append('file', blob, params.filename);
 
   const maxRetries = 3;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    console.log(`[intakeq] Upload attempt ${attempt + 1}/${maxRetries + 1} for client ${params.clientId}`);
+    
     const res = await fetch(`${INTAKEQ_API_BASE}/files/${params.clientId}`, {
       method: 'POST',
       headers: {
@@ -231,6 +237,7 @@ export async function uploadClientPdf(params: {
     });
 
     const text = await res.text();
+    console.log(`[intakeq] Upload response status: ${res.status}, body: ${text.substring(0, 200)}`);
 
     if (res.status === 429 && attempt < maxRetries) {
       const retryAfter = res.headers.get('retry-after');
@@ -238,14 +245,17 @@ export async function uploadClientPdf(params: {
       const backoffMs = Number.isFinite(retryAfterMs)
         ? retryAfterMs
         : Math.min(5000, 400 * 2 ** attempt) + Math.floor(Math.random() * 150);
+      console.log(`[intakeq] Rate limited, retrying after ${backoffMs}ms...`);
       await sleep(backoffMs);
       continue;
     }
 
     if (!res.ok) {
+      console.error(`[intakeq] ❌ Upload failed: ${res.status} - ${text}`);
       throw new Error(`IntakeQ upload file error (${res.status}): ${text.substring(0, 500)}`);
     }
 
+    console.log(`[intakeq] ✅ PDF uploaded successfully to client ${params.clientId}`);
     return;
   }
 
