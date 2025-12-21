@@ -1,4 +1,18 @@
-import PDFDocument from 'pdfkit';
+// Dynamic import to avoid issues in Vercel serverless
+let PDFDocument: any;
+
+async function loadPDFKit() {
+  if (!PDFDocument) {
+    try {
+      // Use require for better compatibility with native modules
+      PDFDocument = require('pdfkit');
+    } catch (e: any) {
+      console.error('[pdf] Failed to load PDFKit:', e?.message || e);
+      throw new Error('PDF generation unavailable');
+    }
+  }
+  return PDFDocument;
+}
 
 export type PdfKeyValue = {
   label: string;
@@ -95,15 +109,16 @@ function formatIsoDate(iso?: string): string {
   });
 }
 
-function createDoc(): PDFKit.PDFDocument {
-  return new PDFDocument({
+async function createDoc(): Promise<any> {
+  const PDFDoc = await loadPDFKit();
+  return new PDFDoc({
     size: 'LETTER',
     margins: { top: 48, bottom: 48, left: 48, right: 48 },
     info: { Producer: 'EONMeds Checkout' },
   });
 }
 
-function collectPdf(doc: PDFKit.PDFDocument): Promise<Uint8Array> {
+function collectPdf(doc: any): Promise<Uint8Array> {
   return new Promise((resolve, reject) => {
     const chunks: Uint8Array[] = [];
     doc.on('data', (chunk: Uint8Array) => chunks.push(chunk));
@@ -122,7 +137,7 @@ function ensureSpace(doc: PDFKit.PDFDocument, neededHeight: number) {
   }
 }
 
-function header(doc: PDFKit.PDFDocument, title: string, subtitle?: string) {
+function header(doc: any, title: string, subtitle?: string) {
   // Professional header with branding
   const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
   
@@ -154,7 +169,7 @@ function header(doc: PDFKit.PDFDocument, title: string, subtitle?: string) {
   doc.moveDown(1);
 }
 
-function sectionTitle(doc: PDFKit.PDFDocument, title: string) {
+function sectionTitle(doc: any, title: string) {
   const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
   const y = doc.y;
   
@@ -171,7 +186,7 @@ function sectionTitle(doc: PDFKit.PDFDocument, title: string) {
   doc.moveDown(0.3);
 }
 
-function simpleField(doc: PDFKit.PDFDocument, label: string, value: string) {
+function simpleField(doc: any, label: string, value: string) {
   // Ultra-simple: label on one line, value on next
   doc.font('Helvetica').fontSize(8).fillColor('#6B7280').text(label.toUpperCase());
   doc.font('Helvetica-Bold').fontSize(10).fillColor('#000000').text(value || '-');
@@ -231,7 +246,7 @@ function categorizeAnswers(answers: PdfKeyValue[]): {
 }
 
 export async function generateIntakePdf(input: IntakePdfInput): Promise<Uint8Array> {
-  const doc = createDoc();
+  const doc = await createDoc();
 
   const subtitleParts: string[] = [];
   if (input.submittedAtIso) subtitleParts.push(`Submitted: ${formatIsoDate(input.submittedAtIso)}`);
@@ -497,7 +512,7 @@ export async function generateIntakePdf(input: IntakePdfInput): Promise<Uint8Arr
 }
 
 export async function generateInvoicePdf(input: InvoicePdfInput): Promise<Uint8Array> {
-  const doc = createDoc();
+  const doc = await createDoc();
 
   const subtitleParts: string[] = [];
   subtitleParts.push(`PaymentIntent: ${input.paymentIntentId}`);
