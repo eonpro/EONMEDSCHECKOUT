@@ -73,13 +73,14 @@ function formatPhone(phone) {
 }
 const phone = formatPhone(phoneRaw);
 
-// Address
-const addressField = safeGet('address') || {};
-const house = addressField.house || safeGetString('address [house]') || '';
-const street = addressField.street || safeGetString('address [street]') || '';
-const city = addressField.city || safeGetString('address [city]') || '';
-const stateCode = addressField.state_code || safeGetString('address [state]') || safeGetString('select-the-state-you-live-in') || '';
-const zip = addressField.zip || safeGetString('address [zip]') || '';
+// Address - These are SEPARATE TEXT COLUMNS in your Airtable, not a nested object
+const house = safeGetString('address [house]') || '';
+const street = safeGetString('address [street]') || '';
+const city = safeGetString('address [city]') || '';
+const stateFromColumn = safeGetString('address [state]') || '';
+const stateFromSelect = safeGetString('select-the-state-you-live-in') || '';
+const stateCode = stateFromColumn || stateFromSelect || '';
+const zip = safeGetString('address') || ''; // The zip appears to be in the main "address" column
 const apartment = safeGetString('apartment#') || '';
 const fullStreetAddress = `${house} ${street}`.trim();
 
