@@ -256,14 +256,17 @@ if (apartment) {
             headers: {
                 'X-Auth-Key': INTAKEQ_API_KEY,
                 'Content-Type': 'application/json',
+                'Accept': 'application/json',
             }
         });
         
-        if (getResponse.ok) {
-            const clientData = JSON.parse(await getResponse.text());
+        const getResponseText = await getResponse.text();
+        
+        if (getResponse.ok && getResponseText && !getResponseText.startsWith('<')) {
+            const clientData = JSON.parse(getResponseText);
             clientData.UnitNumber = apartment;
             
-            await fetch(`${INTAKEQ_API_BASE}/clients`, {
+            const updateResponse = await fetch(`${INTAKEQ_API_BASE}/clients`, {
                 method: 'POST',
                 headers: {
                     'X-Auth-Key': INTAKEQ_API_KEY,
@@ -271,7 +274,14 @@ if (apartment) {
                 },
                 body: JSON.stringify(clientData)
             });
-            console.log(`✅ Apartment updated: "${apartment}"`);
+            
+            if (updateResponse.ok) {
+                console.log(`✅ Apartment updated: "${apartment}"`);
+            } else {
+                console.log(`⚠️ Apartment update failed: ${updateResponse.status}`);
+            }
+        } else {
+            console.log(`⚠️ Could not get client data (received HTML page instead of JSON)`);
         }
     } catch (e) {
         console.log("Warning: Could not update apartment:", e.toString());
@@ -621,28 +631,41 @@ try {
         pdfUrl = pdfResult.url;
         console.log("✅ PDF generated:", pdfUrl);
         
-        // Download PDF from PDF.co
+        // Download PDF from PDF.co as base64
         const pdfDownload = await fetch(pdfUrl);
-        const pdfBlob = await pdfDownload.blob();
+        const pdfArrayBuffer = await pdfDownload.arrayBuffer();
         
-        // Upload to IntakeQ using Files API
-        const formData = new FormData();
-        formData.append('file', pdfBlob, `Intake_${firstName}_${lastName}.pdf`);
+        // Convert to base64
+        const pdfBytes = new Uint8Array(pdfArrayBuffer);
+        let binary = '';
+        for (let i = 0; i < pdfBytes.length; i++) {
+            binary += String.fromCharCode(pdfBytes[i]);
+        }
+        const pdfBase64 = btoa(binary);
         
+        console.log(`PDF downloaded (${pdfBytes.length} bytes), uploading to IntakeQ...`);
+        
+        // Upload to IntakeQ using base64 (FormData not available in Airtable)
         const uploadResponse = await fetch(`${INTAKEQ_API_BASE}/files/${clientId}`, {
             method: 'POST',
             headers: {
                 'X-Auth-Key': INTAKEQ_API_KEY,
+                'Content-Type': 'application/json',
             },
-            body: formData
+            body: JSON.stringify({
+                FileName: `Intake_${firstName}_${lastName}.pdf`,
+                FileDataBase64: pdfBase64,
+                Description: `Medical Intake Form - Submitted ${submissionDate}`
+            })
         });
+        
+        const uploadText = await uploadResponse.text();
         
         if (uploadResponse.ok) {
             console.log("✅ PDF uploaded to IntakeQ Files");
             pdfUploaded = true;
         } else {
-            const uploadError = await uploadResponse.text();
-            console.log(`⚠️ PDF upload failed (${uploadResponse.status}): ${uploadError.substring(0, 200)}`);
+            console.log(`⚠️ PDF upload failed (${uploadResponse.status}): ${uploadText.substring(0, 200)}`);
         }
     }
 } catch (e) {
@@ -658,9 +681,9 @@ const updateFields = {
     'IntakeQ Client ID': clientId.toString()
 };
 
-if (pdfUrl) {
-    updateFields['PDF URL'] = pdfUrl;
-}
+// Only add PDF URL if the field exists in your Airtable
+// Remove this line if you don't have a "PDF URL" field:
+// if (pdfUrl) updateFields['PDF URL'] = pdfUrl;
 
 await table.updateRecordAsync(recordId, updateFields);
 
