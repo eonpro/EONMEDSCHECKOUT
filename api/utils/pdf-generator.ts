@@ -493,9 +493,9 @@ export async function generateIntakePdf(input: IntakePdfInput): Promise<Uint8Arr
         if (consent.value === undefined) continue;
         
         const status = consent.value === true || String(consent.value).toLowerCase().includes('agree') 
-          ? '✓ Accepted' 
-          : '✗ Not Accepted';
-        const statusColor = status.includes('✓') ? rgb(0.36, 0.72, 0.36) : rgb(0.8, 0.2, 0.2);
+          ? '[X] Accepted' 
+          : '[ ] Not Accepted';
+        const statusColor = status.includes('[X]') ? rgb(0.36, 0.72, 0.36) : rgb(0.8, 0.2, 0.2);
         
         page.drawText(consent.label, {
           x: margin + 15,
@@ -770,7 +770,7 @@ export async function generateInvoicePdf(input: InvoicePdfInput): Promise<Uint8A
     });
     
     y -= 12;
-    page.drawText('✓ PAYMENT RECEIVED - READY FOR PRESCRIPTION REVIEW', {
+    page.drawText('[PAID] PAYMENT RECEIVED - READY FOR PRESCRIPTION REVIEW', {
       x: margin + 15,
       y: y,
       size: 10,
