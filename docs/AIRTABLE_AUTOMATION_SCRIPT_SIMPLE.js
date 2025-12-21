@@ -335,6 +335,28 @@ try {
     });
     console.log(`✅ Added tag: ${languageTag}`);
     
+    // Add referral source tag (Who Referred You)
+    const referralSource = safeGet('Who Referred You') || 
+                          safeGet('Referral Source') ||
+                          safeGet('referral_source') ||
+                          safeGet('Referrer') ||
+                          '';
+    
+    if (referralSource) {
+        await fetch(`${INTAKEQ_API_BASE}/clientTags`, {
+            method: 'POST',
+            headers: {
+                'X-Auth-Key': INTAKEQ_API_KEY,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                ClientId: clientId,
+                Tag: `Referral: ${referralSource}`
+            })
+        });
+        console.log(`✅ Added referral tag: Referral: ${referralSource}`);
+    }
+    
 } catch (e) {
     console.log("Warning: Could not add tags:", e.toString());
 }
