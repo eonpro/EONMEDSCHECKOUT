@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import FormData from 'form-data';
 
 const INTAKEQ_API_BASE = 'https://intakeq.com/api/v1';
 
@@ -214,55 +213,61 @@ export async function uploadClientPdf(params: {
 
   console.log(`[intakeq] Uploading PDF to client ${params.clientId}, filename: ${params.filename}, size: ${params.pdfBuffer.length} bytes`);
 
-  // Docs: POST /files/{clientId} (multipart/form-data, field name: file)
-  const form = new FormData();
   const bytes = Buffer.isBuffer(params.pdfBuffer) ? params.pdfBuffer : Buffer.from(params.pdfBuffer);
   
-  console.log(`[intakeq] Converted to Buffer, size: ${bytes.length} bytes`);
+  // Try base64 approach - some APIs prefer this
+  const base64Data = bytes.toString('base64');
   
-  // Append file with proper options for IntakeQ
-  form.append('file', bytes, {
-    filename: params.filename,
-    contentType: 'application/pdf',
-  });
+  console.log(`[intakeq] Converted to base64, size: ${base64Data.length} characters`);
 
   const maxRetries = 3;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     console.log(`[intakeq] Upload attempt ${attempt + 1}/${maxRetries + 1} for client ${params.clientId}`);
     
-    const res = await fetch(`${INTAKEQ_API_BASE}/files/${params.clientId}`, {
-      method: 'POST',
-      headers: {
-        'X-Auth-Key': apiKey,
-        ...form.getHeaders(), // Let form-data set the correct Content-Type with boundary
-      },
-      body: form as any,
-    });
+    try {
+      const res = await fetch(`${INTAKEQ_API_BASE}/files/${params.clientId}`, {
+        method: 'POST',
+        headers: {
+          'X-Auth-Key': apiKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          FileName: params.filename,
+          FileContent: base64Data,
+        }),
+      });
 
-    const text = await res.text();
-    console.log(`[intakeq] Upload response status: ${res.status}, body: ${text.substring(0, 200)}`);
+      const text = await res.text();
+      console.log(`[intakeq] Upload response status: ${res.status}, body: ${text.substring(0, 200)}`);
 
-    if (res.status === 429 && attempt < maxRetries) {
-      const retryAfter = res.headers.get('retry-after');
-      const retryAfterMs = retryAfter ? Number(retryAfter) * 1000 : NaN;
-      const backoffMs = Number.isFinite(retryAfterMs)
-        ? retryAfterMs
-        : Math.min(5000, 400 * 2 ** attempt) + Math.floor(Math.random() * 150);
-      console.log(`[intakeq] Rate limited, retrying after ${backoffMs}ms...`);
-      await sleep(backoffMs);
-      continue;
+      if (res.status === 429 && attempt < maxRetries) {
+        const retryAfter = res.headers.get('retry-after');
+        const retryAfterMs = retryAfter ? Number(retryAfter) * 1000 : NaN;
+        const backoffMs = Number.isFinite(retryAfterMs)
+          ? retryAfterMs
+          : Math.min(5000, 400 * 2 ** attempt) + Math.floor(Math.random() * 150);
+        console.log(`[intakeq] Rate limited, retrying after ${backoffMs}ms...`);
+        await sleep(backoffMs);
+        continue;
+      }
+
+      if (!res.ok) {
+        console.error(`[intakeq] ❌ Upload failed with JSON approach: ${res.status} - ${text}`);
+        // If JSON fails, the API likely doesn't support it - fall through to error
+        throw new Error(`IntakeQ upload file error (${res.status}): ${text.substring(0, 500)}`);
+      }
+
+      console.log(`[intakeq] ✅ PDF uploaded successfully to client ${params.clientId}`);
+      return;
+    } catch (err: any) {
+      console.error(`[intakeq] Upload attempt ${attempt + 1} failed:`, err?.message);
+      if (attempt === maxRetries) {
+        throw err;
+      }
     }
-
-    if (!res.ok) {
-      console.error(`[intakeq] ❌ Upload failed: ${res.status} - ${text}`);
-      throw new Error(`IntakeQ upload file error (${res.status}): ${text.substring(0, 500)}`);
-    }
-
-    console.log(`[intakeq] ✅ PDF uploaded successfully to client ${params.clientId}`);
-    return;
   }
 
-  throw new Error('IntakeQ upload file error (429): Too many requests.');
+  throw new Error('IntakeQ upload file error: Max retries exceeded');
 }
 
 export async function ensureClient(params: CreateIntakeQClientInput): Promise<{ client: IntakeQClient; created: boolean }> {
