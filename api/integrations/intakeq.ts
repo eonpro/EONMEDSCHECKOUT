@@ -198,6 +198,11 @@ export async function createClient(input: CreateIntakeQClientInput): Promise<Int
     console.log(`[intakeq] Full payload.Address: "${payload.Address}"`);
   }
 
+  // Log the EXACT payload being sent to IntakeQ
+  console.log('[intakeq] ========== INTAKEQ CREATE CLIENT PAYLOAD ==========');
+  console.log(JSON.stringify(payload, null, 2));
+  console.log('[intakeq] ====================================================');
+
   // Docs: POST /clients
   const created = await intakeQRequest<any>('/clients', { method: 'POST', body: payload });
 
