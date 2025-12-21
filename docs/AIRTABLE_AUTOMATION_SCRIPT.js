@@ -107,25 +107,43 @@ async function intakeQRequest(endpoint, method, body) {
 // EXTRACT DATA FROM AIRTABLE RECORD
 // ============================================================================
 
-const fields = record.getCellValue;
+// Helper to safely get field value (handles field name variations)
+function getField(record, ...fieldNames) {
+    for (const name of fieldNames) {
+        try {
+            const value = record.getCellValue(name);
+            if (value !== null && value !== undefined) {
+                return value;
+            }
+        } catch (e) {
+            // Field doesn't exist, try next
+            continue;
+        }
+    }
+    return null;
+}
 
-const firstName = record.getCellValue('firstname') || '';
-const lastName = record.getCellValue('lastname') || '';
-const email = record.getCellValue('email') || '';
-const phone = record.getCellValue('phone-input-id-cc54007b') || '';
-const dob = record.getCellValue('dob') || '';
-const gender = record.getCellValue('gender') || '';
+const firstName = getField(record, 'firstname', 'First Name', 'first_name') || '';
+const lastName = getField(record, 'lastname', 'Last Name', 'last_name') || '';
+const email = getField(record, 'email', 'Email') || '';
+const phone = getField(record, 'phone', 'Phone', 'phone-input-id-cc54007b', 'Phone Number') || '';
+const dob = getField(record, 'dob', 'Date of Birth', 'DOB') || '';
+const gender = getField(record, 'gender', 'Gender') || '';
 
-// Address fields
-const addressObj = record.getCellValue('address') || {};
-const street = addressObj.street || '';
-const house = addressObj.house || '';
-const city = addressObj.city || '';
-const stateCode = addressObj.state_code || '';
-const zip = addressObj.zip || '';
+// Address fields - might be nested object or separate fields
+let addressObj = getField(record, 'address', 'Address');
+if (!addressObj || typeof addressObj !== 'object') {
+    addressObj = {};
+}
 
-// CRITICAL: Apartment number
-const apartment = record.getCellValue('apartment#') || '';
+const street = addressObj.street || getField(record, 'street', 'Street') || '';
+const house = addressObj.house || getField(record, 'house', 'House') || '';
+const city = addressObj.city || getField(record, 'city', 'City') || '';
+const stateCode = addressObj.state_code || getField(record, 'state_code', 'State', 'state') || '';
+const zip = addressObj.zip || getField(record, 'zip', 'Zip', 'zipcode') || '';
+
+// CRITICAL: Apartment number - try multiple field names
+const apartment = getField(record, 'apartment#', 'apartment', 'Apartment', 'unit', 'Unit', 'apt', 'Apt') || '';
 
 console.log("Extracted data:");
 console.log("- Name:", firstName, lastName);
@@ -136,11 +154,11 @@ console.log("- Street:", house, street);
 console.log("- City:", city, stateCode, zip);
 
 // Height and weight
-const feet = record.getCellValue('feet') || '';
-const inches = record.getCellValue('inches') || '';
-const startingWeight = record.getCellValue('starting_weight') || '';
-const bmi = record.getCellValue('BMI') || '';
-const idealWeight = record.getCellValue('idealweight') || '';
+const feet = getField(record, 'feet', 'Feet') || '';
+const inches = getField(record, 'inches', 'Inches') || '';
+const startingWeight = getField(record, 'starting_weight', 'Starting Weight', 'weight') || '';
+const bmi = getField(record, 'BMI', 'bmi') || '';
+const idealWeight = getField(record, 'idealweight', 'Ideal Weight', 'ideal_weight') || '';
 
 // ============================================================================
 // CREATE INTAKEQ PATIENT
@@ -335,7 +353,7 @@ async function generateIntakePDF(record, clientId) {
     // For now, return a simple text-based PDF
     // In Airtable, we don't have pdf-lib, so we'll use HTML conversion
     
-    const patientName = `${record.getCellValue('firstname')} ${record.getCellValue('lastname')}`;
+    const patientName = `${firstName} ${lastName}`;
     const submittedDate = new Date().toLocaleString('en-US', {
         weekday: 'long',
         year: 'numeric',
@@ -376,25 +394,25 @@ async function generateIntakePDF(record, clientId) {
     <div class="section">
         <h2>PATIENT INFORMATION</h2>
         <div class="field"><span class="label">NAME</span><span class="value">${patientName}</span></div>
-        <div class="field"><span class="label">EMAIL</span><span class="value">${record.getCellValue('email') || 'Not provided'}</span></div>
-        <div class="field"><span class="label">PHONE</span><span class="value">${record.getCellValue('phone-input-id-cc54007b') || 'Not provided'}</span></div>
-        <div class="field"><span class="label">DATE OF BIRTH</span><span class="value">${record.getCellValue('dob') || 'Not provided'}</span></div>
-        <div class="field"><span class="label">GENDER</span><span class="value">${record.getCellValue('gender') || 'Not provided'}</span></div>
+        <div class="field"><span class="label">EMAIL</span><span class="value">${email || 'Not provided'}</span></div>
+        <div class="field"><span class="label">PHONE</span><span class="value">${phone || 'Not provided'}</span></div>
+        <div class="field"><span class="label">DATE OF BIRTH</span><span class="value">${dob || 'Not provided'}</span></div>
+        <div class="field"><span class="label">GENDER</span><span class="value">${gender || 'Not provided'}</span></div>
     </div>
     
     <div class="section">
         <h2>SHIPPING ADDRESS</h2>
-        <div class="field"><span class="label">STREET ADDRESS</span><span class="value">${record.getCellValue('address')?.house || ''} ${record.getCellValue('address')?.street || ''}</span></div>
-        <div class="field"><span class="label">APT/SUITE</span><span class="value">${record.getCellValue('apartment#') || 'Not provided'}</span></div>
-        <div class="field"><span class="label">CITY, STATE, ZIP</span><span class="value">${record.getCellValue('address')?.city || ''}, ${record.getCellValue('address')?.state_code || ''} ${record.getCellValue('address')?.zip || ''}</span></div>
+        <div class="field"><span class="label">STREET ADDRESS</span><span class="value">${house} ${street}</span></div>
+        <div class="field"><span class="label">APT/SUITE</span><span class="value">${apartment || 'Not provided'}</span></div>
+        <div class="field"><span class="label">CITY, STATE, ZIP</span><span class="value">${city}, ${stateCode} ${zip}</span></div>
     </div>
     
     <div class="section">
         <h2>PHYSICAL MEASUREMENTS</h2>
-        <div class="field"><span class="label">HEIGHT</span><span class="value">${record.getCellValue('feet') || '0'}' ${record.getCellValue('inches') || '0'}"</span></div>
-        <div class="field"><span class="label">STARTING WEIGHT</span><span class="value">${record.getCellValue('starting_weight') || 'Not provided'}</span></div>
-        <div class="field"><span class="label">BMI</span><span class="value">${record.getCellValue('BMI') || 'Not provided'}</span></div>
-        <div class="field"><span class="label">IDEAL WEIGHT</span><span class="value">${record.getCellValue('idealweight') || 'Not provided'}</span></div>
+        <div class="field"><span class="label">HEIGHT</span><span class="value">${feet || '0'}' ${inches || '0'}"</span></div>
+        <div class="field"><span class="label">STARTING WEIGHT</span><span class="value">${startingWeight || 'Not provided'}</span></div>
+        <div class="field"><span class="label">BMI</span><span class="value">${bmi || 'Not provided'}</span></div>
+        <div class="field"><span class="label">IDEAL WEIGHT</span><span class="value">${idealWeight || 'Not provided'}</span></div>
     </div>
     
     <div class="footer">
