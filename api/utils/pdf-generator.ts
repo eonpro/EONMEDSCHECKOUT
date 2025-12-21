@@ -258,7 +258,7 @@ export async function generateIntakePdf(input: IntakePdfInput): Promise<Uint8Arr
     'are provided by licensed healthcare providers employed by or contracted with Vital Link PLLC.',
     { align: 'left' }
   );
-  doc.y += 50 - (doc.y % 50) + 8; // Move past the box
+  doc.y += 58; // Move past the MSO disclosure box
   doc.moveDown(1);
 
   // ========================================
