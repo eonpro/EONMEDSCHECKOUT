@@ -43,7 +43,7 @@ export type IntakePdfInput = {
 export type InvoicePdfInput = {
   paymentIntentId: string;
   paidAtIso?: string;
-  amount: number; // cents
+  amount: number;
   currency: string;
   patient: {
     name?: string;
@@ -71,8 +71,8 @@ function formatIsoDate(iso?: string): string {
   if (Number.isNaN(d.getTime())) return iso;
   return d.toLocaleString('en-US', {
     year: 'numeric',
-    month: 'short',
-    day: '2-digit',
+    month: 'long',
+    day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
   });
@@ -83,307 +83,518 @@ function formatMoney(amountCents: number, currency: string): string {
   return `$${dollars} ${currency.toUpperCase()}`;
 }
 
+function wrapText(text: string, maxWidth: number, fontSize: number): string[] {
+  const words = text.split(' ');
+  const lines: string[] = [];
+  let currentLine = '';
+  const avgCharWidth = fontSize * 0.5;
+  const maxChars = Math.floor(maxWidth / avgCharWidth);
+  
+  for (const word of words) {
+    const testLine = currentLine ? currentLine + ' ' + word : word;
+    if (testLine.length <= maxChars) {
+      currentLine = testLine;
+    } else {
+      if (currentLine) lines.push(currentLine);
+      currentLine = word;
+    }
+  }
+  
+  if (currentLine) lines.push(currentLine);
+  return lines;
+}
+
+// Categorize answers into sections (matching Google Script logic)
+function categorizeAnswers(answers: PdfKeyValue[]): Record<string, PdfKeyValue[]> {
+  const categories: Record<string, PdfKeyValue[]> = {
+    'Patient Information': [],
+    'Physical Measurements': [],
+    'Medical History': [],
+    'GLP-1 Treatment History': [],
+    'Lifestyle & Habits': [],
+    'Treatment Readiness': [],
+    'Additional Information': [],
+  };
+  
+  for (const answer of answers) {
+    const label = answer.label.toLowerCase();
+    
+    if (label.includes('name') || label.includes('gender') || label.includes('dob') || 
+        label.includes('birth') || label.includes('email') || label.includes('phone')) {
+      categories['Patient Information'].push(answer);
+    } else if (label.includes('weight') || label.includes('height') || label.includes('bmi') || 
+               label.includes('feet') || label.includes('inches')) {
+      categories['Physical Measurements'].push(answer);
+    } else if (label.includes('glp') || label.includes('semaglutide') || label.includes('ozempic') || 
+               label.includes('wegovy') || label.includes('dose') || label.includes('medication') ||
+               label.includes('success') || label.includes('side effect')) {
+      categories['GLP-1 Treatment History'].push(answer);
+    } else if (label.includes('activity') || label.includes('alcohol') || label.includes('exercise')) {
+      categories['Lifestyle & Habits'].push(answer);
+    } else if (label.includes('commitment') || label.includes('hear about') || label.includes('life change')) {
+      categories['Treatment Readiness'].push(answer);
+    } else if (label.includes('diabetes') || label.includes('thyroid') || label.includes('neoplasia') || 
+               label.includes('pancreatitis') || label.includes('pregnant') || label.includes('allergy') || 
+               label.includes('blood') || label.includes('medical') || label.includes('health') ||
+               label.includes('chronic') || label.includes('condition') || label.includes('illness') ||
+               label.includes('disease') || label.includes('diagnosed') || label.includes('surgeries') ||
+               label.includes('gastroparesis') || label.includes('cancer') || label.includes('breastfeeding')) {
+      categories['Medical History'].push(answer);
+    } else {
+      categories['Additional Information'].push(answer);
+    }
+  }
+  
+  return categories;
+}
+
 export async function generateIntakePdf(input: IntakePdfInput): Promise<Uint8Array> {
   console.log('[pdf] Starting intake PDF generation with pdf-lib...');
   
   try {
     const pdfDoc = await PDFDocument.create();
-    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
     
     let page = pdfDoc.addPage([612, 792]); // Letter size
     const { width, height } = page.getSize();
-    const margin = 50;
-    let yPosition = height - margin;
+    const margin = 40;
+    let y = height - margin;
     
-    const lineHeight = 15;
-    const sectionSpacing = 20;
+    const sectionBg = rgb(0.925, 0.937, 0.906); // #ECEFE7
+    const brandGreen = rgb(0.298, 0.686, 0.314); // #4CAF50
+    const textDark = rgb(0, 0, 0);
+    const textGray = rgb(0.4, 0.4, 0.4);
+    const textLight = rgb(0.6, 0.6, 0.6);
     
-    // Helper to add new page if needed
     const checkSpace = (needed: number) => {
-      if (yPosition - needed < margin) {
+      if (y - needed < margin + 20) {
         page = pdfDoc.addPage([612, 792]);
-        yPosition = height - margin;
+        y = height - margin;
       }
     };
     
+    // ========== HEADER: EONMeds Logo ==========
+    checkSpace(60);
+    page.drawText('EONMeds', {
+      x: width / 2 - 60,
+      y: y,
+      size: 32,
+      font: fontBold,
+      color: brandGreen,
+    });
+    y -= 50;
+    
     // Title
-    page.drawText('EONMeds Medical Intake Form', {
-      x: margin,
-      y: yPosition,
+    page.drawText('Medical Intake Form', {
+      x: width / 2 - 90,
+      y: y,
       size: 18,
       font: fontBold,
-      color: rgb(0, 0, 0),
+      color: textDark,
     });
-    yPosition -= 25;
+    y -= 20;
     
-    // MSO Disclosure
-    page.drawText('MEDICAL SERVICE ORGANIZATION DISCLOSURE', {
-      x: margin,
-      y: yPosition,
+    // Subtitle
+    const subtitle = `Submitted on ${formatIsoDate(input.submittedAtIso)}`;
+    page.drawText(subtitle, {
+      x: width / 2 - (subtitle.length * 3),
+      y: y,
       size: 10,
-      font: fontBold,
-      color: rgb(0.2, 0.2, 0.2),
+      font: fontRegular,
+      color: textGray,
     });
-    yPosition -= 15;
+    y -= 30;
     
-    const msoText = 'Apollo Based Health, LLC dba EONMeds operates as a Medical Service Organization (MSO) providing non-clinical administrative and business services on behalf of Vital Link PLLC, a Wyoming-licensed medical practice.';
-    const msoLines = wrapText(msoText, 75);
-    for (const line of msoLines) {
-      checkSpace(lineHeight);
-      page.drawText(line, {
-        x: margin,
-        y: yPosition,
-        size: 8,
-        font,
-        color: rgb(0, 0, 0),
-      });
-      yPosition -= lineHeight;
-    }
-    yPosition -= sectionSpacing;
-    
-    // Submission Info
-    if (input.submittedAtIso) {
-      checkSpace(lineHeight);
-      page.drawText(`Submitted: ${formatIsoDate(input.submittedAtIso)}`, {
-        x: margin,
-        y: yPosition,
-        size: 9,
-        font,
-      });
-      yPosition -= lineHeight;
-    }
-    
-    if (input.intakeId) {
-      checkSpace(lineHeight);
-      page.drawText(`Intake ID: ${input.intakeId}`, {
-        x: margin,
-        y: yPosition,
-        size: 9,
-        font,
-      });
-      yPosition -= lineHeight;
-    }
-    
-    yPosition -= sectionSpacing;
-    
-    // Patient Information
-    checkSpace(25);
-    page.drawText('I. Patient Information', {
+    // ========== MSO DISCLOSURE BOX ==========
+    checkSpace(80);
+    // Draw background box
+    page.drawRectangle({
       x: margin,
-      y: yPosition,
+      y: y - 65,
+      width: width - 2 * margin,
+      height: 70,
+      color: rgb(0.95, 0.95, 0.95),
+      borderColor: rgb(0.8, 0.8, 0.8),
+      borderWidth: 1,
+    });
+    
+    y -= 15;
+    page.drawText('MANAGEMENT SERVICE ORGANIZATION DISCLOSURE', {
+      x: margin + 10,
+      y: y,
+      size: 9,
+      font: fontBold,
+      color: textDark,
+    });
+    y -= 15;
+    
+    const msoText = 'Apollo Based Health, LLC dba EONMeds operates as a Management Service Organization (MSO) ' +
+                    'providing non-clinical administrative and business services on behalf of Vital Link PLLC, ' +
+                    'a Wyoming-licensed medical practice. All clinical services, medical decisions, and prescriptions ' +
+                    'are provided by licensed healthcare providers employed by or contracted with Vital Link PLLC.';
+    
+    const msoLines = wrapText(msoText, width - 2 * margin - 20, 8);
+    for (const line of msoLines) {
+      page.drawText(line, {
+        x: margin + 10,
+        y: y,
+        size: 8,
+        font: fontRegular,
+        color: textDark,
+      });
+      y -= 12;
+    }
+    
+    y -= 25;
+    
+    // ========== SECTION: Patient Information ==========
+    checkSpace(120);
+    // Section background
+    page.drawRectangle({
+      x: margin,
+      y: y - 100,
+      width: width - 2 * margin,
+      height: 110,
+      color: sectionBg,
+    });
+    
+    y -= 15;
+    page.drawText('I. PATIENT INFORMATION', {
+      x: margin + 15,
+      y: y,
       size: 12,
       font: fontBold,
+      color: textDark,
     });
-    yPosition -= 20;
+    y -= 25;
     
+    const patientName = `${input.patient.firstName || ''} ${input.patient.lastName || ''}`.trim();
     const patientFields = [
-      { label: 'Name', value: `${input.patient.firstName || ''} ${input.patient.lastName || ''}`.trim() },
-      { label: 'Email', value: input.patient.email },
-      { label: 'Phone', value: input.patient.phone },
-      { label: 'Date of Birth', value: input.patient.dateOfBirth },
-      { label: 'Gender', value: input.patient.gender },
+      { label: 'NAME', value: patientName, col: 1 },
+      { label: 'GENDER', value: input.patient.gender || 'Not provided', col: 2 },
+      { label: 'EMAIL', value: input.patient.email || 'Not provided', col: 1 },
+      { label: 'PHONE', value: input.patient.phone || 'Not provided', col: 2 },
+      { label: 'DATE OF BIRTH', value: input.patient.dateOfBirth || 'Not provided', col: 1 },
     ];
     
+    let col1Y = y;
+    let col2Y = y;
+    const colWidth = (width - 2 * margin - 30) / 2;
+    
     for (const field of patientFields) {
-      if (field.value) {
-        checkSpace(lineHeight);
-        page.drawText(`${field.label}: ${field.value}`, {
-          x: margin + 10,
-          y: yPosition,
-          size: 10,
-          font,
-        });
-        yPosition -= lineHeight;
+      const x = field.col === 1 ? margin + 15 : margin + 15 + colWidth + 10;
+      const currentY = field.col === 1 ? col1Y : col2Y;
+      
+      // Label
+      page.drawText(field.label, {
+        x,
+        y: currentY,
+        size: 8,
+        font: fontBold,
+        color: textLight,
+      });
+      
+      // Value
+      page.drawText(field.value.substring(0, 40), {
+        x,
+        y: currentY - 12,
+        size: 10,
+        font: fontRegular,
+        color: textDark,
+      });
+      
+      if (field.col === 1) {
+        col1Y -= 30;
+      } else {
+        col2Y -= 30;
       }
     }
     
-    yPosition -= sectionSpacing;
+    y = Math.min(col1Y, col2Y) - 10;
     
-    // Shipping Address
-    checkSpace(25);
-    page.drawText('II. Shipping Address', {
+    // ========== SECTION: Shipping Address ==========
+    checkSpace(100);
+    page.drawRectangle({
       x: margin,
-      y: yPosition,
+      y: y - 90,
+      width: width - 2 * margin,
+      height: 100,
+      color: sectionBg,
+    });
+    
+    y -= 15;
+    page.drawText('II. SHIPPING ADDRESS', {
+      x: margin + 15,
+      y: y,
       size: 12,
       font: fontBold,
+      color: textDark,
     });
-    yPosition -= 20;
+    y -= 25;
     
-    if (input.patient.addressLine1) {
-      checkSpace(lineHeight);
-      page.drawText(input.patient.addressLine1, {
-        x: margin + 10,
-        y: yPosition,
-        size: 10,
-        font,
-      });
-      yPosition -= lineHeight;
-    }
+    page.drawText('STREET ADDRESS', {
+      x: margin + 15,
+      y: y,
+      size: 8,
+      font: fontBold,
+      color: textLight,
+    });
+    y -= 12;
+    page.drawText((input.patient.addressLine1 || 'Not provided').substring(0, 60), {
+      x: margin + 15,
+      y: y,
+      size: 10,
+      font: fontRegular,
+      color: textDark,
+    });
+    y -= 20;
     
     if (input.patient.addressLine2) {
-      checkSpace(lineHeight);
-      page.drawText(input.patient.addressLine2, {
-        x: margin + 10,
-        y: yPosition,
-        size: 10,
-        font,
-      });
-      yPosition -= lineHeight;
-    }
-    
-    const cityStateZip = [
-      input.patient.city,
-      input.patient.state,
-      input.patient.zipCode,
-    ].filter(Boolean).join(', ');
-    
-    if (cityStateZip) {
-      checkSpace(lineHeight);
-      page.drawText(cityStateZip, {
-        x: margin + 10,
-        y: yPosition,
-        size: 10,
-        font,
-      });
-      yPosition -= lineHeight;
-    }
-    
-    yPosition -= sectionSpacing;
-    
-    // Medical History / Answers
-    if (input.answers && input.answers.length > 0) {
-      checkSpace(25);
-      page.drawText('III. Medical History & Assessment', {
-        x: margin,
-        y: yPosition,
-        size: 12,
+      page.drawText('APT/SUITE', {
+        x: margin + 15,
+        y: y,
+        size: 8,
         font: fontBold,
+        color: textLight,
       });
-      yPosition -= 20;
+      y -= 12;
+      page.drawText(input.patient.addressLine2.substring(0, 40), {
+        x: margin + 15,
+        y: y,
+        size: 10,
+        font: fontRegular,
+        color: textDark,
+      });
+      y -= 20;
+    }
+    
+    // City, State, Zip in row
+    const cityStateZip = `${input.patient.city || ''}, ${input.patient.state || ''} ${input.patient.zipCode || ''}`.trim();
+    page.drawText('CITY, STATE, ZIP', {
+      x: margin + 15,
+      y: y,
+      size: 8,
+      font: fontBold,
+      color: textLight,
+    });
+    y -= 12;
+    page.drawText(cityStateZip || 'Not provided', {
+      x: margin + 15,
+      y: y,
+      size: 10,
+      font: fontRegular,
+      color: textDark,
+    });
+    y -= 30;
+    
+    // ========== CATEGORIZED Q&A SECTIONS ==========
+    const categories = categorizeAnswers(input.answers);
+    
+    for (const [categoryName, fields] of Object.entries(categories)) {
+      if (fields.length === 0) continue;
       
-      for (const answer of input.answers) {
-        const label = answer.label || 'Question';
-        const value = answer.value || 'Not provided';
-        
-        // Question
-        checkSpace(lineHeight * 2);
-        const questionLines = wrapText(`Q: ${label}`, 70);
-        for (const line of questionLines) {
-          page.drawText(line, {
-            x: margin + 10,
-            y: yPosition,
-            size: 9,
-            font: fontBold,
-            color: rgb(0.7, 0, 0),
-          });
-          yPosition -= lineHeight;
-        }
-        
-        // Answer
-        const answerLines = wrapText(`A: ${value}`, 70);
-        for (const line of answerLines) {
-          checkSpace(lineHeight);
-          page.drawText(line, {
-            x: margin + 10,
-            y: yPosition,
-            size: 10,
-            font,
-            color: rgb(0, 0.4, 0),
-          });
-          yPosition -= lineHeight;
-        }
-        
-        yPosition -= 5; // Small gap between Q&A pairs
-      }
-    }
-    
-    yPosition -= sectionSpacing;
-    
-    // Consents Section
-    if (input.consents) {
-      checkSpace(25);
-      page.drawText('VIII. Consent Agreements', {
+      checkSpace(60);
+      
+      // Section header
+      const sectionHeight = Math.min(fields.length * 40 + 40, 300);
+      page.drawRectangle({
         x: margin,
-        y: yPosition,
+        y: y - sectionHeight,
+        width: width - 2 * margin,
+        height: sectionHeight + 10,
+        color: sectionBg,
+      });
+      
+      y -= 15;
+      page.drawText(categoryName.toUpperCase(), {
+        x: margin + 15,
+        y: y,
         size: 12,
         font: fontBold,
+        color: textDark,
       });
-      yPosition -= 20;
+      y -= 25;
+      
+      // Draw fields in two-column grid
+      col1Y = y;
+      col2Y = y;
+      let colToggle = 1;
+      
+      for (const field of fields) {
+        const fieldX = colToggle === 1 ? margin + 15 : margin + 15 + colWidth + 10;
+        const fieldY = colToggle === 1 ? col1Y : col2Y;
+        
+        checkSpace(40);
+        
+        // Question label (uppercase)
+        const labelText = field.label.toUpperCase().substring(0, 50);
+        page.drawText(labelText, {
+          x: fieldX,
+          y: fieldY,
+          size: 7,
+          font: fontBold,
+          color: textLight,
+        });
+        
+        // Answer value
+        const valueText = (field.value || 'Not provided').substring(0, 50);
+        page.drawText(valueText, {
+          x: fieldX,
+          y: fieldY - 11,
+          size: 9,
+          font: fontRegular,
+          color: textDark,
+        });
+        
+        if (colToggle === 1) {
+          col1Y -= 35;
+          colToggle = 2;
+        } else {
+          col2Y -= 35;
+          colToggle = 1;
+        }
+      }
+      
+      y = Math.min(col1Y, col2Y) - 15;
+    }
+    
+    // ========== SECTION: Consent Agreements ==========
+    if (input.consents) {
+      checkSpace(120);
+      page.drawRectangle({
+        x: margin,
+        y: y - 110,
+        width: width - 2 * margin,
+        height: 120,
+        color: sectionBg,
+      });
+      
+      y -= 15;
+      page.drawText('CONSENT AGREEMENTS', {
+        x: margin + 15,
+        y: y,
+        size: 12,
+        font: fontBold,
+        color: textDark,
+      });
+      y -= 25;
       
       const consents = [
         { label: 'Terms & Conditions', value: input.consents.termsAndConditions },
         { label: 'Privacy Policy', value: input.consents.privacyPolicy },
         { label: 'Telehealth Consent', value: input.consents.telehealthConsent },
         { label: 'Cancellation Policy', value: input.consents.cancellationPolicy },
-        { label: 'Florida Weight Loss Consent', value: input.consents.floridaWeightLoss },
-        { label: 'Florida General Consent', value: input.consents.floridaConsent },
+        { label: 'Florida Weight Loss', value: input.consents.floridaWeightLoss },
+        { label: 'Florida Consent', value: input.consents.floridaConsent },
       ];
       
       for (const consent of consents) {
-        if (consent.value) {
-          checkSpace(lineHeight);
-          const status = consent.value === true || consent.value === 'true' || 
-                        String(consent.value).toLowerCase().includes('agree') ? '✓ Accepted' : String(consent.value);
-          page.drawText(`${consent.label}: ${status}`, {
-            x: margin + 10,
-            y: yPosition,
-            size: 10,
-            font,
-          });
-          yPosition -= lineHeight;
-        }
+        if (consent.value === undefined) continue;
+        
+        const status = consent.value === true || String(consent.value).toLowerCase().includes('agree') 
+          ? '✓ Accepted' 
+          : '✗ Not Accepted';
+        const statusColor = status.includes('✓') ? rgb(0.36, 0.72, 0.36) : rgb(0.8, 0.2, 0.2);
+        
+        page.drawText(consent.label, {
+          x: margin + 15,
+          y: y,
+          size: 9,
+          font: fontRegular,
+          color: textDark,
+        });
+        
+        page.drawText(status, {
+          x: width - margin - 80,
+          y: y,
+          size: 9,
+          font: fontBold,
+          color: statusColor,
+        });
+        
+        y -= 15;
       }
+      
+      y -= 20;
     }
     
-    yPosition -= sectionSpacing;
-    
-    // E-Signature
-    checkSpace(40);
-    page.drawText('IX. Electronic Signature', {
+    // ========== SECTION: Electronic Signature ==========
+    checkSpace(80);
+    page.drawRectangle({
       x: margin,
-      y: yPosition,
+      y: y - 70,
+      width: width - 2 * margin,
+      height: 80,
+      color: sectionBg,
+    });
+    
+    y -= 15;
+    page.drawText('ELECTRONIC SIGNATURE', {
+      x: margin + 15,
+      y: y,
       size: 12,
       font: fontBold,
+      color: textDark,
     });
-    yPosition -= 20;
+    y -= 25;
     
-    const patientName = `${input.patient.firstName || ''} ${input.patient.lastName || ''}`.trim();
-    if (patientName) {
-      checkSpace(lineHeight);
-      page.drawText(`E-Signed by: ${patientName}`, {
-        x: margin + 10,
-        y: yPosition,
-        size: 10,
-        font: fontBold,
-      });
-      yPosition -= lineHeight;
-    }
+    page.drawText(`E-Signed by: ${patientName || 'Unknown'}`, {
+      x: margin + 15,
+      y: y,
+      size: 10,
+      font: fontBold,
+      color: textDark,
+    });
+    y -= 15;
     
-    if (input.submittedAtIso) {
-      checkSpace(lineHeight);
-      page.drawText(`Date/Time: ${formatIsoDate(input.submittedAtIso)}`, {
-        x: margin + 10,
-        y: yPosition,
-        size: 10,
-        font,
-      });
-      yPosition -= lineHeight;
-    }
+    page.drawText(`Date/Time: ${formatIsoDate(input.submittedAtIso)}`, {
+      x: margin + 15,
+      y: y,
+      size: 9,
+      font: fontRegular,
+      color: textDark,
+    });
+    y -= 15;
     
-    if (input.ipAddress) {
-      checkSpace(lineHeight);
-      page.drawText(`IP Address: ${input.ipAddress}`, {
-        x: margin + 10,
-        y: yPosition,
-        size: 10,
-        font,
-      });
-      yPosition -= lineHeight;
-    }
+    page.drawText(`IP Address: ${input.ipAddress || 'Not captured'}`, {
+      x: margin + 15,
+      y: y,
+      size: 9,
+      font: fontRegular,
+      color: textGray,
+    });
+    y -= 30;
+    
+    // ========== FOOTER ==========
+    checkSpace(50);
+    page.drawLine({
+      start: { x: margin, y: y },
+      end: { x: width - margin, y: y },
+      thickness: 0.5,
+      color: rgb(0.8, 0.8, 0.8),
+    });
+    y -= 15;
+    
+    page.drawText('EONPro Medical Intake Form', {
+      x: width / 2 - 70,
+      y: y,
+      size: 9,
+      font: fontBold,
+      color: textDark,
+    });
+    y -= 12;
+    
+    page.drawText(`Intake ID: ${input.intakeId} | Document Type: Completed Intake Record`, {
+      x: width / 2 - 120,
+      y: y,
+      size: 8,
+      font: fontRegular,
+      color: textGray,
+    });
     
     const pdfBytes = await pdfDoc.save();
-    console.log(`[pdf] ✅ Intake PDF generated successfully (${pdfBytes.length} bytes)`);
+    console.log(`[pdf] ✅ Intake PDF generated (${pdfBytes.length} bytes)`);
     return pdfBytes;
     
   } catch (error: any) {
@@ -396,144 +607,179 @@ export async function generateIntakePdf(input: IntakePdfInput): Promise<Uint8Arr
 }
 
 export async function generateInvoicePdf(input: InvoicePdfInput): Promise<Uint8Array> {
-  console.log('[pdf] Starting invoice PDF generation with pdf-lib...');
+  console.log('[pdf] Starting invoice PDF generation...');
   
   try {
     const pdfDoc = await PDFDocument.create();
-    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
     
     const page = pdfDoc.addPage([612, 792]);
     const { width, height } = page.getSize();
-    const margin = 50;
-    let yPosition = height - margin;
+    const margin = 40;
+    let y = height - margin;
+    
+    const brandGreen = rgb(0.298, 0.686, 0.314);
+    const sectionBg = rgb(0.925, 0.937, 0.906);
+    
+    // Logo
+    page.drawText('EONMeds', {
+      x: width / 2 - 60,
+      y: y,
+      size: 32,
+      font: fontBold,
+      color: brandGreen,
+    });
+    y -= 50;
     
     // Title
-    page.drawText('INVOICE - EONMeds', {
-      x: margin,
-      y: yPosition,
+    page.drawText('INVOICE', {
+      x: width / 2 - 35,
+      y: y,
       size: 20,
       font: fontBold,
     });
-    yPosition -= 40;
+    y -= 30;
     
-    // Payment Intent ID
+    // Payment details
     page.drawText(`Payment ID: ${input.paymentIntentId}`, {
       x: margin,
-      y: yPosition,
-      size: 10,
-      font,
+      y: y,
+      size: 9,
+      font: fontRegular,
     });
-    yPosition -= 20;
+    y -= 15;
     
     if (input.paidAtIso) {
       page.drawText(`Paid: ${formatIsoDate(input.paidAtIso)}`, {
         x: margin,
-        y: yPosition,
-        size: 10,
-        font,
+        y: y,
+        size: 9,
+        font: fontRegular,
       });
-      yPosition -= 20;
+      y -= 25;
     }
     
-    // Patient Info
-    page.drawText('Patient Information:', {
+    // Patient section
+    page.drawRectangle({
       x: margin,
-      y: yPosition,
-      size: 12,
+      y: y - 70,
+      width: width - 2 * margin,
+      height: 80,
+      color: sectionBg,
+    });
+    
+    y -= 15;
+    page.drawText('PATIENT INFORMATION', {
+      x: margin + 15,
+      y: y,
+      size: 11,
       font: fontBold,
     });
-    yPosition -= 20;
+    y -= 20;
     
-    if (input.patient.name) {
-      page.drawText(`Name: ${input.patient.name}`, {
-        x: margin + 10,
-        y: yPosition,
-        size: 10,
-        font,
-      });
-      yPosition -= 15;
-    }
+    page.drawText(input.patient.name || 'N/A', {
+      x: margin + 15,
+      y: y,
+      size: 10,
+      font: fontRegular,
+    });
+    y -= 12;
+    page.drawText(input.patient.email || '', {
+      x: margin + 15,
+      y: y,
+      size: 9,
+      font: fontRegular,
+      color: rgb(0.4, 0.4, 0.4),
+    });
+    y -= 30;
     
-    if (input.patient.email) {
-      page.drawText(`Email: ${input.patient.email}`, {
-        x: margin + 10,
-        y: yPosition,
-        size: 10,
-        font,
-      });
-      yPosition -= 15;
-    }
-    
-    yPosition -= 20;
-    
-    // Order Details
-    page.drawText('Order Details:', {
+    // Order details
+    page.drawRectangle({
       x: margin,
-      y: yPosition,
-      size: 12,
+      y: y - 80,
+      width: width - 2 * margin,
+      height: 90,
+      color: sectionBg,
+    });
+    
+    y -= 15;
+    page.drawText('ORDER DETAILS', {
+      x: margin + 15,
+      y: y,
+      size: 11,
       font: fontBold,
     });
-    yPosition -= 20;
+    y -= 20;
     
     if (input.order.medication) {
       page.drawText(`Medication: ${input.order.medication}`, {
-        x: margin + 10,
-        y: yPosition,
+        x: margin + 15,
+        y: y,
         size: 10,
-        font,
+        font: fontRegular,
       });
-      yPosition -= 15;
+      y -= 15;
     }
     
     if (input.order.plan) {
       page.drawText(`Plan: ${input.order.plan}`, {
-        x: margin + 10,
-        y: yPosition,
+        x: margin + 15,
+        y: y,
         size: 10,
-        font,
+        font: fontRegular,
       });
-      yPosition -= 15;
+      y -= 15;
     }
     
+    page.drawText(`Shipping: ${input.order.expeditedShipping ? 'Expedited' : 'Standard'}`, {
+      x: margin + 15,
+      y: y,
+      size: 10,
+      font: fontRegular,
+    });
+    y -= 30;
+    
     // Amount
-    yPosition -= 20;
-    page.drawText('Amount:', {
+    page.drawText('AMOUNT', {
       x: margin,
-      y: yPosition,
-      size: 12,
+      y: y,
+      size: 11,
       font: fontBold,
     });
-    yPosition -= 20;
+    y -= 20;
     
     page.drawText(formatMoney(input.amount, input.currency), {
-      x: margin + 10,
-      y: yPosition,
-      size: 14,
+      x: margin,
+      y: y,
+      size: 16,
       font: fontBold,
-      color: rgb(0, 0.5, 0),
+      color: brandGreen,
     });
-    yPosition -= 30;
+    y -= 30;
     
     // Status
-    page.drawText('PAYMENT RECEIVED', {
+    page.drawRectangle({
       x: margin,
-      y: yPosition,
-      size: 12,
-      font: fontBold,
-      color: rgb(0, 0.5, 0),
+      y: y - 30,
+      width: width - 2 * margin,
+      height: 40,
+      color: rgb(0.9, 0.98, 0.9),
+      borderColor: brandGreen,
+      borderWidth: 1,
     });
-    yPosition -= 20;
     
-    page.drawText('Ready for prescription review', {
-      x: margin,
-      y: yPosition,
+    y -= 12;
+    page.drawText('✓ PAYMENT RECEIVED - READY FOR PRESCRIPTION REVIEW', {
+      x: margin + 15,
+      y: y,
       size: 10,
-      font,
+      font: fontBold,
+      color: brandGreen,
     });
     
     const pdfBytes = await pdfDoc.save();
-    console.log(`[pdf] ✅ Invoice PDF generated successfully (${pdfBytes.length} bytes)`);
+    console.log(`[pdf] ✅ Invoice PDF generated (${pdfBytes.length} bytes)`);
     return pdfBytes;
     
   } catch (error: any) {
@@ -543,23 +789,4 @@ export async function generateInvoicePdf(input: InvoicePdfInput): Promise<Uint8A
     });
     throw error;
   }
-}
-
-// Helper function to wrap text
-function wrapText(text: string, maxChars: number): string[] {
-  const words = text.split(' ');
-  const lines: string[] = [];
-  let currentLine = '';
-  
-  for (const word of words) {
-    if ((currentLine + ' ' + word).length <= maxChars) {
-      currentLine = currentLine ? currentLine + ' ' + word : word;
-    } else {
-      if (currentLine) lines.push(currentLine);
-      currentLine = word;
-    }
-  }
-  
-  if (currentLine) lines.push(currentLine);
-  return lines;
 }
