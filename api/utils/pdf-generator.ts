@@ -8,6 +8,7 @@ export type PdfKeyValue = {
 export type IntakePdfInput = {
   intakeId: string;
   submittedAtIso?: string;
+  ipAddress?: string;
   patient: {
     firstName?: string;
     lastName?: string;
@@ -27,6 +28,14 @@ export type IntakePdfInput = {
     bmi?: string;
     height?: string;
     weight?: string;
+  };
+  consents?: {
+    termsAndConditions?: boolean | string;
+    privacyPolicy?: boolean | string;
+    telehealthConsent?: boolean | string;
+    cancellationPolicy?: boolean | string;
+    floridaWeightLoss?: boolean | string;
+    floridaConsent?: boolean | string;
   };
   answers: PdfKeyValue[];
 };
@@ -114,15 +123,35 @@ function ensureSpace(doc: PDFKit.PDFDocument, neededHeight: number) {
 }
 
 function header(doc: PDFKit.PDFDocument, title: string, subtitle?: string) {
-  doc.font('Helvetica-Bold').fontSize(24).text('EONMeds', { align: 'left' });
-  doc.moveDown(0.5);
-  doc.font('Helvetica-Bold').fontSize(20).text(title);
+  // Professional header with branding
+  const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  
+  // EONMeds logo/branding (styled text since we can't embed images easily)
+  doc.font('Helvetica-Bold').fontSize(28).fillColor('#00B4D8').text('eon', { continued: true });
+  doc.font('Helvetica').fontSize(28).fillColor('#000000').text('meds');
+  doc.moveDown(0.2);
+  doc.font('Helvetica').fontSize(9).fillColor('#6B7280').text('Telehealth Weight Management Services');
+  doc.fillColor('#000000');
+  doc.moveDown(0.8);
+  
+  // Title
+  doc.font('Helvetica-Bold').fontSize(18).text(title);
   if (subtitle) {
-    doc.moveDown(0.3);
-    doc.font('Helvetica').fontSize(10).fillColor('#6B7280').text(subtitle);
+    doc.moveDown(0.2);
+    doc.font('Helvetica').fontSize(9).fillColor('#6B7280').text(subtitle);
     doc.fillColor('#000000');
   }
-  doc.moveDown(1.5);
+  
+  // Divider line
+  doc.moveDown(0.5);
+  doc
+    .moveTo(doc.page.margins.left, doc.y)
+    .lineTo(doc.page.width - doc.page.margins.right, doc.y)
+    .strokeColor('#E5E7EB')
+    .lineWidth(1)
+    .stroke();
+  doc.strokeColor('#000000');
+  doc.moveDown(1);
 }
 
 function sectionTitle(doc: PDFKit.PDFDocument, title: string) {
@@ -151,125 +180,245 @@ function simpleField(doc: PDFKit.PDFDocument, label: string, value: string) {
 
 function categorizeAnswers(answers: PdfKeyValue[]): {
   medicalHistory: PdfKeyValue[];
-  treatmentReadiness: PdfKeyValue[];
-  consents: PdfKeyValue[];
+  glp1Usage: PdfKeyValue[];
+  lifestyle: PdfKeyValue[];
+  referral: PdfKeyValue[];
   other: PdfKeyValue[];
 } {
   const medicalHistory: PdfKeyValue[] = [];
-  const treatmentReadiness: PdfKeyValue[] = [];
-  const consents: PdfKeyValue[] = [];
+  const glp1Usage: PdfKeyValue[] = [];
+  const lifestyle: PdfKeyValue[] = [];
+  const referral: PdfKeyValue[] = [];
   const other: PdfKeyValue[] = [];
 
   const medicalKeywords = [
-    'glp-1', 'glp1', 'medication', 'diabetes', 'thyroid', 'cancer', 'endocrine', 'neoplasia', 'men',
-    'pancreatitis', 'pancrea', 'pregnant', 'pregnancy', 'breastfeeding', 'nursing', 'allerg',
-    'blood pressure', 'bp', 'medical', 'condition', 'diagnosis', 'health', 'disease'
+    'diabetes', 'thyroid', 'cancer', 'endocrine', 'neoplasia', 'pancreatitis',
+    'gastroparesis', 'pregnant', 'pregnancy', 'breastfeeding', 'chronic', 'condition',
+    'diagnosis', 'surgery', 'procedure', 'blood pressure', 'mental health', 'family history'
   ];
 
-  const treatmentKeywords = [
-    'committed', 'commitment', 'ready', 'age', '18', 'hear about', 'referral', 'source',
-    'how did you', 'found us', 'interest', 'motivated'
+  const glp1Keywords = [
+    'glp-1', 'glp1', 'semaglutide', 'tirzepatide', 'ozempic', 'wegovy', 'mounjaro',
+    'zepbound', 'dose', 'medication type', 'current dose', 'success', 'side effect'
   ];
 
-  const consentKeywords = [
-    'consent', 'agree', 'terms', 'condition', 'policy', 'telehealth', 'privacy',
-    'cancellation', 'subscription', 'hipaa', 'acknowledge', 'understand', 'accept'
+  const lifestyleKeywords = [
+    'activity', 'exercise', 'physical', 'alcohol', 'smoking', 'diet', 'weight',
+    'bmi', 'height', 'ideal weight', 'starting weight', 'pounds to lose'
+  ];
+
+  const referralKeywords = [
+    'hear about', 'referral', 'referred', 'how did you', 'source', 'life change', 'goals'
   ];
 
   for (const item of answers) {
     const labelLower = item.label.toLowerCase();
     
-    if (medicalKeywords.some(kw => labelLower.includes(kw))) {
+    if (glp1Keywords.some(kw => labelLower.includes(kw))) {
+      glp1Usage.push(item);
+    } else if (medicalKeywords.some(kw => labelLower.includes(kw))) {
       medicalHistory.push(item);
-    } else if (treatmentKeywords.some(kw => labelLower.includes(kw))) {
-      treatmentReadiness.push(item);
-    } else if (consentKeywords.some(kw => labelLower.includes(kw))) {
-      consents.push(item);
+    } else if (lifestyleKeywords.some(kw => labelLower.includes(kw))) {
+      lifestyle.push(item);
+    } else if (referralKeywords.some(kw => labelLower.includes(kw))) {
+      referral.push(item);
     } else {
       other.push(item);
     }
   }
 
-  return { medicalHistory, treatmentReadiness, consents, other };
+  return { medicalHistory, glp1Usage, lifestyle, referral, other };
 }
 
 export async function generateIntakePdf(input: IntakePdfInput): Promise<Uint8Array> {
   const doc = createDoc();
 
   const subtitleParts: string[] = [];
-  if (input.submittedAtIso) subtitleParts.push(`Submitted via HeyFlow on ${formatIsoDate(input.submittedAtIso)}`);
+  if (input.submittedAtIso) subtitleParts.push(`Submitted: ${formatIsoDate(input.submittedAtIso)}`);
+  if (input.intakeId) subtitleParts.push(`ID: ${input.intakeId}`);
 
-  header(doc, 'Patient Intake Form', subtitleParts.join('  |  '));
+  header(doc, 'Medical Intake Form', subtitleParts.join('  |  '));
 
-  // Patient Information Section
-  sectionTitle(doc, 'Patient Information');
+  // ========================================
+  // SECTION 1: PATIENT INFORMATION
+  // ========================================
+  sectionTitle(doc, 'I. Patient Information');
   simpleField(doc, 'First Name', toSafeText(input.patient.firstName));
   simpleField(doc, 'Last Name', toSafeText(input.patient.lastName));
   simpleField(doc, 'Date of Birth', toSafeText(input.patient.dateOfBirth));
-  if (input.patient.gender) simpleField(doc, 'Sex', toSafeText(input.patient.gender));
+  if (input.patient.gender) simpleField(doc, 'Gender/Sex', toSafeText(input.patient.gender));
   simpleField(doc, 'Email Address', toSafeText(input.patient.email));
   simpleField(doc, 'Phone Number', toSafeText(input.patient.phone));
-  doc.moveDown(0.5);
+  doc.moveDown(0.8);
 
-  // Shipping Information Section
-  sectionTitle(doc, 'Shipping Information');
+  // ========================================
+  // SECTION 2: SHIPPING ADDRESS
+  // ========================================
+  sectionTitle(doc, 'II. Shipping Address');
   if (input.patient.addressLine1) simpleField(doc, 'Street Address', toSafeText(input.patient.addressLine1));
-  if (input.patient.addressLine2) simpleField(doc, 'Apartment/Suite Number', toSafeText(input.patient.addressLine2));
+  if (input.patient.addressLine2) simpleField(doc, 'Apartment/Suite #', toSafeText(input.patient.addressLine2));
   if (input.patient.city) simpleField(doc, 'City', toSafeText(input.patient.city));
   if (input.patient.state) simpleField(doc, 'State', toSafeText(input.patient.state));
   if (input.patient.zipCode) simpleField(doc, 'Postal Code', toSafeText(input.patient.zipCode));
   if (input.patient.country) simpleField(doc, 'Country', toSafeText(input.patient.country));
-  doc.moveDown(0.5);
+  doc.moveDown(0.8);
 
-  // Categorize answers into sections
   const categorized = categorizeAnswers(input.answers || []);
 
-  // Medical History Section
+  // ========================================
+  // SECTION 3: MEDICAL HISTORY
+  // ========================================
   if (categorized.medicalHistory.length > 0) {
-    sectionTitle(doc, 'Medical History');
+    sectionTitle(doc, 'III. Medical History');
     for (const item of categorized.medicalHistory) {
       const label = toSafeText(item.label).trim();
       const value = toSafeText(item.value).trim();
       if (!label) continue;
       simpleField(doc, label, value);
     }
-    doc.moveDown(0.5);
+    doc.moveDown(0.8);
   }
 
-  // Treatment Readiness Section
-  if (categorized.treatmentReadiness.length > 0) {
-    sectionTitle(doc, 'Treatment Readiness');
-    for (const item of categorized.treatmentReadiness) {
+  // ========================================
+  // SECTION 4: GLP-1 MEDICATION HISTORY
+  // ========================================
+  if (categorized.glp1Usage.length > 0) {
+    sectionTitle(doc, 'IV. GLP-1 Medication History');
+    for (const item of categorized.glp1Usage) {
       const label = toSafeText(item.label).trim();
       const value = toSafeText(item.value).trim();
       if (!label) continue;
       simpleField(doc, label, value);
     }
-    doc.moveDown(0.5);
+    doc.moveDown(0.8);
   }
 
-  // Consent Agreements Section
-  if (categorized.consents.length > 0) {
-    sectionTitle(doc, 'Consent Agreements');
-    for (const item of categorized.consents) {
-      const label = toSafeText(item.label).trim();
-      const value = toSafeText(item.value).trim();
-      if (!label) continue;
-      simpleField(doc, label, `✓ ${value}`);
-    }
-    doc.moveDown(0.5);
-  }
-
-  // Additional Information (catch-all for other questions)
-  if (categorized.other.length > 0) {
-    sectionTitle(doc, 'Additional Information');
-    for (const item of categorized.other) {
+  // ========================================
+  // SECTION 5: LIFESTYLE & HEALTH METRICS
+  // ========================================
+  if (categorized.lifestyle.length > 0) {
+    sectionTitle(doc, 'V. Lifestyle & Health Metrics');
+    for (const item of categorized.lifestyle) {
       const label = toSafeText(item.label).trim();
       const value = toSafeText(item.value).trim();
       if (!label) continue;
       simpleField(doc, label, value);
     }
+    doc.moveDown(0.8);
   }
+
+  // ========================================
+  // SECTION 6: REFERRAL INFORMATION
+  // ========================================
+  if (categorized.referral.length > 0) {
+    sectionTitle(doc, 'VI. Referral & Treatment Goals');
+    for (const item of categorized.referral) {
+      const label = toSafeText(item.label).trim();
+      const value = toSafeText(item.value).trim();
+      if (!label) continue;
+      simpleField(doc, label, value);
+    }
+    doc.moveDown(0.8);
+  }
+
+  // ========================================
+  // SECTION 7: CONSENT AGREEMENTS (CRITICAL FOR CHARGEBACKS)
+  // ========================================
+  sectionTitle(doc, 'VII. Consent Agreements & Acknowledgments');
+  
+  doc.font('Helvetica').fontSize(9).fillColor('#DC2626')
+    .text('The following consents were acknowledged and accepted by the patient:');
+  doc.fillColor('#000000');
+  doc.moveDown(0.4);
+
+  if (input.consents) {
+    if (input.consents.termsAndConditions) {
+      doc.font('Helvetica-Bold').fontSize(10).text('✓ Terms and Conditions');
+      doc.font('Helvetica').fontSize(9).text('Patient acknowledges reading and agreeing to the Terms of Use.');
+      doc.moveDown(0.3);
+    }
+    if (input.consents.privacyPolicy) {
+      doc.font('Helvetica-Bold').fontSize(10).text('✓ Privacy Policy');
+      doc.font('Helvetica').fontSize(9).text('Patient acknowledges the Privacy Policy and data handling practices.');
+      doc.moveDown(0.3);
+    }
+    if (input.consents.telehealthConsent) {
+      doc.font('Helvetica-Bold').fontSize(10).text('✓ Informed Telemedicine Consent');
+      doc.font('Helvetica').fontSize(9).text('Patient consents to receive medical care through telehealth services.');
+      doc.moveDown(0.3);
+    }
+    if (input.consents.cancellationPolicy) {
+      doc.font('Helvetica-Bold').fontSize(10).text('✓ Cancellation & Subscription Policy');
+      doc.font('Helvetica').fontSize(9).text('Patient understands cancellation terms and recurring charges.');
+      doc.moveDown(0.3);
+    }
+    if (input.consents.floridaWeightLoss && input.patient.state?.toUpperCase() === 'FL') {
+      doc.font('Helvetica-Bold').fontSize(10).text('✓ Florida Weight Loss Consumer Bill of Rights');
+      doc.font('Helvetica').fontSize(9).text('Patient acknowledges Florida-specific consumer protections.');
+      doc.moveDown(0.3);
+    }
+    if (input.consents.floridaConsent && input.patient.state?.toUpperCase() === 'FL') {
+      doc.font('Helvetica-Bold').fontSize(10).text('✓ Florida Consent');
+      doc.font('Helvetica').fontSize(9).text('Patient acknowledges Florida telehealth consent requirements.');
+      doc.moveDown(0.3);
+    }
+  }
+  doc.moveDown(0.8);
+
+  // ========================================
+  // SECTION 8: ELECTRONIC SIGNATURE (CRITICAL FOR CHARGEBACKS)
+  // ========================================
+  ensureSpace(doc, 120);
+  
+  // Signature box
+  const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  const sigY = doc.y;
+  
+  doc
+    .save()
+    .strokeColor('#374151')
+    .lineWidth(2)
+    .rect(doc.page.margins.left, sigY, pageWidth, 110)
+    .stroke()
+    .restore();
+
+  doc.y = sigY + 15;
+  doc.font('Helvetica-Bold').fontSize(11).text('ELECTRONIC SIGNATURE');
+  doc.moveDown(0.5);
+
+  const patientName = `${toSafeText(input.patient.firstName)} ${toSafeText(input.patient.lastName)}`.trim();
+  const signatureDate = formatIsoDate(input.submittedAtIso);
+
+  doc.font('Helvetica').fontSize(9).text(
+    `By electronically submitting this form, I, ${patientName || '[Patient Name]'}, ` +
+    `certify that I am over 18 years of age and that all information provided is true and accurate to the best of my knowledge. ` +
+    `I acknowledge that I have read, understood, and agree to all terms, policies, and consents referenced herein.`,
+    { align: 'left' }
+  );
+  doc.moveDown(0.5);
+
+  doc.font('Helvetica-Bold').fontSize(9).text('E-Signed by: ', { continued: true });
+  doc.font('Helvetica').text(patientName || 'Unknown');
+  
+  doc.font('Helvetica-Bold').fontSize(9).text('Date & Time: ', { continued: true });
+  doc.font('Helvetica').text(signatureDate || 'Unknown');
+
+  doc.font('Helvetica-Bold').fontSize(9).text('IP Address: ', { continued: true });
+  doc.font('Helvetica').text(input.ipAddress || 'Not captured');
+
+  doc.y = sigY + 115;
+  doc.moveDown(0.5);
+
+  // ========================================
+  // FOOTER: CONFIDENTIALITY NOTICE
+  // ========================================
+  doc.font('Helvetica').fontSize(8).fillColor('#6B7280').text(
+    'CONFIDENTIAL PATIENT INFORMATION - This document contains protected health information (PHI) ' +
+    'and is intended solely for the use of EONMeds medical staff. Unauthorized access, use, or disclosure ' +
+    'is strictly prohibited and may be unlawful.',
+    { align: 'center' }
+  );
+  doc.fillColor('#000000');
 
   doc.end();
   return collectPdf(doc);

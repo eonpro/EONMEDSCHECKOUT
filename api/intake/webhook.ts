@@ -154,6 +154,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
+  // Capture IP address for legal compliance (chargeback protection)
+  const ipAddress = 
+    getHeader(req, 'x-forwarded-for')?.split(',')[0]?.trim() ||
+    getHeader(req, 'x-real-ip') ||
+    req.socket?.remoteAddress ||
+    'Unknown';
+
   try {
     const payload = req.body;
     
@@ -325,9 +332,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.error('[intake-webhook] Tag addition failed (continuing):', e?.message || e);
     }
 
+    // Extract consent acceptances (for chargeback protection)
+    const consents = {
+      termsAndConditions: Boolean(answerIndex.get('termsandconditions') || answerIndex.get('terms')),
+      privacyPolicy: Boolean(answerIndex.get('privacypolicy') || answerIndex.get('privacy')),
+      telehealthConsent: Boolean(answerIndex.get('telehealthconsent') || answerIndex.get('telehealth')),
+      cancellationPolicy: Boolean(answerIndex.get('cancellationpolicy') || answerIndex.get('cancellation')),
+      floridaWeightLoss: Boolean(answerIndex.get('floridaweightloss') || answerIndex.get('floridaweight')),
+      floridaConsent: Boolean(answerIndex.get('floridaconsent')),
+    };
+
     const pdf = await generateIntakePdf({
       intakeId,
       submittedAtIso,
+      ipAddress, // Captured from request headers
       patient: {
         firstName,
         lastName,
@@ -348,6 +366,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         height: pickString(payload, ['height', 'Height']) || undefined,
         weight: pickString(payload, ['weight', 'Weight']) || undefined,
       },
+      consents,
       answers,
     });
 
