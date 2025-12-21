@@ -249,46 +249,13 @@ if (!clientId) {
 console.log(`✅ Client created: ${clientId}`);
 
 // ============================================================================
-// UPDATE APARTMENT (separate call - required by IntakeQ)
+// APARTMENT FIELD (included in Address string)
 // ============================================================================
+// IntakeQ API doesn't support updating UnitNumber field
+// The apartment is included in the full Address field instead
 
 if (apartment) {
-    try {
-        const getResponse = await fetch(`${INTAKEQ_API_BASE}/clients/${clientId}`, {
-            method: 'GET',
-            headers: {
-                'X-Auth-Key': INTAKEQ_API_KEY,
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-            }
-        });
-        
-        const getResponseText = await getResponse.text();
-        
-        if (getResponse.ok && getResponseText && !getResponseText.startsWith('<')) {
-            const clientData = JSON.parse(getResponseText);
-            clientData.UnitNumber = apartment;
-            
-            const updateResponse = await fetch(`${INTAKEQ_API_BASE}/clients`, {
-                method: 'POST',
-                headers: {
-                    'X-Auth-Key': INTAKEQ_API_KEY,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(clientData)
-            });
-            
-            if (updateResponse.ok) {
-                console.log(`✅ Apartment updated: "${apartment}"`);
-            } else {
-                console.log(`⚠️ Apartment update failed: ${updateResponse.status}`);
-            }
-        } else {
-            console.log(`⚠️ Could not get client data (received HTML page instead of JSON)`);
-        }
-    } catch (e) {
-        console.log("Warning: Could not update apartment:", e.toString());
-    }
+    console.log(`ℹ️ Apartment "${apartment}" included in Address field`);
 }
 
 // ============================================================================
@@ -688,18 +655,9 @@ Generated via EONMeds Airtable Integration
 // ============================================================================
 
 const updateFields = {
-    'IntakeQ Status': pdfUrl ? 'Sent ✓ (PDF Ready)' : 'Sent ✓',
+    'IntakeQ Status': 'Sent ✓',
     'IntakeQ Client ID': clientId.toString()
 };
-
-// Try to update PDF URL field if it exists in your Airtable
-if (pdfUrl) {
-    try {
-        updateFields['PDF URL'] = pdfUrl;
-    } catch (e) {
-        // Field doesn't exist, skip it
-    }
-}
 
 await table.updateRecordAsync(recordId, updateFields);
 
