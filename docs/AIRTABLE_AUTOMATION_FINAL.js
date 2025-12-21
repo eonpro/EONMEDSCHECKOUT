@@ -164,6 +164,22 @@ const personalizedTreatment = safeGetString('personalized-treatment') || safeGet
 console.log("=== EXTRACTED DATA ===");
 console.log("Name:", firstName, lastName);
 console.log("Email:", email);
+console.log("Phone (raw):", phoneRaw);
+console.log("Phone (formatted):", phone);
+console.log("DOB:", dob);
+console.log("Gender:", gender);
+console.log("House:", house);
+console.log("Street:", street);
+console.log("Full Street:", fullStreetAddress);
+console.log("City:", city);
+console.log("State:", stateCode);
+console.log("Zip:", zip);
+console.log("Apartment:", apartment);
+console.log("Feet:", feet);
+console.log("Inches:", inches);
+console.log("Starting Weight:", startingWeight);
+console.log("BMI:", bmi);
+console.log("Ideal Weight:", idealWeight);
 console.log("Referral:", referral);
 
 // ============================================================================
