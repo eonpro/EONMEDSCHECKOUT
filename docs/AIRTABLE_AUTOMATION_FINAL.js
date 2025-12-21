@@ -641,45 +641,46 @@ try {
         pdfUrl = pdfResult.url;
         console.log("✅ PDF generated:", pdfUrl);
         
-        // Download PDF from PDF.co as base64
-        const pdfDownload = await fetch(pdfUrl);
-        const pdfArrayBuffer = await pdfDownload.arrayBuffer();
-        
-        // Convert to base64
-        const pdfBytes = new Uint8Array(pdfArrayBuffer);
-        let binary = '';
-        for (let i = 0; i < pdfBytes.length; i++) {
-            binary += String.fromCharCode(pdfBytes[i]);
-        }
-        const pdfBase64 = btoa(binary);
-        
-        console.log(`PDF downloaded (${pdfBytes.length} bytes), uploading to IntakeQ...`);
-        
-        // Upload to IntakeQ using base64 (FormData not available in Airtable)
-        const uploadResponse = await fetch(`${INTAKEQ_API_BASE}/files/${clientId}`, {
+        // Add PDF link as IntakeQ Note (more reliable than file upload from Airtable)
+        const noteText = `📄 MEDICAL INTAKE FORM - ${submissionDate}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PDF Document: ${pdfUrl}
+(Download within 24 hours and save to Files tab)
+
+PATIENT: ${firstName} ${lastName}
+EMAIL: ${email}
+PHONE: ${phone}
+DOB: ${dobFormatted}
+${apartment ? `APARTMENT: ${apartment}` : ''}
+
+REFERRAL: ${referral || 'N/A'}
+
+Generated via EONMeds Airtable Integration
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+
+        const noteResponse = await fetch(`${INTAKEQ_API_BASE}/notes`, {
             method: 'POST',
             headers: {
                 'X-Auth-Key': INTAKEQ_API_KEY,
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                FileName: `Intake_${firstName}_${lastName}.pdf`,
-                FileDataBase64: pdfBase64,
-                Description: `Medical Intake Form - Submitted ${submissionDate}`
+                ClientId: clientId,
+                Text: noteText,
+                Markdown: false
             })
         });
         
-        const uploadText = await uploadResponse.text();
-        
-        if (uploadResponse.ok) {
-            console.log("✅ PDF uploaded to IntakeQ Files");
+        if (noteResponse.ok) {
+            console.log("✅ PDF link added to IntakeQ Notes");
             pdfUploaded = true;
         } else {
-            console.log(`⚠️ PDF upload failed (${uploadResponse.status}): ${uploadText.substring(0, 200)}`);
+            const noteError = await noteResponse.text();
+            console.log(`⚠️ Note creation failed (${noteResponse.status}): ${noteError.substring(0, 150)}`);
         }
     }
 } catch (e) {
-    console.log("Warning: PDF generation/upload failed:", e.toString());
+    console.log("Warning: PDF note creation failed:", e.toString());
 }
 
 // ============================================================================
