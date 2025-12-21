@@ -185,6 +185,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Heyflow address can be nested object
     let addressLine1 = pickString(normalizedPayload, ['address1', 'addressLine1', 'street', 'shipping_line1']);
     let addressLine2 = pickString(normalizedPayload, ['address2', 'addressLine2', 'apt', 'apartment', 'apartment#']);
+    
+    // EXPLICIT check for apartment# in fields object (Airtable/Heyflow format)
+    if (!addressLine2 && normalizedPayload.fields && typeof normalizedPayload.fields === 'object') {
+      addressLine2 = String(normalizedPayload.fields['apartment#'] || normalizedPayload.fields['apartment'] || '').trim();
+      if (addressLine2) {
+        console.log(`[intake-webhook] ✅ Found apartment# in fields object: "${addressLine2}"`);
+      }
+    }
+    
     let city = pickString(normalizedPayload, ['city']);
     let state = pickString(normalizedPayload, ['state', 'state_code']);
     let zipCode = pickString(normalizedPayload, ['zip', 'zipCode', 'zipcode', 'postal']);
