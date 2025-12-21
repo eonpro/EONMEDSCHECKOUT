@@ -225,6 +225,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       gender: finalGender || undefined,
       address: {
         street: addressLine1,
+        line2: addressLine2, // Apartment/Suite number
         city,
         state,
         zip: zipCode,

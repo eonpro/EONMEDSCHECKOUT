@@ -106,6 +106,7 @@ export type CreateIntakeQClientInput = {
   gender?: string;
   address?: {
     street?: string;
+    line2?: string; // Apartment/Suite number
     city?: string;
     state?: string;
     zip?: string;
@@ -171,18 +172,20 @@ export async function createClient(input: CreateIntakeQClientInput): Promise<Int
   if (input.address) {
     // IntakeQ client API uses flat address fields (not nested object).
     const street = input.address.street || '';
+    const line2 = input.address.line2 || ''; // Apartment/Suite
     const city = input.address.city || '';
     const state = (input.address.state || '').toUpperCase().slice(0, 2);
     const zip = input.address.zip || '';
 
     if (street) payload.StreetAddress = street;
+    if (line2) payload.UnitNumber = line2; // IntakeQ field for apartment/suite
     if (city) payload.City = city;
     if (state) payload.StateShort = state;
     if (zip) payload.PostalCode = zip;
     payload.Country = 'USA';
 
     // Optional full address string (some IntakeQ accounts display this field)
-    const full = [street, `${city}${city && state ? ',' : ''} ${state}`.trim(), zip, 'USA'].filter(Boolean).join(' ');
+    const full = [street, line2, `${city}${city && state ? ',' : ''} ${state}`.trim(), zip, 'USA'].filter(Boolean).join(' ');
     if (full.trim()) payload.Address = full.trim();
   }
 
