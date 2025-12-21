@@ -74,14 +74,28 @@ function formatPhone(phone) {
 const phone = formatPhone(phoneRaw);
 
 // Address - These are SEPARATE TEXT COLUMNS in your Airtable, not a nested object
-const house = safeGetString('address [house]') || '';
-const street = safeGetString('address [street]') || '';
-const city = safeGetString('address [city]') || '';
-const stateFromColumn = safeGetString('address [state]') || '';
-const stateFromSelect = safeGetString('select-the-state-you-live-in') || '';
-const stateCode = stateFromColumn || stateFromSelect || '';
-const zip = safeGetString('address') || ''; // The zip appears to be in the main "address" column
-const apartment = safeGetString('apartment#') || '';
+const house = safeGetString('address [house]');
+const street = safeGetString('address [street]');
+const city = safeGetString('address [city]');
+const stateFullName = safeGetString('address [state]'); // e.g., "Florida"
+const stateFromSelect = safeGetString('select-the-state-you-live-in'); // e.g., "Florida"
+const zip = safeGetString('address'); // This column contains the zip code
+const apartment = safeGetString('apartment#');
+
+// Convert state name to abbreviation (IntakeQ needs 2-letter code)
+function getStateAbbr(stateName) {
+    const states = {
+        'florida': 'FL', 'california': 'CA', 'texas': 'TX', 'new york': 'NY',
+        'north carolina': 'NC', 'south carolina': 'SC', 'illinois': 'IL',
+        'wisconsin': 'WI', 'indiana': 'IN', 'massachusetts': 'MA', 'delaware': 'DE'
+    };
+    if (!stateName) return '';
+    const normalized = stateName.toLowerCase().trim();
+    return states[normalized] || stateName.substring(0, 2).toUpperCase();
+}
+
+const stateName = stateFullName || stateFromSelect || '';
+const stateCode = getStateAbbr(stateName);
 const fullStreetAddress = `${house} ${street}`.trim();
 
 // Measurements
