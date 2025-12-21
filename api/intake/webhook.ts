@@ -353,38 +353,51 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       floridaConsent: Boolean(answerIndex.get('floridaconsent')),
     };
 
-    // Load PDF generator dynamically to avoid module initialization errors
-    const pdfGenerator = await loadPdfGenerator();
-    const pdf = await pdfGenerator.generateIntakePdf({
-      intakeId,
-      submittedAtIso,
-      ipAddress, // Captured from request headers
-      patient: {
-        firstName,
-        lastName,
-        email,
-        phone,
-        dateOfBirth: dob,
-        gender: finalGender || undefined,
-        addressLine1,
-        addressLine2,
-        city,
-        state,
-        zipCode,
-        country: pickString(payload, ['country', 'Country']) || 'USA',
-      },
-      qualification: {
-        eligible: pickString(payload, ['eligible', 'qualified', 'qualification', 'eligibility']) || undefined,
-        bmi: pickString(payload, ['bmi', 'BMI']) || undefined,
-        height: pickString(payload, ['height', 'Height']) || undefined,
-        weight: pickString(payload, ['weight', 'Weight']) || undefined,
-      },
-      consents,
-      answers,
-    });
+    // Load PDF generator dynamically and upload (non-blocking - best effort)
+    try {
+      console.log('[intake-webhook] Starting PDF generation...');
+      const pdfGenerator = await loadPdfGenerator();
+      console.log('[intake-webhook] PDF generator loaded');
+      
+      const pdf = await pdfGenerator.generateIntakePdf({
+        intakeId,
+        submittedAtIso,
+        ipAddress, // Captured from request headers
+        patient: {
+          firstName,
+          lastName,
+          email,
+          phone,
+          dateOfBirth: dob,
+          gender: finalGender || undefined,
+          addressLine1,
+          addressLine2,
+          city,
+          state,
+          zipCode,
+          country: pickString(payload, ['country', 'Country']) || 'USA',
+        },
+        qualification: {
+          eligible: pickString(payload, ['eligible', 'qualified', 'qualification', 'eligibility']) || undefined,
+          bmi: pickString(payload, ['bmi', 'BMI']) || undefined,
+          height: pickString(payload, ['height', 'Height']) || undefined,
+          weight: pickString(payload, ['weight', 'Weight']) || undefined,
+        },
+        consents,
+        answers,
+      });
+      console.log('[intake-webhook] PDF generated successfully');
 
-    const filename = `intake-${intakeId}.pdf`;
-    await uploadClientPdf({ clientId: client.Id, filename, pdfBuffer: pdf });
+      const filename = `intake-${intakeId}.pdf`;
+      await uploadClientPdf({ clientId: client.Id, filename, pdfBuffer: pdf });
+      console.log('[intake-webhook] PDF uploaded to IntakeQ');
+    } catch (pdfErr: any) {
+      console.error('[intake-webhook] PDF generation/upload failed (continuing):', {
+        message: pdfErr?.message || String(pdfErr),
+        stack: pdfErr?.stack?.split('\n').slice(0, 3).join('\n'),
+      });
+      // Continue even if PDF fails - client is already created
+    }
 
     // Store minimal link data for later payment webhook use
     let kvStored = true;
