@@ -425,9 +425,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // =========================================================
         // Airtable Integration - Update Payment Status
         // =========================================================
+        console.log('[webhook] 🔍 Starting Airtable payment update...');
+        console.log('[webhook] Looking for Airtable record with email:', email);
+        
         try {
           const airtableRecord = await findAirtableRecordByEmail(email);
+          
           if (airtableRecord) {
+            console.log(`[webhook] ✅ Found Airtable record: ${airtableRecord.id}`);
+            
             await updateAirtablePaymentStatus({
               recordId: airtableRecord.id,
               paymentAmount: paymentIntent.amount,
@@ -439,13 +445,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               orderTotal: paymentIntent.amount,
               stripeCustomerId: paymentIntent.customer as string,
             });
+            
             console.log(`[webhook] ✅ Updated Airtable record ${airtableRecord.id} with payment data`);
+            console.log(`[webhook] Payment Amount: $${(paymentIntent.amount / 100).toFixed(2)}`);
+            console.log(`[webhook] Medication: ${metadata.medication}`);
+            console.log(`[webhook] Plan: ${metadata.plan}`);
           } else {
-            console.warn(`[webhook] ⚠️ Airtable record not found for email: ${email}`);
+            console.warn(`[webhook] ⚠️ Airtable record NOT FOUND for email: ${email}`);
+            console.warn(`[webhook] This payment will not update Airtable - email mismatch?`);
           }
         } catch (airtableErr: any) {
           // Do not fail Stripe webhook if Airtable is unavailable
-          console.error('[webhook] ❌ Airtable integration error:', airtableErr?.message || airtableErr);
+          console.error('[webhook] ❌ Airtable integration error:', {
+            message: airtableErr?.message || String(airtableErr),
+            stack: airtableErr?.stack?.split('\n').slice(0, 3).join('\n'),
+          });
         }
         // =========================================================
         
