@@ -1,6 +1,16 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { ensureClient, uploadClientPdf, updateClientCustomFieldsByEmail, addClientTag } from '../integrations/intakeq.js';
-import { generateIntakePdf, type PdfKeyValue } from '../utils/pdf-generator.js';
+
+// Dynamic import for PDF generator to avoid loading PDFKit at module initialization
+async function loadPdfGenerator() {
+  const mod = await import('../utils/pdf-generator.js');
+  return mod;
+}
+
+type PdfKeyValue = {
+  label: string;
+  value: string;
+};
 
 const TTL_SECONDS = 60 * 60 * 24; // 24h
 
@@ -343,7 +353,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       floridaConsent: Boolean(answerIndex.get('floridaconsent')),
     };
 
-    const pdf = await generateIntakePdf({
+    // Load PDF generator dynamically to avoid module initialization errors
+    const pdfGenerator = await loadPdfGenerator();
+    const pdf = await pdfGenerator.generateIntakePdf({
       intakeId,
       submittedAtIso,
       ipAddress, // Captured from request headers

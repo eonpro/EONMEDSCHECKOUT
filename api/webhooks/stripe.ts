@@ -2,8 +2,13 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import Stripe from 'stripe';
 import { buffer } from 'micro';
 import { findClientByEmail, uploadClientPdf } from '../integrations/intakeq.js';
-import { generateInvoicePdf } from '../utils/pdf-generator.js';
 import { findAirtableRecordByEmail, updateAirtablePaymentStatus } from '../integrations/airtable.js';
+
+// Dynamic import for PDF generator to avoid loading PDFKit at module initialization
+async function loadPdfGenerator() {
+  const mod = await import('../utils/pdf-generator.js');
+  return mod;
+}
 
 // ============================================================================
 // Inline GHL Integration (to avoid import path issues in Vercel)
@@ -369,7 +374,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               metadata.shipping_cost === '25' ||
               metadata.shipping_cost === '25.00';
 
-            const invoicePdf = await generateInvoicePdf({
+            // Load PDF generator dynamically
+            const pdfGenerator = await loadPdfGenerator();
+            const invoicePdf = await pdfGenerator.generateInvoicePdf({
               paymentIntentId: paymentIntent.id,
               paidAtIso: event.created ? new Date(event.created * 1000).toISOString() : undefined,
               amount: Number(paymentIntent.amount || 0),
