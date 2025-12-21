@@ -137,10 +137,13 @@ const sideEffectsTendency = safeGetString('Side Effects Tendency');
 const medications = safeGetString('medications');
 const medicationOrdered = safeGetString('Medication Ordered');
 
-// Consents
-const disclosure18 = safeGetString('18+ Disclosure');
-const disclosures = safeGetString('disclosures');
-const marketingConsent = safeGetString('Marketing Consent');
+// Consents - try multiple field name variations
+const disclosure18 = safeGetString('18+ Disclosure') || safeGetString('id-49256866') || '';
+const disclosures = safeGetString('disclosures') || safeGetString('id-f69d896b') || '';
+const marketingConsent = safeGetString('Marketing Consent') || safeGetString('id-e48dcf94') || '';
+const telehealthConsent = safeGetString('Telehealth Consent') || safeGetString('telehealth-consent') || safeGetString('id-e48dcf94') || '';
+const floridaWeightLoss = safeGetString('Florida Weight Loss Consent') || safeGetString('florida-weight-loss') || safeGetString('floridaweightloss') || '';
+const cancellationPolicy = safeGetString('Cancellation Policy') || safeGetString('cancellation-policy') || safeGetString('recurring-payment-policy') || '';
 
 // Referral - try multiple field names
 const referral = safeGetString('Who Referred You') || 
@@ -443,33 +446,34 @@ const pdfHtml = `
     <meta charset="UTF-8">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', Arial, sans-serif; }
         body { font-family: 'Poppins', Arial, sans-serif; line-height: 1.5; color: #333; background: #fff; padding: 40px; font-size: 12px; }
         .header { text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #4CAF50; }
-        .logo { font-size: 32px; font-weight: 700; color: #4CAF50; margin-bottom: 10px; }
-        h1 { font-size: 20px; font-weight: 600; color: #000; margin-bottom: 5px; }
-        .subtitle { font-size: 11px; color: #666; }
+        .logo-img { width: 200px; height: auto; margin: 0 auto 15px; display: block; }
+        h1 { font-size: 20px; font-weight: 600; color: #000; margin-bottom: 5px; font-family: 'Poppins', Arial, sans-serif; }
+        .subtitle { font-size: 11px; color: #666; font-family: 'Poppins', Arial, sans-serif; }
         .section { background: #ECEFE7; border-radius: 8px; padding: 20px; margin-bottom: 20px; page-break-inside: avoid; }
-        .section h2 { font-size: 14px; font-weight: 600; color: #000; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 1px solid #C2C2C2; }
+        .section.glp1-section { background: #f0fea5; }
+        .section h2 { font-size: 14px; font-weight: 600; color: #000; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 1px solid #C2C2C2; font-family: 'Poppins', Arial, sans-serif; }
         .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         .field { margin-bottom: 8px; }
         .field-full { grid-column: span 2; margin-bottom: 8px; }
-        .label { display: block; font-size: 9px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
-        .value { display: block; font-size: 12px; color: #000; font-weight: 400; }
+        .label { display: block; font-size: 9px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; font-family: 'Poppins', Arial, sans-serif; }
+        .value { display: block; font-size: 12px; color: #000; font-weight: 400; font-family: 'Poppins', Arial, sans-serif; }
         .value.empty { color: #999; font-style: italic; }
-        .consent-item { padding: 10px; background: #fff; border-radius: 6px; margin-bottom: 8px; }
-        .consent-label { display: block; font-size: 11px; font-weight: 600; color: #333; margin-bottom: 4px; }
-        .consent-status { display: block; font-size: 11px; color: #4CAF50; font-weight: 500; }
-        .footer { margin-top: 30px; padding-top: 15px; border-top: 1px solid #C2C2C2; text-align: center; color: #666; font-size: 10px; }
+        .consent-item { padding: 12px; background: #fff; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid #4CAF50; }
+        .consent-label { display: block; font-size: 11px; font-weight: 600; color: #333; margin-bottom: 4px; font-family: 'Poppins', Arial, sans-serif; }
+        .consent-status { display: block; font-size: 11px; color: #4CAF50; font-weight: 500; font-family: 'Poppins', Arial, sans-serif; }
+        .footer { margin-top: 30px; padding-top: 15px; border-top: 1px solid #C2C2C2; text-align: center; color: #666; font-size: 10px; font-family: 'Poppins', Arial, sans-serif; }
         .footer strong { color: #333; }
         .mso-box { background: #f5f5f5; padding: 15px; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 20px; }
-        .mso-box h3 { font-size: 10px; font-weight: 600; color: #666; margin-bottom: 8px; }
-        .mso-box p { font-size: 9px; color: #333; line-height: 1.4; }
+        .mso-box h3 { font-size: 10px; font-weight: 600; color: #666; margin-bottom: 8px; font-family: 'Poppins', Arial, sans-serif; }
+        .mso-box p { font-size: 9px; color: #333; line-height: 1.4; font-family: 'Poppins', Arial, sans-serif; }
     </style>
 </head>
 <body>
     <div class="header">
-        <div class="logo">EONMeds</div>
+        <img src="https://static.wixstatic.com/media/c49a9b_4bbe024f61864f57a23d1c3ea26f5378~mv2.png" alt="EONMeds" class="logo-img" />
         <h1>Medical Intake Form</h1>
         <div class="subtitle">Submitted on ${submissionDate} at ${submissionTime}</div>
         <div class="subtitle">Client ID: ${clientId}</div>
@@ -548,7 +552,7 @@ const pdfHtml = `
         </div>
     </div>
     
-    <div class="section">
+    <div class="section glp1-section">
         <h2>VI. GLP-1 MEDICATION HISTORY</h2>
         <div class="field-grid">
             ${fieldHtml('TYPE OF MEDICATION', typeOfMedication)}
@@ -561,6 +565,7 @@ const pdfHtml = `
             ${fieldHtmlFull('SEMAGLUTIDE SIDE EFFECTS', semaglutideSideEffects)}
             ${fieldHtmlFull('SIDE EFFECTS', sideEffects)}
             ${fieldHtml('SIDE EFFECTS TENDENCY', sideEffectsTendency)}
+            ${fieldHtmlFull('PERSONALIZED TREATMENT INTEREST', personalizedTreatment)}
         </div>
     </div>
     
@@ -570,7 +575,6 @@ const pdfHtml = `
             ${fieldHtmlFull('LIFE CHANGE GOALS', lifeChange)}
             ${fieldHtml('HOW DID YOU HEAR ABOUT US', hearAboutUs)}
             ${fieldHtml('WHO REFERRED YOU', referral)}
-            ${fieldHtmlFull('PERSONALIZED TREATMENT', personalizedTreatment)}
         </div>
     </div>
     
@@ -587,9 +591,15 @@ const pdfHtml = `
     
     <div class="section">
         <h2>IX. CONSENTS & DISCLOSURES</h2>
-        ${consentHtml('18+ Age Disclosure', disclosure18)}
-        ${consentHtml('Terms & Conditions', disclosures)}
+        ${consentHtml('18+ Age Verification', disclosure18)}
+        ${consentHtml('Terms & Conditions Agreement', disclosures)}
+        ${consentHtml('Telehealth Consent', telehealthConsent)}
         ${consentHtml('Marketing Consent', marketingConsent)}
+        ${consentHtml('Florida Weight Loss Consumer Bill of Rights', floridaWeightLoss)}
+        ${consentHtml('Cancellation & Recurring Payment Policy', cancellationPolicy)}
+        <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid #ddd; font-size: 9px; color: #666; line-height: 1.4;">
+            <p style="margin: 0;">By accepting these terms, the patient acknowledges they have read, understood, and agree to all policies including Terms of Use, Privacy Policy, Informed Telemedicine Consent, and Cancellation Policy. Florida residents also accept the Florida Weight Loss Consumer Bill of Rights.</p>
+        </div>
     </div>
     
     <div class="footer">
