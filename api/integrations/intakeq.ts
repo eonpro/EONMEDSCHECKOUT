@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import FormData from 'form-data';
 
 const INTAKEQ_API_BASE = 'https://intakeq.com/api/v1';
 
@@ -219,9 +220,11 @@ export async function uploadClientPdf(params: {
   
   console.log(`[intakeq] Converted to Buffer, size: ${bytes.length} bytes`);
   
-  // Create blob with proper content type
-  const blob = new Blob([bytes], { type: 'application/pdf' });
-  form.append('file', blob, params.filename);
+  // Append file with proper options for IntakeQ
+  form.append('file', bytes, {
+    filename: params.filename,
+    contentType: 'application/pdf',
+  });
 
   const maxRetries = 3;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -231,9 +234,9 @@ export async function uploadClientPdf(params: {
       method: 'POST',
       headers: {
         'X-Auth-Key': apiKey,
-        // NOTE: fetch will set the multipart boundary automatically
+        ...form.getHeaders(), // Let form-data set the correct Content-Type with boundary
       },
-      body: form,
+      body: form as any,
     });
 
     const text = await res.text();
