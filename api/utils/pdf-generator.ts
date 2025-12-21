@@ -239,6 +239,28 @@ export async function generateIntakePdf(input: IntakePdfInput): Promise<Uint8Arr
 
   header(doc, 'Medical Intake Form', subtitleParts.join('  |  '));
 
+  // MSO DISCLOSURE (Critical for legal compliance)
+  const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  doc
+    .save()
+    .fillColor('#F3F4F6')
+    .rect(doc.page.margins.left, doc.y, pageWidth, 50)
+    .fill()
+    .restore();
+  
+  doc.y += 8;
+  doc.font('Helvetica-Bold').fontSize(9).fillColor('#374151').text('MEDICAL SERVICE ORGANIZATION DISCLOSURE');
+  doc.moveDown(0.2);
+  doc.font('Helvetica').fontSize(8).fillColor('#000000').text(
+    'Apollo Based Health, LLC dba EONMeds operates as a Medical Service Organization (MSO) ' +
+    'providing non-clinical administrative and business services on behalf of Vital Link PLLC, ' +
+    'a Wyoming-licensed medical practice. All clinical services, medical decisions, and prescriptions ' +
+    'are provided by licensed healthcare providers employed by or contracted with Vital Link PLLC.',
+    { align: 'left' }
+  );
+  doc.y += 50 - (doc.y % 50) + 8; // Move past the box
+  doc.moveDown(1);
+
   // ========================================
   // SECTION 1: PATIENT INFORMATION
   // ========================================
@@ -266,7 +288,57 @@ export async function generateIntakePdf(input: IntakePdfInput): Promise<Uint8Arr
   const categorized = categorizeAnswers(input.answers || []);
 
   // ========================================
-  // SECTION 3: MEDICAL HISTORY
+  // SECTION 3: CLINICAL ASSESSMENT & TREATMENT RATIONALE
+  // (Establishes medical necessity for personalized treatment)
+  // ========================================
+  sectionTitle(doc, 'III. Clinical Assessment & Treatment Rationale');
+  
+  // Highlight key answers that support personalized treatment
+  const medicalNecessity: PdfKeyValue[] = [];
+  
+  for (const item of input.answers || []) {
+    const labelLower = item.label.toLowerCase();
+    
+    // Flag answers that indicate need for personalized/tailored treatment
+    if (
+      labelLower.includes('personalized') ||
+      labelLower.includes('side effect') ||
+      labelLower.includes('successful') ||
+      labelLower.includes('dose') ||
+      labelLower.includes('glp-1') ||
+      labelLower.includes('semaglutide') ||
+      labelLower.includes('tirzepatide')
+    ) {
+      medicalNecessity.push(item);
+    }
+  }
+  
+  if (medicalNecessity.length > 0) {
+    doc.font('Helvetica').fontSize(9).fillColor('#6B7280').text(
+      'The following patient-reported information supports individualized treatment planning:'
+    );
+    doc.fillColor('#000000');
+    doc.moveDown(0.4);
+    
+    for (const item of medicalNecessity) {
+      const label = toSafeText(item.label).trim();
+      const value = toSafeText(item.value).trim();
+      if (!label) continue;
+      
+      // Use full question text and highlight the answer
+      doc.font('Helvetica-Bold').fontSize(9).fillColor('#DC2626').text('Q: ', { continued: true });
+      doc.font('Helvetica').fontSize(9).fillColor('#000000').text(label);
+      doc.font('Helvetica-Bold').fontSize(10).fillColor('#059669').text('A: ', { continued: true });
+      doc.font('Helvetica').fontSize(10).fillColor('#000000').text(value || 'Not provided');
+      doc.moveDown(0.4);
+    }
+  } else {
+    doc.font('Helvetica').fontSize(9).text('Standard treatment protocol applicable.');
+  }
+  doc.moveDown(0.8);
+
+  // ========================================
+  // SECTION 4: COMPLETE MEDICAL HISTORY
   // ========================================
   if (categorized.medicalHistory.length > 0) {
     sectionTitle(doc, 'III. Medical History');
@@ -280,10 +352,10 @@ export async function generateIntakePdf(input: IntakePdfInput): Promise<Uint8Arr
   }
 
   // ========================================
-  // SECTION 4: GLP-1 MEDICATION HISTORY
+  // SECTION 5: GLP-1 MEDICATION HISTORY (Additional Details)
   // ========================================
   if (categorized.glp1Usage.length > 0) {
-    sectionTitle(doc, 'IV. GLP-1 Medication History');
+    sectionTitle(doc, 'V. GLP-1 Medication History (Additional Details)');
     for (const item of categorized.glp1Usage) {
       const label = toSafeText(item.label).trim();
       const value = toSafeText(item.value).trim();
@@ -294,10 +366,10 @@ export async function generateIntakePdf(input: IntakePdfInput): Promise<Uint8Arr
   }
 
   // ========================================
-  // SECTION 5: LIFESTYLE & HEALTH METRICS
+  // SECTION 6: LIFESTYLE & HEALTH METRICS
   // ========================================
   if (categorized.lifestyle.length > 0) {
-    sectionTitle(doc, 'V. Lifestyle & Health Metrics');
+    sectionTitle(doc, 'VI. Lifestyle & Health Metrics');
     for (const item of categorized.lifestyle) {
       const label = toSafeText(item.label).trim();
       const value = toSafeText(item.value).trim();
@@ -308,10 +380,10 @@ export async function generateIntakePdf(input: IntakePdfInput): Promise<Uint8Arr
   }
 
   // ========================================
-  // SECTION 6: REFERRAL INFORMATION
+  // SECTION 7: REFERRAL INFORMATION
   // ========================================
   if (categorized.referral.length > 0) {
-    sectionTitle(doc, 'VI. Referral & Treatment Goals');
+    sectionTitle(doc, 'VII. Referral & Treatment Goals');
     for (const item of categorized.referral) {
       const label = toSafeText(item.label).trim();
       const value = toSafeText(item.value).trim();
@@ -322,9 +394,9 @@ export async function generateIntakePdf(input: IntakePdfInput): Promise<Uint8Arr
   }
 
   // ========================================
-  // SECTION 7: CONSENT AGREEMENTS (CRITICAL FOR CHARGEBACKS)
+  // SECTION 8: CONSENT AGREEMENTS (CRITICAL FOR CHARGEBACKS)
   // ========================================
-  sectionTitle(doc, 'VII. Consent Agreements & Acknowledgments');
+  sectionTitle(doc, 'VIII. Consent Agreements & Acknowledgments');
   
   doc.font('Helvetica').fontSize(9).fillColor('#DC2626')
     .text('The following consents were acknowledged and accepted by the patient:');
@@ -366,7 +438,7 @@ export async function generateIntakePdf(input: IntakePdfInput): Promise<Uint8Arr
   doc.moveDown(0.8);
 
   // ========================================
-  // SECTION 8: ELECTRONIC SIGNATURE (CRITICAL FOR CHARGEBACKS)
+  // SECTION 9: ELECTRONIC SIGNATURE (CRITICAL FOR CHARGEBACKS)
   // ========================================
   ensureSpace(doc, 120);
   
