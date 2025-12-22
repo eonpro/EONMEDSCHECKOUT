@@ -75,7 +75,8 @@ const stateCode = stateMap[stateRaw.toLowerCase().trim()] || stateRaw.substring(
 
 const fullStreetAddress = `${house} ${street}`.trim();
 
-console.log("📍 Extracted address:");
+console.log("📍 Extracted data:");
+console.log("   Phone (raw from Airtable):", phone);
 console.log("   Street:", fullStreetAddress);
 console.log("   Apartment:", apartment);
 console.log("   City:", city);
