@@ -441,16 +441,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ ok: true, intakeId, intakeQClientId: client.Id, kvStored });
   } catch (err: any) {
     // Log detailed error for debugging (avoid PHI in logs)
+    const errorMessage = err?.message || String(err);
     console.error('[intake-webhook] Error processing intake webhook:', {
-      message: err?.message || String(err),
+      message: errorMessage,
       stack: err?.stack?.split('\n').slice(0, 5).join('\n'), // First 5 lines of stack
       code: err?.code,
       name: err?.name,
     });
+    
+    // Determine safe error code for client (no PHI)
+    let errorCode = 'UNKNOWN_ERROR';
+    if (errorMessage.includes('IntakeQ not configured')) {
+      errorCode = 'INTAKEQ_NOT_CONFIGURED';
+    } else if (errorMessage.includes('IntakeQ API error')) {
+      errorCode = 'INTAKEQ_API_ERROR';
+    } else if (errorMessage.includes('IntakeQ client not found')) {
+      errorCode = 'INTAKEQ_CLIENT_NOT_FOUND';
+    } else if (errorMessage.includes('KV')) {
+      errorCode = 'KV_ERROR';
+    } else if (errorMessage.includes('PDF')) {
+      errorCode = 'PDF_ERROR';
+    }
+    
     return res.status(500).json({ 
       error: 'Internal server error',
-      // Include error hint in development
-      hint: process.env.NODE_ENV !== 'production' ? err?.message : undefined
+      code: errorCode,
+      // Include truncated error hint in all environments for debugging
+      hint: errorMessage.substring(0, 100),
     });
   }
 }
