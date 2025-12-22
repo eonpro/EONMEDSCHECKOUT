@@ -57,8 +57,7 @@ function formatPhone(phone) {
 const firstname = getCell("firstname") || '';
 const lastname = getCell("lastname") || '';
 const email = getCell("email") || '';
-const phoneRaw = getCell("Phone Number");
-const phone = formatPhone(phoneRaw);
+const phone = getCell("Phone Number") || '';  // Don't format - send as-is to webhook
 const dob = getCell("dob") || '';
 const gender = getCell("gender") || '';
 
@@ -179,7 +178,7 @@ let payload = {
     firstname: firstname,
     lastname: lastname,
     email: email,
-    "phone-input-id-cc54007b": phoneRaw,  // Keep original format
+    "phone-input-id-cc54007b": phone,  // Send as-is, webhook will format
     dob: dob,
     gender: gender,
     address: {
