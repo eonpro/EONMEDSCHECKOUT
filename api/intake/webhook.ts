@@ -305,6 +305,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           dateOfBirth: dob,
           address: {
             street: addressLine1,
+            line2: addressLine2,  // ← CRITICAL: Include apartment during updates
             city,
             state,
             zip: zipCode,

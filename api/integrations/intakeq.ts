@@ -341,6 +341,7 @@ export async function updateClientCustomFieldsByEmail(params: {
   gender?: string;
   address?: {
     street?: string;
+    line2?: string;  // Apartment/Unit
     city?: string;
     state?: string;
     zip?: string;
@@ -454,12 +455,17 @@ export async function updateClientCustomFieldsByEmail(params: {
 
   // Address preservation (flat fields preferred by API)
   const street = (params.address?.street || '').trim() || (base?.StreetAddress || '').toString().trim();
+  const line2 = (params.address?.line2 || '').trim() || (base?.UnitNumber || '').toString().trim(); // Apartment/Unit
   const city = (params.address?.city || '').trim() || (base?.City || '').toString().trim();
   const state = (params.address?.state || '').trim() || (base?.StateShort || base?.State || '').toString().trim();
   const zip = (params.address?.zip || '').trim() || (base?.PostalCode || '').toString().trim();
 
   if (street) payload.StreetAddress = street;
   else if (base?.StreetAddress != null) payload.StreetAddress = base.StreetAddress;
+
+  // CRITICAL: Preserve UnitNumber (apartment) during updates
+  if (line2) payload.UnitNumber = line2;
+  else if (base?.UnitNumber != null) payload.UnitNumber = base.UnitNumber;
 
   if (city) payload.City = city;
   else if (base?.City != null) payload.City = base.City;
@@ -472,7 +478,7 @@ export async function updateClientCustomFieldsByEmail(params: {
 
   if (street || city || state || zip) {
     payload.Country = 'USA';
-    payload.Address = [street, `${city}${city && state ? ',' : ''} ${state}`.trim(), zip, 'USA']
+    payload.Address = [street, line2, `${city}${city && state ? ',' : ''} ${state}`.trim(), zip, 'USA']
       .filter(Boolean)
       .join(' ')
       .trim();
