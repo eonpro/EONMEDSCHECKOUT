@@ -66,9 +66,14 @@ const gender = getCell("gender") || '';
 const street = getCell("address [street]") || '';
 const house = getCell("address [house]") || '';
 const city = getCell("address [city]") || '';
-const stateCode = getCell("address [state_code]") || getCell("address [state]") || getCell("state") || getCell("State") || '';
+const stateRaw = getCell("address [state_code]") || getCell("address [state]") || getCell("state") || getCell("State") || '';
 const zip = getCell("address [zip]") || getCell("address") || '';
 const apartment = getCell("apartment#") || getCell("apartment") || getCell("Apartment") || getCell("apt") || getCell("unit") || '';
+
+// Convert state name to 2-letter code
+const stateMap = {'florida':'FL','texas':'TX','california':'CA','new york':'NY','north carolina':'NC','south carolina':'SC','illinois':'IL','wisconsin':'WI','indiana':'IN','massachusetts':'MA','delaware':'DE','georgia':'GA','virginia':'VA','michigan':'MI','nevada':'NV','connecticut':'CT'};
+const stateCode = stateMap[stateRaw.toLowerCase().trim()] || stateRaw.substring(0,2).toUpperCase();
+
 const fullStreetAddress = `${house} ${street}`.trim();
 
 console.log("📍 Extracted address:");
