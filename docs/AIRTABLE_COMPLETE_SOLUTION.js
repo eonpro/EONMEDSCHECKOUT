@@ -124,10 +124,11 @@ const historyOf = getCell("History of the following") || '';
 const diagnoseWith = getCell("diagnose with the following") || '';
 
 // GLP-1 Info
-const glp1Type = getCell("glp1-type") || getCell("type-of-glp1") || '';
+const glp1Type = getCell("glp1-type") || '';
 const glp1CurrentDose = getCell("glp1-current-dose") || '';
-const typeOfMedication = getCell("type-of-medication") || '';
-const semaglutidaDose = getCell("semaglutida-dose") || '';
+// "type-of-glp1" column in Airtable contains: Oral GLP-1, Semaglutide, Tirzepatide, etc.
+const typeOfMedication = getCell("type-of-glp1") || getCell("type-of-medication") || '';
+const semaglutidaDose = getCell("semaglutida-dose") || getCell("semaglutide-dose") || '';
 const semaglutideSideEffects = getCell("semaglutide-side-effects") || '';
 const semaglutideSuccess = getCell("semaglutide-success") || '';
 const tirzepatideDose = getCell("tirzepatide-dose") || '';
@@ -284,15 +285,42 @@ function getQuestionText(fieldLabel, value) {
 
 // Determine appropriate "no answer" text based on field type
 function getEmptyValueText(fieldLabel) {
+  // Medical history conditions - patient doesn't have them
   const medicalHistoryFields = [
-    'MENTAL HEALTH', 'SURGERY TYPE', 'SURGERY HISTORY', 'GASTROPARESIS',
+    'SURGERY TYPE', 'SURGERY HISTORY', 'GASTROPARESIS',
     'KIDNEY DISEASE', 'THYROID CANCER', 'PANCREATITIS', 'NEOPLASIA',
-    'DIABETES TYPE 2', 'PREGNANT/BREASTFEEDING', 'HAS ALLERGIES',
+    'DIABETES TYPE 2', 'PREGNANT/BREASTFEEDING',
     'MEDICAL CONDITIONS', 'DIAGNOSED WITH', 'HISTORY OF', 'FAMILY HISTORY'
+  ];
+  
+  // Mental health fields
+  const mentalHealthFields = ['MENTAL HEALTH', 'MH CONDITIONS'];
+  
+  // Allergy fields
+  const allergyFields = ['HAS ALLERGIES', 'ALLERGY LIST'];
+  
+  // GLP-1 medication fields - use N/A
+  const glp1Fields = [
+    'MEDICATION TYPE', 'GLP-1 TYPE', 'CURRENT DOSE', 
+    'SEMAGLUTIDE DOSE', 'SEMAGLUTIDE SUCCESS', 'SEMAGLUTIDE SIDE EFFECTS',
+    'TIRZEPATIDE DOSE', 'TIRZEPATIDE SUCCESS',
+    'SIDE EFFECTS', 'SIDE EFFECTS TENDENCY', 'MEDICATION ORDERED', 'PERSONALIZED TREATMENT'
   ];
   
   if (medicalHistoryFields.includes(fieldLabel)) {
     return 'Patient does not have a history of this condition';
+  }
+  
+  if (mentalHealthFields.includes(fieldLabel)) {
+    return 'Patient does not have any mental health conditions';
+  }
+  
+  if (allergyFields.includes(fieldLabel)) {
+    return 'Patient has no known allergies';
+  }
+  
+  if (glp1Fields.includes(fieldLabel)) {
+    return 'N/A';
   }
   
   return 'Not provided';
@@ -338,7 +366,7 @@ const pdfHtml = `<!DOCTYPE html>
         .field-full { grid-column: span 2; }
         .label { display: block; font-size: 9px; font-weight: 600; color: #666; text-transform: uppercase; margin-bottom: 3px; }
         .value { display: block; font-size: 12px; color: #000; }
-        .value.empty { color: #999; font-style: italic; }
+        .value.empty { color: #555; font-style: normal; }
         .consent-item { padding: 10px; background: #fff; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid #4CAF50; }
         .consent-label { display: block; font-size: 11px; font-weight: 600; color: #333; margin-bottom: 4px; }
         .consent-status { display: block; font-size: 11px; color: #4CAF50; font-weight: 500; }
@@ -346,7 +374,7 @@ const pdfHtml = `<!DOCTYPE html>
         .legal-consent-title { font-size: 11px; font-weight: 600; color: #2e7d32; margin-bottom: 6px; }
         .legal-consent-text { font-size: 10px; color: #555; line-height: 1.5; }
         .florida-only { border-left-color: #FF9800; }
-        .signature-box { padding: 15px; background: #f1f8f4; border: 2px solid #4CAF50; border-radius: 8px; margin-top: 10px; }
+        .signature-box { padding: 15px; background: #f1f8f4; border: 2px solid #4CAF50; border-radius: 8px; margin-top: 10px; page-break-inside: avoid; break-inside: avoid; }
         .signature-title { font-size: 12px; font-weight: 600; color: #2e7d32; margin-bottom: 8px; }
         .signature-text { font-size: 10px; color: #555; line-height: 1.5; margin-bottom: 8px; }
         .signature-checkbox { font-size: 11px; font-weight: 600; color: #2e7d32; margin-top: 8px; }
