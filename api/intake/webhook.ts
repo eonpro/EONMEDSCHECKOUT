@@ -190,7 +190,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!addressLine2 && normalizedPayload.fields && typeof normalizedPayload.fields === 'object') {
       addressLine2 = String(normalizedPayload.fields['apartment#'] || normalizedPayload.fields['apartment'] || '').trim();
       if (addressLine2) {
-        console.log(`[intake-webhook] ✅ Found apartment# in fields object: "${addressLine2}"`);
+        console.log(`[intake-webhook] [OK] Found apartment# in fields object: "${addressLine2}"`);
       }
     }
     

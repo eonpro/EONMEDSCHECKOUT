@@ -357,7 +357,7 @@ export async function handlePaymentForGHL(
         ``,
         `Payment ID: ${paymentData.paymentIntentId}`,
         ``,
-        `✅ Automation trigger tag: payment-completed`,
+        `[OK] Automation trigger tag: payment-completed`,
       ].filter(Boolean).join('\n');
       
       await addNoteToContact(contact.id, noteText);

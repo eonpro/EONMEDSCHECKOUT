@@ -182,9 +182,9 @@ export async function createClient(input: CreateIntakeQClientInput): Promise<Int
     if (street) payload.StreetAddress = street;
     if (line2) {
       payload.UnitNumber = line2; // IntakeQ field for apartment/suite
-      console.log(`[intakeq] ✅ Setting UnitNumber to: "${line2}"`);
+      console.log(`[intakeq] [OK] Setting UnitNumber to: "${line2}"`);
     } else {
-      console.log(`[intakeq] ⚠️ No apartment/unit number provided`);
+      console.log(`[intakeq] [WARN] No apartment/unit number provided`);
     }
     if (city) payload.City = city;
     if (state) payload.StateShort = state;
@@ -266,12 +266,12 @@ export async function uploadClientPdf(params: {
       }
 
       if (!res.ok) {
-        console.error(`[intakeq] ❌ Upload failed with JSON approach: ${res.status} - ${text}`);
+        console.error(`[intakeq] [ERROR] Upload failed with JSON approach: ${res.status} - ${text}`);
         // If JSON fails, the API likely doesn't support it - fall through to error
         throw new Error(`IntakeQ upload file error (${res.status}): ${text.substring(0, 500)}`);
       }
 
-      console.log(`[intakeq] ✅ PDF uploaded successfully to client ${params.clientId}`);
+      console.log(`[intakeq] [OK] PDF uploaded successfully to client ${params.clientId}`);
       return;
     } catch (err: any) {
       console.error(`[intakeq] Upload attempt ${attempt + 1} failed:`, err?.message);

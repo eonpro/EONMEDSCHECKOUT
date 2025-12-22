@@ -594,11 +594,11 @@ export async function generateIntakePdf(input: IntakePdfInput): Promise<Uint8Arr
     });
     
     const pdfBytes = await pdfDoc.save();
-    console.log(`[pdf] ✅ Intake PDF generated (${pdfBytes.length} bytes)`);
+    console.log(`[pdf] [OK] Intake PDF generated (${pdfBytes.length} bytes)`);
     return pdfBytes;
     
   } catch (error: any) {
-    console.error('[pdf] ❌ Error generating intake PDF:', {
+    console.error('[pdf] [ERROR] Error generating intake PDF:', {
       message: error?.message,
       stack: error?.stack?.split('\n').slice(0, 5).join('\n'),
     });
@@ -779,11 +779,11 @@ export async function generateInvoicePdf(input: InvoicePdfInput): Promise<Uint8A
     });
     
     const pdfBytes = await pdfDoc.save();
-    console.log(`[pdf] ✅ Invoice PDF generated (${pdfBytes.length} bytes)`);
+    console.log(`[pdf] [OK] Invoice PDF generated (${pdfBytes.length} bytes)`);
     return pdfBytes;
     
   } catch (error: any) {
-    console.error('[pdf] ❌ Error generating invoice PDF:', {
+    console.error('[pdf] [ERROR] Error generating invoice PDF:', {
       message: error?.message,
       stack: error?.stack?.split('\n').slice(0, 5).join('\n'),
     });

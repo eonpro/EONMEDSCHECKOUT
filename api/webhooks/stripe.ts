@@ -310,10 +310,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const subscription = await createSubscriptionForPayment(paymentIntent);
             if (subscription) {
               subscriptionId = subscription.id;
-              console.log(`[webhook] ✅ Successfully created subscription: ${subscriptionId}`);
+              console.log(`[webhook] [OK] Successfully created subscription: ${subscriptionId}`);
             }
           } catch (error) {
-            console.error(`[webhook] ❌ Failed to create subscription:`, error);
+            console.error(`[webhook] [ERROR] Failed to create subscription:`, error);
           }
         } else {
           console.log('[webhook] Not a subscription payment (is_subscription !== true)');
@@ -412,27 +412,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               // ignore
             }
 
-            console.log(`[webhook] ✅ Uploaded invoice PDF to IntakeQ client ${intakeQClientId}`);
+            console.log(`[webhook] [OK] Uploaded invoice PDF to IntakeQ client ${intakeQClientId}`);
           } else {
-            console.warn('[webhook] ⚠️ IntakeQ client not found; invoice upload skipped');
+            console.warn('[webhook] [WARN] IntakeQ client not found; invoice upload skipped');
           }
         } catch (intakeQErr: any) {
           // Do not fail Stripe webhook if IntakeQ is unavailable
-          console.error('[webhook] ❌ IntakeQ integration error:', intakeQErr?.message || intakeQErr);
+          console.error('[webhook] [ERROR] IntakeQ integration error:', intakeQErr?.message || intakeQErr);
         }
         // =========================================================
         
         // =========================================================
         // Airtable Integration - Update Payment Status
         // =========================================================
-        console.log('[webhook] 🔍 Starting Airtable payment update...');
+        console.log('[webhook] [INFO] Starting Airtable payment update...');
         console.log('[webhook] Looking for Airtable record with email:', email);
         
         try {
           const airtableRecord = await findAirtableRecordByEmail(email);
           
           if (airtableRecord) {
-            console.log(`[webhook] ✅ Found Airtable record: ${airtableRecord.id}`);
+            console.log(`[webhook] [OK] Found Airtable record: ${airtableRecord.id}`);
             
             await updateAirtablePaymentStatus({
               recordId: airtableRecord.id,
@@ -446,17 +446,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               stripeCustomerId: paymentIntent.customer as string,
             });
             
-            console.log(`[webhook] ✅ Updated Airtable record ${airtableRecord.id} with payment data`);
+            console.log(`[webhook] [OK] Updated Airtable record ${airtableRecord.id} with payment data`);
             console.log(`[webhook] Payment Amount: $${(paymentIntent.amount / 100).toFixed(2)}`);
             console.log(`[webhook] Medication: ${metadata.medication}`);
             console.log(`[webhook] Plan: ${metadata.plan}`);
           } else {
-            console.warn(`[webhook] ⚠️ Airtable record NOT FOUND for email: ${email}`);
+            console.warn(`[webhook] [WARN] Airtable record NOT FOUND for email: ${email}`);
             console.warn(`[webhook] This payment will not update Airtable - email mismatch?`);
           }
         } catch (airtableErr: any) {
           // Do not fail Stripe webhook if Airtable is unavailable
-          console.error('[webhook] ❌ Airtable integration error:', {
+          console.error('[webhook] [ERROR] Airtable integration error:', {
             message: airtableErr?.message || String(airtableErr),
             stack: airtableErr?.stack?.split('\n').slice(0, 3).join('\n'),
           });
@@ -506,19 +506,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               console.log('[webhook] Email found, calling GHL...');
               const ghlResult = await handlePaymentForGHL(contactData, paymentData);
               if (ghlResult.success) {
-                console.log(`[webhook] ✅ GHL contact created/updated for payment ${paymentIntent.id}`);
+                console.log(`[webhook] [OK] GHL contact created/updated for payment ${paymentIntent.id}`);
               } else {
-                console.warn(`[webhook] ⚠️ GHL returned success=false for payment ${paymentIntent.id}`);
+                console.warn(`[webhook] [WARN] GHL returned success=false for payment ${paymentIntent.id}`);
               }
             } else {
-              console.warn('[webhook] ⚠️ No email found in payment metadata, skipping GHL');
+              console.warn('[webhook] [WARN] No email found in payment metadata, skipping GHL');
             }
           } catch (ghlError) {
             // Don't fail the webhook if GHL fails
-            console.error('[webhook] ❌ GHL integration error:', ghlError);
+            console.error('[webhook] [ERROR] GHL integration error:', ghlError);
           }
         } else {
-          console.log('[webhook] ⚠️ GHL not configured (missing API key or Location ID)');
+          console.log('[webhook] [WARN] GHL not configured (missing API key or Location ID)');
         }
         // =========================================================
         
@@ -588,7 +588,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log('[webhook] ========== WEBHOOK PROCESSING COMPLETE ==========');
     res.json({ received: true });
   } catch (err: any) {
-    console.error('[webhook] ❌ ERROR processing webhook:', err.message || err);
+    console.error('[webhook] [ERROR] ERROR processing webhook:', err.message || err);
     console.error('[webhook] Full error:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
     res.status(400).send(`Webhook Error: ${err.message || 'invalid'}`);
   }
