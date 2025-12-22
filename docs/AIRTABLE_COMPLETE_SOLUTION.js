@@ -77,7 +77,7 @@ const stateCode = stateMap[stateRaw.toLowerCase().trim()] || stateRaw.substring(
 
 const fullStreetAddress = `${house} ${street}`.trim();
 
-console.log("📍 Extracted data:");
+console.log("[LOC] Extracted data:");
 console.log("   Phone (raw from Airtable):", phone);
 console.log("   Street:", fullStreetAddress);
 console.log("   Apartment:", apartment);
@@ -208,7 +208,7 @@ let payload = {
   }
 };
 
-console.log("📤 Calling webhook...");
+console.log("[UPLOAD] Calling webhook...");
 console.log("   Apartment:", apartment);
 
 let response = await fetch("https://checkout.eonmeds.com/api/intake/webhook", {
@@ -222,23 +222,23 @@ let result = await response.json();
 let clientId = result.intakeQClientId;
 
 if (!clientId) {
-  console.log("❌ Webhook error:", result);
+  console.log("[ERROR] Webhook error:", result);
   throw new Error("Webhook did not return IntakeQ Client ID");
 }
 
-console.log(`✅ IntakeQ Client created: ${clientId}`);
+console.log(`[OK] IntakeQ Client created: ${clientId}`);
 
 await table.updateRecordAsync(recordId, {
-  "IntakeQ Status": "Sent ✓",
+  "IntakeQ Status": "Sent [X]",
   "IntakeQ Client ID": String(clientId)
 });
-console.log("✅ Airtable updated");
+console.log("[OK] Airtable updated");
 
 // ============================================================================
 // STEP 2: GENERATE PDF WITH PDF.CO
 // ============================================================================
 
-console.log("📄 Generating PDF...");
+console.log("[PDF] Generating PDF...");
 
 function fieldHtml(label, value) {
   const displayValue = value || 'Not provided';
@@ -254,7 +254,7 @@ function fieldHtmlFull(label, value) {
 
 function consentHtml(label, value) {
   if (!value) return '';
-  return `<div class="consent-item"><span class="consent-label">${label}</span><span class="consent-status">✓ ${value}</span></div>`;
+  return `<div class="consent-item"><span class="consent-label">${label}</span><span class="consent-status">[X] ${value}</span></div>`;
 }
 
 const pdfHtml = `<!DOCTYPE html>
@@ -432,12 +432,12 @@ try {
   
   if (pdfResult.url) {
     pdfUrl = pdfResult.url;
-    console.log("✅ PDF generated:", pdfUrl);
+    console.log("[OK] PDF generated:", pdfUrl);
   } else {
-    console.log("❌ PDF.co error:", pdfResult.message);
+    console.log("[ERROR] PDF.co error:", pdfResult.message);
   }
 } catch (e) {
-  console.log("⚠️ PDF generation failed:", e.toString());
+  console.log("[WARN] PDF generation failed:", e.toString());
 }
 
 // ============================================================================
@@ -445,7 +445,7 @@ try {
 // ============================================================================
 
 if (pdfUrl) {
-  console.log("📤 Uploading PDF to IntakeQ...");
+  console.log("[UPLOAD] Uploading PDF to IntakeQ...");
   
   let uploadSuccess = false;
   
@@ -486,13 +486,13 @@ if (pdfUrl) {
     const uploadResult = await uploadResponse.text();
     
     if (uploadResponse.ok) {
-      console.log("✅ PDF uploaded to IntakeQ Files");
+      console.log("[OK] PDF uploaded to IntakeQ Files");
       uploadSuccess = true;
     } else {
-      console.log(`⚠️ Upload failed (${uploadResponse.status}):`, uploadResult.substring(0, 100));
+      console.log(`[WARN] Upload failed (${uploadResponse.status}):`, uploadResult.substring(0, 100));
     }
   } catch (e) {
-    console.log("⚠️ PDF upload error:", e.toString());
+    console.log("[WARN] PDF upload error:", e.toString());
   }
   
   if (!uploadSuccess) {
@@ -504,7 +504,7 @@ if (pdfUrl) {
 }
 
 console.log("========================================");
-console.log(`✅ COMPLETE - Client ID: ${clientId}`);
+console.log(`[OK] COMPLETE - Client ID: ${clientId}`);
 console.log(`   Apartment: ${apartment || 'None'}`);
 console.log(`   Referral: ${referral || 'None'}`);
 console.log("========================================");
