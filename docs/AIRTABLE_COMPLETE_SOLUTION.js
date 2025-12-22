@@ -179,20 +179,19 @@ let payload = {
     firstname: firstname,
     lastname: lastname,
     email: email,
-    "phone-input-id-cc54007b": phoneRaw ? phoneRaw.replace(/\D/g, '') : null,
+    "phone-input-id-cc54007b": phoneRaw,  // Keep original format
     dob: dob,
     gender: gender,
     address: {
       street: street,
       house: house,
-      line2: apartment,  // ← THIS IS THE KEY! Webhook looks for address.line2
       city: city,
       state_code: stateCode,
       state: stateCode,
       zip: zip,
       country: "US"
     },
-    "apartment#": apartment,
+    "apartment#": apartment,  // Try all field names
     "apartment": apartment,
     "unit": apartment,
     feet: feet,
