@@ -1718,7 +1718,7 @@ export function GLP1CheckoutPageImproved() {
                             applyPromo();
                           }
                         }}
-                        placeholder={language === 'es' ? 'Ej: EON25' : 'e.g. EON25'}
+                        placeholder={language === 'es' ? 'Código promocional' : 'Promo code'}
                         className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm uppercase"
                         autoComplete="off"
                         autoCapitalize="characters"
@@ -1768,6 +1768,7 @@ export function GLP1CheckoutPageImproved() {
                     orderData={{
                       medication: selectedMed?.name || '',
                       plan: selectedPlanData?.type || '',
+                      billing: (selectedPlanData?.billing || 'once') as 'monthly' | 'total' | 'once',
                       addons: selectedAddons.map(id => {
                         const addon = addons.find(a => a.id === id);
                         return (addon as any)?.nameEn || addon?.name || '';
@@ -1788,6 +1789,7 @@ export function GLP1CheckoutPageImproved() {
                       orderData={{
                         medication: selectedMed?.name || '',
                         plan: selectedPlanData?.type || '',
+                        billing: (selectedPlanData?.billing || 'once') as 'monthly' | 'total' | 'once',
                         addons: selectedAddons.map(id => {
                           const addon = addons.find(a => a.id === id);
                           return (addon as any)?.nameEn || addon?.name || '';

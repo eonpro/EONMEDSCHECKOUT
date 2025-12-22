@@ -18,6 +18,7 @@ interface ShippingAddress {
 interface OrderData {
   medication: string;
   plan: string;
+  billing?: 'monthly' | 'total' | 'once'; // monthly = subscription, total = multi-month package, once = one-time
   addons: string[];
   expeditedShipping: boolean;
   subtotal: number;
@@ -41,10 +42,15 @@ export function PaymentForm({ amount, onSuccess, onError, customerEmail, languag
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
-  // Determine if this is a subscription based on plan type
+  // Determine if this is a subscription based on billing type
+  // billing: 'monthly' = subscription, 'total' = multi-month package (still recurring), 'once' = one-time
+  const billing = orderData?.billing || 'once';
+  const isSubscription = billing === 'monthly' || billing === 'total';
+  
+  // Fallback to string matching if billing is not set (for backwards compatibility)
   const planId = orderData?.plan || '';
   const planLower = planId.toLowerCase();
-  const isSubscription = Boolean(planId && 
+  const isSubscriptionByPlanName = Boolean(planId && 
     !planLower.includes('one time') && 
     !planLower.includes('once') &&
     !planLower.includes('única') && // Spanish: "compra única"
@@ -55,7 +61,11 @@ export function PaymentForm({ amount, onSuccess, onError, customerEmail, languag
      planLower.includes('recurrente') || // Spanish recurring
      planLower.includes('subscription') ||
      planLower.includes('suscripción') || // Spanish subscription
-     planLower.includes('plan')));
+     planLower.includes('paquete') || // Spanish: package
+     planLower.includes('package')));
+  
+  // Use billing field if set, otherwise fallback to plan name matching
+  const showSubscriptionNotice = billing !== 'once' ? isSubscription : isSubscriptionByPlanName;
   
   // Note: PaymentIntent is created by StripeProvider, not here
   // The Elements context already has the clientSecret from StripeProvider
@@ -187,7 +197,7 @@ export function PaymentForm({ amount, onSuccess, onError, customerEmail, languag
         <h3 className="text-lg font-semibold mb-4">{t.paymentTitle}</h3>
         
         {/* Subscription Information */}
-        {isSubscription ? (
+        {showSubscriptionNotice ? (
           <div className="mb-4 p-4 rounded-lg border" style={{ backgroundColor: '#efece7', borderColor: '#d4cec4' }}>
             <div className="flex items-start gap-2">
               <svg className="w-5 h-5 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20" style={{ color: '#5a4d3f' }}>

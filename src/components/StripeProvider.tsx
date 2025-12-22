@@ -15,6 +15,7 @@ interface ShippingAddress {
 interface OrderData {
   medication: string;
   plan: string;
+  billing?: 'monthly' | 'total' | 'once';
   addons: string[];
   expeditedShipping: boolean;
   subtotal: number;
