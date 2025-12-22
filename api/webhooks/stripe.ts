@@ -142,6 +142,11 @@ export const config = {
 // Helper function to create subscription for FUTURE billing only
 // The initial payment was already collected via PaymentIntent
 async function createSubscriptionForPayment(paymentIntent: any) {
+  if (!stripe) {
+    console.error('[webhook] Stripe client not initialized - cannot create subscription');
+    return;
+  }
+  
   try {
     const metadata = paymentIntent.metadata;
     

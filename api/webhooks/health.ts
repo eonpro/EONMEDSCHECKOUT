@@ -8,7 +8,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
  * 
  * Access: https://checkout.eonmeds.com/api/webhooks/health
  */
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(_req: VercelRequest, res: VercelResponse) {
   // Check all required environment variables
   const integrations = {
     stripe: {
