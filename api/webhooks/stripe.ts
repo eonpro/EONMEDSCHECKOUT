@@ -320,14 +320,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         // =========================================================
+        // Extract customer email and intake ID (used by multiple integrations below)
+        // =========================================================
+        const emailRaw = (metadata.customer_email || paymentIntent.receipt_email || '').toString();
+        const email = emailRaw.trim().toLowerCase();
+        const intakeId =
+          (metadata.intakeId || metadata.intake_id || metadata.intakeID || metadata.intake || '').toString().trim();
+
+        // =========================================================
         // IntakeQ Integration - Upload invoice + mark ready for Rx
         // =========================================================
         try {
-          const emailRaw = (metadata.customer_email || paymentIntent.receipt_email || '').toString();
-          const email = emailRaw.trim().toLowerCase();
-          const intakeId =
-            (metadata.intakeId || metadata.intake_id || metadata.intakeID || metadata.intake || '').toString().trim();
-
           // Lookup IntakeQ client id from KV (preferred) or by email (fallback)
           let intakeQClientId: number | undefined;
           let linkedIntakeId: string | undefined;
