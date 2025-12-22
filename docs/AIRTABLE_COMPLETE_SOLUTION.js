@@ -240,16 +240,76 @@ console.log("[OK] Airtable updated");
 
 console.log("[PDF] Generating PDF...");
 
+function getQuestionText(fieldLabel, value) {
+  const questions = {
+    'MENTAL HEALTH': 'Have you been diagnosed with any mental health condition?',
+    'MH CONDITIONS': 'Please specify your mental health conditions:',
+    'SURGERY TYPE': 'Have you had any surgery or medical procedures?',
+    'SURGERY HISTORY': 'Have you had any surgery or medical procedures?',
+    'GASTROPARESIS': 'Do you have a personal history of gastroparesis (delayed gastric emptying)?',
+    'KIDNEY DISEASE': 'Do you have chronic kidney disease?',
+    'THYROID CANCER': 'Do you have a personal or family history of medullary thyroid cancer?',
+    'PANCREATITIS': 'Have you been diagnosed with chronic pancreatitis?',
+    'NEOPLASIA': 'Do you have Multiple Endocrine Neoplasia syndrome type 2 (MEN 2)?',
+    'DIABETES TYPE 2': 'Have you been diagnosed with Type 2 Diabetes?',
+    'PREGNANT/BREASTFEEDING': 'Are you currently pregnant or breastfeeding?',
+    'BLOOD PRESSURE': 'What is your most recent blood pressure reading?',
+    'ACTIVITY LEVEL': 'What is your physical activity level?',
+    'HAS ALLERGIES': 'Do you have any known allergies to medications?',
+    'ALLERGY LIST': 'Please list your medication allergies:',
+    'CURRENT MEDICATIONS': 'What medications are you currently taking?',
+    'MEDICAL CONDITIONS': 'Do you have any chronic medical conditions?',
+    'DIAGNOSED WITH': 'Have you been diagnosed with any of the following?',
+    'HISTORY OF': 'Do you have a history of any of the following?',
+    'FAMILY HISTORY': 'Do you have a family history of any of the following conditions?',
+    'MEDICATION TYPE': 'What type of GLP-1 medication are you interested in?',
+    'GLP-1 TYPE': 'Have you taken a GLP-1 medication before?',
+    'CURRENT DOSE': 'What is your current GLP-1 dose?',
+    'SEMAGLUTIDE DOSE': 'What dose of Semaglutide are you currently taking?',
+    'SEMAGLUTIDE SUCCESS': 'Have you had success with Semaglutide?',
+    'TIRZEPATIDE DOSE': 'What dose of Tirzepatide are you currently taking?',
+    'TIRZEPATIDE SUCCESS': 'Have you had success with Tirzepatide?',
+    'SEMAGLUTIDE SIDE EFFECTS': 'Have you experienced any side effects from Semaglutide?',
+    'SIDE EFFECTS': 'What side effects have you experienced?',
+    'SIDE EFFECTS TENDENCY': 'How do you typically respond to medication side effects?',
+    'MEDICATION ORDERED': 'What medication was ordered?',
+    'PERSONALIZED TREATMENT': 'Are you interested in personalized compounded treatment?',
+    'LIFE CHANGE GOALS': 'How would your life change by achieving your weight loss goals?',
+    'HOW DID YOU HEAR': 'How did you hear about us?',
+    'WHO REFERRED YOU': 'Who referred you to EONMeds?',
+  };
+  
+  return questions[fieldLabel] || fieldLabel;
+}
+
+// Determine appropriate "no answer" text based on field type
+function getEmptyValueText(fieldLabel) {
+  const medicalHistoryFields = [
+    'MENTAL HEALTH', 'SURGERY TYPE', 'SURGERY HISTORY', 'GASTROPARESIS',
+    'KIDNEY DISEASE', 'THYROID CANCER', 'PANCREATITIS', 'NEOPLASIA',
+    'DIABETES TYPE 2', 'PREGNANT/BREASTFEEDING', 'HAS ALLERGIES',
+    'MEDICAL CONDITIONS', 'DIAGNOSED WITH', 'HISTORY OF', 'FAMILY HISTORY'
+  ];
+  
+  if (medicalHistoryFields.includes(fieldLabel)) {
+    return 'Patient does not have a history of this condition';
+  }
+  
+  return 'Not provided';
+}
+
 function fieldHtml(label, value) {
-  const displayValue = value || 'Not provided';
+  const questionText = getQuestionText(label, value);
+  const displayValue = value || getEmptyValueText(label);
   const emptyClass = !value ? 'empty' : '';
-  return `<div class="field"><span class="label">${label}</span><span class="value ${emptyClass}">${displayValue}</span></div>`;
+  return `<div class="field"><span class="label">${questionText}</span><span class="value ${emptyClass}">${displayValue}</span></div>`;
 }
 
 function fieldHtmlFull(label, value) {
-  const displayValue = value || 'Not provided';
+  const questionText = getQuestionText(label, value);
+  const displayValue = value || getEmptyValueText(label);
   const emptyClass = !value ? 'empty' : '';
-  return `<div class="field-full"><span class="label">${label}</span><span class="value ${emptyClass}">${displayValue}</span></div>`;
+  return `<div class="field-full"><span class="label">${questionText}</span><span class="value ${emptyClass}">${displayValue}</span></div>`;
 }
 
 function consentHtml(label, value) {
@@ -266,7 +326,8 @@ const pdfHtml = `<!DOCTYPE html>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', Arial, sans-serif; }
         body { padding: 40px; color: #333; font-size: 12px; }
         .header { text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #4CAF50; }
-        .logo-img { width: 180px; margin-bottom: 15px; }
+        .logo-img { width: 180px; margin-bottom: 10px; }
+        .mso-disclosure { background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; padding: 12px; margin: 10px 0 15px 0; text-align: left; font-size: 9px; line-height: 1.4; color: #495057; }
         h1 { font-size: 20px; font-weight: 600; margin-bottom: 5px; }
         .subtitle { font-size: 11px; color: #666; }
         .section { background: #ECEFE7; border-radius: 8px; padding: 20px; margin-bottom: 20px; page-break-inside: avoid; }
@@ -281,12 +342,23 @@ const pdfHtml = `<!DOCTYPE html>
         .consent-item { padding: 10px; background: #fff; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid #4CAF50; }
         .consent-label { display: block; font-size: 11px; font-weight: 600; color: #333; margin-bottom: 4px; }
         .consent-status { display: block; font-size: 11px; color: #4CAF50; font-weight: 500; }
+        .legal-consent { padding: 12px; background: #fff; border-radius: 6px; margin-bottom: 10px; border-left: 3px solid #4CAF50; }
+        .legal-consent-title { font-size: 11px; font-weight: 600; color: #2e7d32; margin-bottom: 6px; }
+        .legal-consent-text { font-size: 10px; color: #555; line-height: 1.5; }
+        .florida-only { border-left-color: #FF9800; }
+        .signature-box { padding: 15px; background: #f1f8f4; border: 2px solid #4CAF50; border-radius: 8px; margin-top: 10px; }
+        .signature-title { font-size: 12px; font-weight: 600; color: #2e7d32; margin-bottom: 8px; }
+        .signature-text { font-size: 10px; color: #555; line-height: 1.5; margin-bottom: 8px; }
+        .signature-checkbox { font-size: 11px; font-weight: 600; color: #2e7d32; margin-top: 8px; }
         .footer { margin-top: 30px; padding-top: 15px; border-top: 1px solid #C2C2C2; text-align: center; color: #666; font-size: 10px; }
     </style>
 </head>
 <body>
     <div class="header">
         <img src="https://static.wixstatic.com/media/c49a9b_4bbe024f61864f57a23d1c3ea26f5378~mv2.png" class="logo-img" />
+        <div class="mso-disclosure">
+            <strong>MSO DISCLOSURE:</strong> Apollo Based Health LLC operates solely as a Management Services Organization (MSO) providing non-clinical administrative and operational support to Vital Link PLLC. All medical care, clinical decisions, and prescriptions are provided exclusively by licensed providers of Vital Link PLLC. Apollo Based Health LLC does not practice medicine or influence medical decision-making.
+        </div>
         <h1>Medical Intake Form</h1>
         <div class="subtitle">Submitted on ${submissionDate} at ${submissionTime}</div>
         <div class="subtitle">Client ID: ${clientId}</div>
@@ -397,10 +469,61 @@ const pdfHtml = `<!DOCTYPE html>
     
     <div class="section">
         <h2>IX. CONSENTS & DISCLOSURES</h2>
+        
+        <div class="legal-consent">
+            <div class="legal-consent-title">Terms of Use</div>
+            <div class="legal-consent-text">I acknowledge that I have read, understand, and agree to the Terms of Use governing my access to and use of this platform and related services.</div>
+            <div class="consent-status">[X] Accepted</div>
+        </div>
+        
+        <div class="legal-consent">
+            <div class="legal-consent-title">Privacy Policy</div>
+            <div class="legal-consent-text">I acknowledge that I have read and understand the Privacy Policy and consent to the collection, use, and disclosure of my information as described, including in accordance with HIPAA and applicable privacy laws.</div>
+            <div class="consent-status">[X] Accepted</div>
+        </div>
+        
+        <div class="legal-consent">
+            <div class="legal-consent-title">Telehealth Consent</div>
+            <div class="legal-consent-text">I consent to receive healthcare services via telehealth, including remote evaluations and communications with licensed providers. I understand the nature, benefits, and limitations of telehealth services and consent to treatment through this format.</div>
+            <div class="consent-status">[X] Accepted</div>
+        </div>
+        
+        <div class="legal-consent">
+            <div class="legal-consent-title">Cancellation Policy</div>
+            <div class="legal-consent-text">I acknowledge that I have read and agree to the Cancellation Policy, including applicable billing terms, subscription charges (if any), and cancellation requirements.</div>
+            <div class="consent-status">[X] Accepted</div>
+        </div>
+        
+        <div class="legal-consent florida-only">
+            <div class="legal-consent-title">Florida Weight Loss Consumer Bill of Rights (Florida residents only)</div>
+            <div class="legal-consent-text">If I am a Florida resident, I acknowledge that I have received and reviewed the Florida Weight Loss Consumer Bill of Rights and understand my rights under Florida law.</div>
+            ${stateCode === 'FL' ? `<div class="consent-status">[X] Accepted</div>` : '<div class="consent-status" style="color: #999;">[N/A - Non-Florida Resident]</div>'}
+        </div>
+        
+        <div class="legal-consent florida-only">
+            <div class="legal-consent-title">Florida Telehealth Consent (Florida residents only)</div>
+            <div class="legal-consent-text">If I am a Florida resident, I consent to the delivery of healthcare services via telehealth in accordance with Florida law and applicable regulations.</div>
+            ${stateCode === 'FL' ? `<div class="consent-status">[X] Accepted</div>` : '<div class="consent-status" style="color: #999;">[N/A - Non-Florida Resident]</div>'}
+        </div>
+        
         ${consentHtml('18+ Age Verification', disclosure18)}
-        ${consentHtml('Terms & Conditions Agreement', disclosures)}
-        ${consentHtml('Telehealth Consent', telehealthConsent)}
         ${consentHtml('Marketing Consent', marketingConsent)}
+        
+        <div class="signature-box">
+            <div class="signature-title">Electronic Signature & Acknowledgment (Required)</div>
+            <div class="signature-text">
+                By checking this box and submitting this form, I acknowledge that:<br/>
+                • I have read, understood, and agreed to all disclosures listed above<br/>
+                • My electronic acknowledgment constitutes my legal electronic signature<br/>
+                • This acceptance is binding and enforceable to the same extent as a handwritten signature
+            </div>
+            <div class="signature-checkbox">[X] Electronic Signature Accepted</div>
+            <div class="signature-text" style="margin-top: 10px;">
+                <strong>Date:</strong> ${submissionDate} at ${submissionTime}<br/>
+                <strong>Client ID:</strong> ${clientId}<br/>
+                <strong>Form Submission:</strong> Medical Intake Form
+            </div>
+        </div>
     </div>
     
     <div class="footer">

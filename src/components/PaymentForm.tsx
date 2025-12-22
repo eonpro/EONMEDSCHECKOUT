@@ -43,10 +43,19 @@ export function PaymentForm({ amount, onSuccess, onError, customerEmail, languag
   
   // Determine if this is a subscription based on plan type
   const planId = orderData?.plan || '';
+  const planLower = planId.toLowerCase();
   const isSubscription = Boolean(planId && 
-    !planId.toLowerCase().includes('one time') && 
-    !planId.toLowerCase().includes('once') &&
-    (planId.toLowerCase().includes('month') || planId.toLowerCase().includes('plan')));
+    !planLower.includes('one time') && 
+    !planLower.includes('once') &&
+    !planLower.includes('única') && // Spanish: "compra única"
+    !planLower.includes('unica') &&
+    (planLower.includes('month') || 
+     planLower.includes('mensual') || // Spanish: "mensual recurrente"
+     planLower.includes('recurring') || 
+     planLower.includes('recurrente') || // Spanish recurring
+     planLower.includes('subscription') ||
+     planLower.includes('suscripción') || // Spanish subscription
+     planLower.includes('plan')));
   
   // Note: PaymentIntent is created by StripeProvider, not here
   // The Elements context already has the clientSecret from StripeProvider
