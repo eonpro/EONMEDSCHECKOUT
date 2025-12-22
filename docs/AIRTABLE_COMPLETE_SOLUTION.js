@@ -57,7 +57,9 @@ function formatPhone(phone) {
 const firstname = getCell("firstname") || '';
 const lastname = getCell("lastname") || '';
 const email = getCell("email") || '';
-const phone = getCell("Phone Number") || '';  // Don't format - send as-is to webhook
+const phoneRaw = getCell("Phone Number") || '';
+// Remove +1 country code if present (Airtable stores as "+1 813 263 7844")
+const phone = phoneRaw.replace(/^\+1\s*/, '');
 const dob = getCell("dob") || '';
 const gender = getCell("gender") || '';
 
