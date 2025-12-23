@@ -285,11 +285,34 @@ export async function uploadClientPdf(params: {
 }
 
 export async function ensureClient(params: CreateIntakeQClientInput): Promise<{ client: IntakeQClient; created: boolean }> {
-  const existing = await findClientByEmail(params.email);
-  if (existing) return { client: existing, created: false };
+  const maxRetries = 3;
+  let lastError: Error | undefined;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const existing = await findClientByEmail(params.email);
+      if (existing) return { client: existing, created: false };
 
-  const created = await createClient(params);
-  return { client: created, created: true };
+      const created = await createClient(params);
+      return { client: created, created: true };
+    } catch (err: any) {
+      lastError = err;
+      console.warn(`[intakeq] ensureClient attempt ${attempt}/${maxRetries} failed:`, err?.message);
+      
+      // Only retry on transient errors (not validation errors)
+      const msg = err?.message || '';
+      if (msg.includes('400') || msg.includes('validation') || msg.includes('invalid')) {
+        throw err; // Don't retry validation errors
+      }
+      
+      if (attempt < maxRetries) {
+        const backoffMs = 1000 * attempt; // 1s, 2s, 3s
+        await sleep(backoffMs);
+      }
+    }
+  }
+  
+  throw lastError || new Error('ensureClient failed after retries');
 }
 
 /**
