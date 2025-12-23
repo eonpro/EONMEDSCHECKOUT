@@ -160,6 +160,31 @@ async function createSubscriptionForPayment(paymentIntent: any) {
     const customerId = metadata.customer_id;
     const mainPriceId = metadata.main_price_id;
     
+    // =========================================================
+    // IDEMPOTENCY CHECK: Prevent duplicate subscriptions
+    // =========================================================
+    // Check if a subscription already exists for this payment intent
+    const existingSubscriptions = await stripe.subscriptions.list({
+      customer: customerId,
+      limit: 10,
+    });
+    
+    // Look for a subscription that was created from this payment intent
+    const alreadyExists = existingSubscriptions.data.some(sub => 
+      sub.metadata?.initial_payment_intent_id === paymentIntent.id
+    );
+    
+    if (alreadyExists) {
+      console.log(`[webhook] [SKIP] Subscription already exists for PaymentIntent ${paymentIntent.id}`);
+      const existing = existingSubscriptions.data.find(sub => 
+        sub.metadata?.initial_payment_intent_id === paymentIntent.id
+      );
+      return existing;
+    }
+    
+    console.log(`[webhook] No existing subscription found for PaymentIntent ${paymentIntent.id}, creating new one...`);
+    // =========================================================
+    
     if (!customerId || !mainPriceId) {
       console.error('[webhook] Missing customer ID or price ID for subscription creation');
       console.log('[webhook] Metadata:', metadata);
