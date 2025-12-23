@@ -69,29 +69,37 @@ export type AirtableListResponse = {
 
 /**
  * Find record by email
+ * Tries multiple common email field names to handle different Airtable configurations
  */
 export async function findAirtableRecordByEmail(email: string): Promise<AirtableRecord | null> {
   const trimmed = email.trim().toLowerCase();
   if (!trimmed) return null;
 
-  try {
-    // Use Airtable formula to filter by email (case-insensitive)
-    const formula = `LOWER({email})="${trimmed}"`;
-    const encodedFormula = encodeURIComponent(formula);
+  // Try different possible email field names (Airtable field names are case-sensitive)
+  const emailFieldNames = ['Email', 'email', 'E-mail', 'e-mail', 'EMAIL'];
 
-    const response = await airtableRequest<AirtableListResponse>(
-      `?filterByFormula=${encodedFormula}&maxRecords=1`
-    );
+  for (const fieldName of emailFieldNames) {
+    try {
+      // Use Airtable formula to filter by email (case-insensitive comparison)
+      const formula = `LOWER({${fieldName}})="${trimmed}"`;
+      const encodedFormula = encodeURIComponent(formula);
 
-    if (response.records && response.records.length > 0) {
-      return response.records[0];
+      const response = await airtableRequest<AirtableListResponse>(
+        `?filterByFormula=${encodedFormula}&maxRecords=1`
+      );
+
+      if (response.records && response.records.length > 0) {
+        console.log(`[airtable] Found record using field name: ${fieldName}`);
+        return response.records[0];
+      }
+    } catch (e: any) {
+      // Field might not exist, try next one
+      console.log(`[airtable] Field {${fieldName}} not found or error, trying next...`);
     }
-
-    return null;
-  } catch (e: any) {
-    console.error('[airtable] Error finding record by email:', e?.message || e);
-    return null;
   }
+
+  console.warn(`[airtable] No record found for email: ${trimmed} (tried fields: ${emailFieldNames.join(', ')})`);
+  return null;
 }
 
 /**
