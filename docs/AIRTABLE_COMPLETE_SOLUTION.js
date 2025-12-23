@@ -592,38 +592,55 @@ try {
 }
 
 // ============================================================================
-// STEP 3: UPLOAD PDF TO INTAKEQ (try multipart)
+// STEP 3: UPLOAD PDF TO INTAKEQ
 // ============================================================================
 
 if (pdfUrl) {
   console.log("[UPLOAD] Uploading PDF to IntakeQ...");
+  console.log("   Client ID:", clientId);
+  console.log("   PDF URL:", pdfUrl.substring(0, 80) + "...");
   
   let uploadSuccess = false;
+  let uploadError = null;
   
   try {
+    // Download the PDF
     const pdfDownload = await fetch(pdfUrl);
+    if (!pdfDownload.ok) {
+      throw new Error(`Failed to download PDF: ${pdfDownload.status}`);
+    }
+    
     const pdfArrayBuffer = await pdfDownload.arrayBuffer();
     const pdfBytes = new Uint8Array(pdfArrayBuffer);
     
-    console.log(`   PDF size: ${Math.round(pdfBytes.length / 1024)} KB`);
+    console.log(`   PDF downloaded: ${Math.round(pdfBytes.length / 1024)} KB`);
+    
+    if (pdfBytes.length < 1000) {
+      throw new Error(`PDF too small (${pdfBytes.length} bytes) - likely invalid`);
+    }
     
     const fileName = `Medical_Intake_${firstname}_${lastname}.pdf`;
-    const boundary = '----' + Math.random().toString(36).substring(2);
+    const boundary = '----AirtableUpload' + Math.random().toString(36).substring(2);
     
-    // Build multipart form data
+    // Build multipart form data with folder type
     const encoder = new TextEncoder();
-    let body = '';
-    body += `--${boundary}\r\n`;
-    body += `Content-Disposition: form-data; name="file"; filename="${fileName}"\r\n`;
-    body += `Content-Type: application/pdf\r\n\r\n`;
+    let formPrefix = '';
+    formPrefix += `--${boundary}\r\n`;
+    formPrefix += `Content-Disposition: form-data; name="FolderType"\r\n\r\n`;
+    formPrefix += `INTAKE INFORMATION\r\n`;
+    formPrefix += `--${boundary}\r\n`;
+    formPrefix += `Content-Disposition: form-data; name="file"; filename="${fileName}"\r\n`;
+    formPrefix += `Content-Type: application/pdf\r\n\r\n`;
     
-    const prefixBytes = encoder.encode(body);
+    const prefixBytes = encoder.encode(formPrefix);
     const suffixBytes = encoder.encode(`\r\n--${boundary}--\r\n`);
     
     const fullBody = new Uint8Array(prefixBytes.length + pdfBytes.length + suffixBytes.length);
     fullBody.set(prefixBytes, 0);
     fullBody.set(pdfBytes, prefixBytes.length);
     fullBody.set(suffixBytes, prefixBytes.length + pdfBytes.length);
+    
+    console.log("   Uploading to IntakeQ...");
     
     const uploadResponse = await fetch(`${INTAKEQ_API_BASE}/files/${clientId}`, {
       method: 'POST',
@@ -635,31 +652,46 @@ if (pdfUrl) {
     });
     
     const uploadResult = await uploadResponse.text();
+    console.log(`   Upload response (${uploadResponse.status}):`, uploadResult.substring(0, 200));
     
     if (uploadResponse.ok) {
-      console.log("[OK] PDF uploaded to IntakeQ Files");
+      console.log("[OK] PDF uploaded to IntakeQ INTAKE INFORMATION folder");
       uploadSuccess = true;
     } else {
-      console.log(`[WARN] Upload failed (${uploadResponse.status}):`, uploadResult.substring(0, 100));
+      uploadError = `IntakeQ upload failed (${uploadResponse.status}): ${uploadResult.substring(0, 100)}`;
+      console.log("[ERROR]", uploadError);
     }
   } catch (e) {
-    console.log("[WARN] PDF upload error:", e.toString());
+    uploadError = `PDF upload exception: ${e.toString()}`;
+    console.log("[ERROR]", uploadError);
   }
   
   if (!uploadSuccess) {
     console.log("========================================");
-    console.log("📎 MANUAL PDF DOWNLOAD:");
+    console.log("[FAILED] PDF NOT UPLOADED TO INTAKEQ!");
+    console.log("Manual download link:");
     console.log(pdfUrl);
     console.log("========================================");
+    // Update Airtable to indicate PDF failed
+    try {
+      await table.updateRecordAsync(recordId, {
+        "IntakeQ Status": "Sent [X] - PDF UPLOAD FAILED"
+      });
+    } catch (e) {}
   }
+} else {
+  console.log("[ERROR] No PDF URL - PDF generation failed!");
+  console.log("Check PDF.co API key and credits");
 }
 
 console.log("========================================");
-console.log(`[OK] COMPLETE - Client ID: ${clientId}`);
+console.log(`[RESULT] Processing Complete`);
+console.log(`   Client ID: ${clientId}`);
+console.log(`   PDF Generated: ${pdfUrl ? 'YES' : 'NO'}`);
 console.log(`   Apartment: ${apartment || 'None'}`);
 console.log(`   Referral: ${referral || 'None'}`);
 console.log("========================================");
 
 output.set('clientId', clientId);
-output.set('status', 'success');
+output.set('status', pdfUrl ? 'success' : 'partial');
 output.set('pdfUrl', pdfUrl || 'none');
