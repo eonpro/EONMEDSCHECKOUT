@@ -335,14 +335,18 @@ export async function handlePaymentForGHL(
       'customer_status': 'paid',
     };
     
-    // Create or update contact
+    // Create or update contact (without tags first - we'll add tags separately to trigger workflow)
     const contact = await createGHLContact({
       ...contactData,
-      tags,
       customFields,
     });
     
     if (contact) {
+      // IMPORTANT: Add tags using the dedicated endpoint to trigger "Tag Added" workflows
+      // The PUT endpoint doesn't trigger tag workflows, only POST /contacts/{id}/tags does
+      console.log(`[GHL] Adding tags to trigger workflow:`, tags);
+      await addTagsToContact(contact.id, tags);
+      
       // Add a note about the payment (visible in contact timeline)
       const noteText = [
         `💳 PAYMENT COMPLETED`,
@@ -357,12 +361,12 @@ export async function handlePaymentForGHL(
         ``,
         `Payment ID: ${paymentData.paymentIntentId}`,
         ``,
-        `[OK] Automation trigger tag: payment-completed`,
+        `[OK] Workflow trigger tag added: payment-completed`,
       ].filter(Boolean).join('\n');
       
       await addNoteToContact(contact.id, noteText);
       
-      console.log(`[GHL] Contact ${contact.id} tagged with "payment-completed" for automation`);
+      console.log(`[GHL] Contact ${contact.id} - tags added via dedicated endpoint for workflow trigger`);
     }
     
     return { contact, success: true };
