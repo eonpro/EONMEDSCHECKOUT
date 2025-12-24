@@ -326,8 +326,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           // Ignore KV issues; continue processing.
         }
         
+        // =========================================================
+        // CHECK: Is this payment from our checkout?
+        // Skip processing payments from IntakeQ invoices or other sources
+        // =========================================================
+        const isFromOurCheckout = Boolean(
+          metadata.customer_email || 
+          metadata.medication || 
+          metadata.source === 'eonmeds_checkout' ||
+          metadata.plan
+        );
+        
+        if (!isFromOurCheckout) {
+          console.log(`[webhook] [SKIP] Payment ${paymentIntent.id} is NOT from our checkout`);
+          console.log(`[webhook] Metadata keys: ${Object.keys(metadata).join(', ')}`);
+          console.log(`[webhook] This appears to be from IntakeQ invoicing or another source - skipping`);
+          // Return success so Stripe doesn't retry
+          return res.status(200).json({ received: true, skipped: true, reason: 'not_from_checkout' });
+        }
+        
         // Detailed logging for debugging
-        console.log(`[webhook] ========== PAYMENT SUCCEEDED ==========`);
+        console.log(`[webhook] ========== PAYMENT SUCCEEDED (EONMeds Checkout) ==========`);
         console.log(`[webhook] PaymentIntent ID: ${paymentIntent.id}`);
         console.log(`[webhook] Amount: ${paymentIntent.amount} ${paymentIntent.currency}`);
         console.log(`[webhook] Customer ID: ${paymentIntent.customer}`);
