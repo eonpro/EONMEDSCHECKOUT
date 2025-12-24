@@ -97,6 +97,28 @@ export interface TranslationOverrides {
 }
 
 // ============================================================================
+// Dose-Specific Plans (for products with dose-dependent pricing)
+// ============================================================================
+
+export interface DosePlanOption {
+  id: string;
+  type: 'monthly' | '3month' | '6month' | 'onetime';
+  nameEn: string;
+  nameEs: string;
+  price: number;
+  billing: 'monthly' | 'total' | 'once';
+  savings?: number;
+  badge?: string;
+  badgeEs?: string;
+  stripePriceId: string;
+  stripePriceIdTest?: string;
+}
+
+export interface DoseWithPlans extends DoseOption {
+  plans: DosePlanOption[];         // Plans specific to this dose
+}
+
+// ============================================================================
 // Main Product Configuration
 // ============================================================================
 
@@ -114,9 +136,13 @@ export interface ProductConfig {
   efficacy?: string;               // "15-20% weight loss"
   efficacyEs?: string;
   
-  // Product Options
-  doses: DoseOption[];
-  plans: PlanOption[];
+  // Product Options - Two modes:
+  // 1. Simple: doses[] + plans[] (same price for all doses)
+  // 2. Dose-based pricing: dosesWithPlans[] (each dose has its own plans)
+  doses?: DoseOption[];            // Simple mode: doses without price variation
+  plans?: PlanOption[];            // Simple mode: shared plans
+  dosesWithPlans?: DoseWithPlans[]; // Dose-based pricing mode
+  
   addons: AddonConfig[];
   
   // UI Configuration

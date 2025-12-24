@@ -14,7 +14,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { preloadProductConfig } from '../../config/products';
-import type { ProductConfig, PlanOption, AddonConfig } from '../../config/products/types';
+import type { ProductConfig, PlanOption, AddonConfig, DoseWithPlans, DosePlanOption } from '../../config/products/types';
 import { StripeProvider } from '../../components/StripeProvider';
 import { PaymentForm } from '../../components/PaymentForm';
 import { ThankYouPage } from '../../components/ThankYouPage';
@@ -54,8 +54,10 @@ type PatientData = {
 const translations = {
   en: {
     congratulations: "Congratulations! You qualify for treatment",
+    selectDose: "Select Your Dose",
+    doseSubtitle: "Choose the dosage that's right for you",
     selectPlan: "Select Your Plan",
-    planSubtitle: "Choose your subscription plan and optional enhancements",
+    planSubtitle: "Choose your subscription plan",
     shippingPayment: "Shipping Information",
     shippingSubtitle: "Enter your shipping details",
     orderSummary: "Order Summary",
@@ -82,11 +84,17 @@ const translations = {
     promoCode: "Promo code",
     applyPromo: "Apply",
     promoApplied: "Promo applied!",
+    starterDose: "Starter Dose",
+    higherDose: "Higher Dose",
+    recommendedNew: "Recommended for new patients",
+    forContinuing: "For continuing patients",
   },
   es: {
     congratulations: "¡Felicitaciones! Califica para el tratamiento",
+    selectDose: "Seleccione Su Dosis",
+    doseSubtitle: "Elija la dosis adecuada para usted",
     selectPlan: "Seleccione Su Plan",
-    planSubtitle: "Elija su plan de suscripción y mejoras opcionales",
+    planSubtitle: "Elija su plan de suscripción",
     shippingPayment: "Información de Envío",
     shippingSubtitle: "Ingrese sus datos de envío",
     orderSummary: "Resumen del Pedido",
@@ -113,6 +121,10 @@ const translations = {
     promoCode: "Código promocional",
     applyPromo: "Aplicar",
     promoApplied: "¡Código aplicado!",
+    starterDose: "Dosis Inicial",
+    higherDose: "Dosis Mayor",
+    recommendedNew: "Recomendado para nuevos pacientes",
+    forContinuing: "Para pacientes continuando",
   }
 };
 
@@ -136,6 +148,7 @@ export default function ProductCheckoutPage() {
   
   // Checkout state
   const [currentStep, setCurrentStep] = useState<number>(1);
+  const [selectedDose, setSelectedDose] = useState<string>('');
   const [selectedPlan, setSelectedPlan] = useState<string>('');
   const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
   const [expeditedShipping, setExpeditedShipping] = useState<boolean>(false);
@@ -143,6 +156,23 @@ export default function ProductCheckoutPage() {
   const [promoApplied, setPromoApplied] = useState<boolean>(false);
   const [language, setLanguage] = useState<'en' | 'es'>('en');
   const [paymentComplete, setPaymentComplete] = useState<boolean>(false);
+  
+  // Derived: Check if this product has dose-based pricing
+  const hasDoseBasedPricing = Boolean(productConfig?.dosesWithPlans && productConfig.dosesWithPlans.length > 0);
+  
+  // Derived: Get the selected dose object (for dose-based pricing)
+  const selectedDoseData = useMemo(() => {
+    if (!hasDoseBasedPricing || !productConfig?.dosesWithPlans) return null;
+    return productConfig.dosesWithPlans.find(d => d.id === selectedDose) || null;
+  }, [hasDoseBasedPricing, productConfig, selectedDose]);
+  
+  // Derived: Get available plans based on mode
+  const availablePlans = useMemo(() => {
+    if (hasDoseBasedPricing && selectedDoseData) {
+      return selectedDoseData.plans;
+    }
+    return productConfig?.plans || [];
+  }, [hasDoseBasedPricing, selectedDoseData, productConfig]);
   
   // Shipping address
   const [shippingAddress, setShippingAddress] = useState<ShippingAddress>({
@@ -172,8 +202,21 @@ export default function ProductCheckoutPage() {
         const config = await preloadProductConfig();
         setProductConfig(config);
         
-        // Set default plan if specified
-        if (config.defaultPlanId) {
+        // Set default dose if using dose-based pricing
+        if (config.dosesWithPlans && config.dosesWithPlans.length > 0) {
+          const defaultDose = config.defaultDoseId || config.dosesWithPlans[0].id;
+          setSelectedDose(defaultDose);
+          
+          // Set default plan within that dose
+          const doseData = config.dosesWithPlans.find(d => d.id === defaultDose);
+          if (doseData && doseData.plans.length > 0) {
+            const defaultPlan = config.defaultPlanId || doseData.plans[0].id;
+            // Make sure the default plan exists in this dose's plans
+            const planExists = doseData.plans.some(p => p.id === defaultPlan);
+            setSelectedPlan(planExists ? defaultPlan : doseData.plans[0].id);
+          }
+        } else if (config.defaultPlanId) {
+          // Simple mode - just set default plan
           setSelectedPlan(config.defaultPlanId);
         }
         
@@ -185,6 +228,22 @@ export default function ProductCheckoutPage() {
     }
     loadConfig();
   }, []);
+  
+  // When dose changes, reset plan to the first plan in that dose
+  useEffect(() => {
+    if (hasDoseBasedPricing && selectedDoseData && selectedDoseData.plans.length > 0) {
+      // Check if current plan exists in the new dose's plans
+      const currentPlanExists = selectedDoseData.plans.some(p => p.id === selectedPlan);
+      if (!currentPlanExists) {
+        // Find matching plan type in new dose, or use first plan
+        const currentPlanData = availablePlans.find(p => p.id === selectedPlan);
+        const matchingPlan = currentPlanData 
+          ? selectedDoseData.plans.find(p => p.type === currentPlanData.type)
+          : null;
+        setSelectedPlan(matchingPlan?.id || selectedDoseData.plans[0].id);
+      }
+    }
+  }, [selectedDose, selectedDoseData, hasDoseBasedPricing]);
   
   // Prefill from intake
   const { data: prefillData, intakeId, isLoading: isPrefillLoading } = useIntakePrefill({ debug: true });
@@ -216,8 +275,10 @@ export default function ProductCheckoutPage() {
     }
   }, [prefillData, isPrefillLoading]);
   
-  // Calculate totals
-  const selectedPlanData = productConfig?.plans.find(p => p.id === selectedPlan);
+  // Calculate totals - works for both simple and dose-based pricing
+  const selectedPlanData = useMemo(() => {
+    return availablePlans.find(p => p.id === selectedPlan) || null;
+  }, [availablePlans, selectedPlan]);
   
   const totals = useMemo(() => {
     const planPrice = selectedPlanData?.price ?? 0;
@@ -361,13 +422,10 @@ export default function ProductCheckoutPage() {
           ))}
         </div>
         
-        {/* Step 1: Plan Selection */}
+        {/* Step 1: Dose & Plan Selection */}
         {currentStep === 1 && (
           <div className="bg-white rounded-xl shadow-sm p-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">{t.selectPlan}</h2>
-            <p className="text-gray-600 mb-6">{t.planSubtitle}</p>
-            
-            {/* Product Info */}
+            {/* Product Info Header */}
             <div className="bg-gray-50 rounded-lg p-4 mb-6">
               <h3 className="font-semibold text-lg">{productConfig.name}</h3>
               <p className="text-gray-600">{language === 'es' ? productConfig.taglineEs : productConfig.taglineEn}</p>
@@ -378,18 +436,44 @@ export default function ProductCheckoutPage() {
               )}
             </div>
             
-            {/* Plans Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              {productConfig.plans.map((plan) => (
-                <PlanCard
-                  key={plan.id}
-                  plan={plan}
-                  isSelected={selectedPlan === plan.id}
-                  onSelect={() => setSelectedPlan(plan.id)}
-                  language={language}
-                  primaryColor={primaryColor}
-                />
-              ))}
+            {/* Dose Selection (for dose-based pricing) */}
+            {hasDoseBasedPricing && productConfig.dosesWithPlans && (
+              <div className="mb-8">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">{t.selectDose}</h2>
+                <p className="text-gray-600 mb-4">{t.doseSubtitle}</p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {productConfig.dosesWithPlans.map((dose) => (
+                    <DoseCard
+                      key={dose.id}
+                      dose={dose}
+                      isSelected={selectedDose === dose.id}
+                      onSelect={() => setSelectedDose(dose.id)}
+                      language={language}
+                      primaryColor={primaryColor}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {/* Plan Selection */}
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">{t.selectPlan}</h2>
+              <p className="text-gray-600 mb-4">{t.planSubtitle}</p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {availablePlans.map((plan) => (
+                  <PlanCard
+                    key={plan.id}
+                    plan={plan}
+                    isSelected={selectedPlan === plan.id}
+                    onSelect={() => setSelectedPlan(plan.id)}
+                    language={language}
+                    primaryColor={primaryColor}
+                  />
+                ))}
+              </div>
             </div>
             
             {/* Add-ons */}
@@ -410,7 +494,7 @@ export default function ProductCheckoutPage() {
                         );
                       }}
                       language={language}
-                      selectedPlan={selectedPlanData}
+                      selectedPlan={selectedPlanData || undefined}
                       primaryColor={primaryColor}
                     />
                   ))}
@@ -443,7 +527,7 @@ export default function ProductCheckoutPage() {
             {/* Continue Button */}
             <button
               onClick={handleContinue}
-              disabled={!selectedPlan}
+              disabled={!selectedPlan || (hasDoseBasedPricing && !selectedDose)}
               className="w-full mt-6 py-3 rounded-lg font-semibold text-white disabled:opacity-50"
               style={{ backgroundColor: primaryColor }}
             >
@@ -596,8 +680,14 @@ export default function ProductCheckoutPage() {
               
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between">
-                  <span>{productConfig.name} - {selectedPlanData?.nameEn}</span>
-                  <span>${totals.planPrice.toFixed(2)}</span>
+                  <div>
+                    <div className="font-medium">{productConfig.name}</div>
+                    {selectedDoseData && (
+                      <div className="text-gray-500">{selectedDoseData.strength}</div>
+                    )}
+                    <div className="text-gray-500">{language === 'es' ? selectedPlanData?.nameEs : selectedPlanData?.nameEn}</div>
+                  </div>
+                  <span className="font-semibold">${totals.planPrice.toFixed(2)}</span>
                 </div>
                 
                 {totals.addonTotal > 0 && (
@@ -646,6 +736,82 @@ export default function ProductCheckoutPage() {
 }
 
 // ============================================================================
+// Dose Card Component (for dose-based pricing)
+// ============================================================================
+
+function DoseCard({
+  dose,
+  isSelected,
+  onSelect,
+  language,
+  primaryColor,
+}: {
+  dose: DoseWithPlans;
+  isSelected: boolean;
+  onSelect: () => void;
+  language: 'en' | 'es';
+  primaryColor: string;
+}) {
+  // Get the starting price from the first plan (usually monthly)
+  const startingPrice = dose.plans.length > 0 
+    ? Math.min(...dose.plans.map(p => p.price))
+    : 0;
+  
+  return (
+    <button
+      onClick={onSelect}
+      className={`relative p-5 rounded-xl border-2 text-left transition-all ${
+        isSelected
+          ? 'shadow-lg'
+          : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
+      }`}
+      style={{ 
+        borderColor: isSelected ? primaryColor : undefined,
+        backgroundColor: isSelected ? `${primaryColor}08` : undefined,
+      }}
+    >
+      {/* Starter dose badge */}
+      {dose.isStarterDose && (
+        <span
+          className="absolute -top-2 right-4 px-3 py-1 text-xs font-semibold text-white rounded-full"
+          style={{ backgroundColor: primaryColor }}
+        >
+          {language === 'es' ? 'Recomendado' : 'Recommended'}
+        </span>
+      )}
+      
+      {/* Dose strength - prominent */}
+      <div className="text-2xl font-bold mb-1" style={{ color: isSelected ? primaryColor : undefined }}>
+        {dose.strength}
+      </div>
+      
+      {/* Dose name */}
+      <div className="font-semibold text-gray-900">{dose.name}</div>
+      
+      {/* Description */}
+      <p className="text-sm text-gray-600 mt-2 mb-3">{dose.description}</p>
+      
+      {/* Starting price */}
+      <div className="text-sm">
+        <span className="text-gray-500">{language === 'es' ? 'Desde' : 'Starting at'} </span>
+        <span className="font-bold text-lg">${startingPrice}</span>
+        <span className="text-gray-500">/{language === 'es' ? 'mes' : 'mo'}</span>
+      </div>
+      
+      {/* Selection indicator */}
+      {isSelected && (
+        <div 
+          className="absolute top-4 left-4 w-5 h-5 rounded-full flex items-center justify-center"
+          style={{ backgroundColor: primaryColor }}
+        >
+          <CheckIcon className="w-3 h-3 text-white" />
+        </div>
+      )}
+    </button>
+  );
+}
+
+// ============================================================================
 // Plan Card Component
 // ============================================================================
 
@@ -656,7 +822,7 @@ function PlanCard({
   language,
   primaryColor,
 }: {
-  plan: PlanOption;
+  plan: PlanOption | DosePlanOption;
   isSelected: boolean;
   onSelect: () => void;
   language: 'en' | 'es';
@@ -673,7 +839,10 @@ function PlanCard({
           ? 'border-current shadow-md'
           : 'border-gray-200 hover:border-gray-300'
       }`}
-      style={{ borderColor: isSelected ? primaryColor : undefined }}
+      style={{ 
+        borderColor: isSelected ? primaryColor : undefined,
+        backgroundColor: isSelected ? `${primaryColor}08` : undefined,
+      }}
     >
       {badge && (
         <span
@@ -684,17 +853,31 @@ function PlanCard({
         </span>
       )}
       
-      <div className="font-semibold">{planName}</div>
-      <div className="text-2xl font-bold mt-1">${plan.price}</div>
+      <div className="font-semibold text-gray-700">{planName}</div>
+      <div className="text-2xl font-bold mt-1" style={{ color: isSelected ? primaryColor : undefined }}>
+        ${plan.price}
+      </div>
       <div className="text-sm text-gray-500">
-        {plan.billing === 'monthly' && (language === 'es' ? '/mes' : '/month')}
-        {plan.billing === 'total' && (language === 'es' ? ' total' : ' total')}
-        {plan.billing === 'once' && (language === 'es' ? ' única vez' : ' one-time')}
+        {plan.billing === 'monthly' && (language === 'es' ? '/mes recurrente' : '/month recurring')}
+        {plan.billing === 'total' && (language === 'es' ? ' pago único' : ' one payment')}
+        {plan.billing === 'once' && (language === 'es' ? ' compra única' : ' one-time')}
       </div>
       
-      {plan.savings && (
-        <div className="text-sm mt-2" style={{ color: primaryColor }}>
+      {plan.savings && plan.savings > 0 && (
+        <div className="text-sm mt-2 font-medium" style={{ color: primaryColor }}>
           {language === 'es' ? 'Ahorra' : 'Save'} ${plan.savings}
+        </div>
+      )}
+      
+      {/* Selection indicator */}
+      {isSelected && (
+        <div className="absolute top-3 right-3">
+          <div 
+            className="w-5 h-5 rounded-full flex items-center justify-center"
+            style={{ backgroundColor: primaryColor }}
+          >
+            <CheckIcon className="w-3 h-3 text-white" />
+          </div>
         </div>
       )}
     </button>
@@ -717,7 +900,7 @@ function AddonCard({
   isSelected: boolean;
   onToggle: () => void;
   language: 'en' | 'es';
-  selectedPlan?: PlanOption;
+  selectedPlan?: PlanOption | DosePlanOption;
   primaryColor: string;
 }) {
   const name = language === 'es' ? addon.nameEs : addon.nameEn;
