@@ -163,8 +163,13 @@ async function createSubscriptionForPayment(paymentIntent: any) {
     // =========================================================
     // IDEMPOTENCY CHECK: Prevent duplicate subscriptions
     // =========================================================
+    if (!customerId) {
+      console.error('[webhook] Missing customer ID for idempotency check');
+      return;
+    }
+    
     // Check if a subscription already exists for this payment intent
-    const existingSubscriptions = await stripe.subscriptions.list({
+    const existingSubscriptions = await stripe!.subscriptions.list({
       customer: customerId,
       limit: 10,
     });
@@ -197,7 +202,7 @@ async function createSubscriptionForPayment(paymentIntent: any) {
     if (paymentMethodId) {
       // Attach payment method to customer for future use
       try {
-        await stripe.paymentMethods.attach(paymentMethodId, {
+        await stripe!.paymentMethods.attach(paymentMethodId, {
           customer: customerId,
         });
       } catch (attachError: any) {
@@ -208,7 +213,7 @@ async function createSubscriptionForPayment(paymentIntent: any) {
       }
       
       // Set as default payment method
-      await stripe.customers.update(customerId, {
+      await stripe!.customers.update(customerId, {
         invoice_settings: {
           default_payment_method: paymentMethodId,
         },
