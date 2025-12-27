@@ -656,7 +656,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             client_ip_address: clientIp,
             value: Number(paymentIntent.amount) / 100, // Convert cents to dollars
             currency: (paymentIntent.currency || 'usd').toUpperCase(),
-            test_event_code: 'TEST68971',  // TEMPORARY: Remove after testing
+            // test_event_code: 'TEST68971',  // Uncomment for testing in Meta Events Manager
           });
           
           if (metaResult.skipped) {
