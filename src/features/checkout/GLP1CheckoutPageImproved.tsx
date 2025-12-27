@@ -475,7 +475,8 @@ export function GLP1CheckoutPageImproved() {
     }
   }, []);
 
-  const t = translations[language];
+  // Safeguard: ensure t is never undefined (fallback to English)
+  const t = translations[language] || translations.en;
 
   const medications: Medication[] = [
     {

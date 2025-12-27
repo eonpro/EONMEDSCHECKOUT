@@ -64,7 +64,7 @@ export function readCheckoutIdentityFromUrl(): Partial<CheckoutIdentity> {
     firstName: params.get("firstName") || params.get("first_name") || undefined,
     lastName: params.get("lastName") || params.get("last_name") || undefined,
     dob: params.get("dob") || undefined,
-    lang: params.get("lang") || params.get("language") || undefined,
+    lang: (params.get("lang") || params.get("language"))?.trim() || undefined,
   };
 }
 

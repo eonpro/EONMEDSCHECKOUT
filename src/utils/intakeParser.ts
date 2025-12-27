@@ -61,6 +61,15 @@ function sanitizePhone(phone: string | null | undefined): string {
 }
 
 /**
+ * Sanitize language code - trim and validate
+ */
+function sanitizeLang(lang: string | null | undefined): 'en' | 'es' {
+  if (!lang) return 'en';
+  const trimmed = lang.trim().toLowerCase();
+  return trimmed === 'es' ? 'es' : 'en';
+}
+
+/**
  * Sanitize state code (uppercase, 2 chars)
  */
 function sanitizeState(state: string | null | undefined): string {
@@ -125,7 +134,7 @@ function parseSimpleParams(params: URLSearchParams): PartialIntakePrefillData {
     },
     medication: params.get('medication') as 'semaglutide' | 'tirzepatide' | undefined,
     plan: params.get('plan') as 'monthly' | '3month' | '6month' | undefined,
-    language: (params.get('lang') || params.get('language') || 'en') as 'en' | 'es',
+    language: (sanitizeLang(params.get('lang') || params.get('language'))) as 'en' | 'es',
     intakeId: sanitizeString(params.get('intakeId') || params.get('intake_id') || params.get('id')),
     source: sanitizeString(params.get('source') || params.get('utm_source')),
   };
