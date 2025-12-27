@@ -168,26 +168,53 @@ async function createSubscriptionForPayment(paymentIntent: any) {
       return;
     }
     
-    // Check if a subscription already exists for this payment intent
+    // Check ALL existing subscriptions for this customer
     const existingSubscriptions = await stripe!.subscriptions.list({
       customer: customerId,
-      limit: 10,
+      status: 'active',
+      limit: 100,
     });
     
-    // Look for a subscription that was created from this payment intent
-    const alreadyExists = existingSubscriptions.data.some(sub => 
+    console.log(`[webhook] Customer ${customerId} has ${existingSubscriptions.data.length} active subscriptions`);
+    
+    // Check 1: Already have a subscription for this exact PaymentIntent
+    const existsForThisPayment = existingSubscriptions.data.find(sub => 
       sub.metadata?.initial_payment_intent_id === paymentIntent.id
     );
     
-    if (alreadyExists) {
-      console.log(`[webhook] [SKIP] Subscription already exists for PaymentIntent ${paymentIntent.id}`);
-      const existing = existingSubscriptions.data.find(sub => 
-        sub.metadata?.initial_payment_intent_id === paymentIntent.id
-      );
-      return existing;
+    if (existsForThisPayment) {
+      console.log(`[webhook] [SKIP] Subscription already exists for this PaymentIntent ${paymentIntent.id}`);
+      return existsForThisPayment;
     }
     
-    console.log(`[webhook] No existing subscription found for PaymentIntent ${paymentIntent.id}, creating new one...`);
+    // Check 2: Already have an active subscription for the SAME PRODUCT (price)
+    // This prevents creating duplicate subscriptions if customer pays again
+    const existsForSameProduct = existingSubscriptions.data.find(sub => {
+      const subPriceId = sub.items?.data?.[0]?.price?.id;
+      return subPriceId === mainPriceId;
+    });
+    
+    if (existsForSameProduct) {
+      console.log(`[webhook] [SKIP] Customer already has active subscription for price ${mainPriceId}`);
+      console.log(`[webhook] [SKIP] Existing subscription: ${existsForSameProduct.id}`);
+      console.log(`[webhook] [WARN] This payment ${paymentIntent.id} did NOT need to create a new subscription!`);
+      return existsForSameProduct;
+    }
+    
+    // Check 3: Customer has ANY active GLP-1 subscription (medication-based check)
+    const medication = (metadata.medication || '').toLowerCase();
+    const existsForSameMedication = existingSubscriptions.data.find(sub => {
+      const subMedication = (sub.metadata?.medication || '').toLowerCase();
+      return subMedication && medication && subMedication.includes(medication.substring(0, 4));
+    });
+    
+    if (existsForSameMedication) {
+      console.log(`[webhook] [SKIP] Customer already has active subscription for ${medication}`);
+      console.log(`[webhook] [SKIP] Existing subscription: ${existsForSameMedication.id} (${existsForSameMedication.metadata?.medication})`);
+      return existsForSameMedication;
+    }
+    
+    console.log(`[webhook] No existing subscription found for customer ${customerId}, creating new one...`);
     // =========================================================
     
     if (!customerId || !mainPriceId) {
