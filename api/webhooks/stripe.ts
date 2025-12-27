@@ -5,17 +5,11 @@ import { findClientByEmail, uploadClientPdf } from '../integrations/intakeq.js';
 import { generateInvoicePdf } from '../utils/pdf-generator.js';
 import { findAirtableRecordByEmail, updateAirtablePaymentStatus } from '../integrations/airtable.js';
 import { sendMetaPurchase } from '../lib/metaCapi.js';
+import { isGhlConfigured, upsertGhlContact, buildGhlPayloadFromStripe } from '../lib/ghl.js';
 
 // ============================================================================
-// Inline GHL Integration (to avoid import path issues in Vercel)
+// Utility Functions
 // ============================================================================
-const GHL_API_BASE = 'https://rest.gohighlevel.com/v1';
-const GHL_API_KEY = process.env.GHL_API_KEY || '';
-const GHL_LOCATION_ID = process.env.GHL_LOCATION_ID || '';
-
-function isGHLConfigured(): boolean {
-  return Boolean(GHL_API_KEY && GHL_LOCATION_ID);
-}
 
 function safeJsonParse<T>(value: unknown, fallback: T): T {
   if (typeof value !== 'string' || !value.trim()) return fallback;
@@ -35,92 +29,6 @@ async function getKV() {
     return mod.kv;
   } catch {
     return null;
-  }
-}
-
-async function ghlRequest(endpoint: string, method: string = 'GET', body?: any): Promise<any> {
-  const url = `${GHL_API_BASE}${endpoint}`;
-  console.log(`[GHL] ${method} ${url}`);
-  
-  const response = await fetch(url, {
-    method,
-    headers: {
-      'Authorization': `Bearer ${GHL_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  
-  const text = await response.text();
-  console.log(`[GHL] Response (${response.status}):`, text.substring(0, 300));
-  
-  if (!response.ok) throw new Error(`GHL API error (${response.status}): ${text}`);
-  return JSON.parse(text);
-}
-
-async function handlePaymentForGHL(contactData: any, paymentData: any): Promise<{ contact: any; success: boolean }> {
-  if (!isGHLConfigured()) {
-    console.warn('[GHL] Not configured');
-    return { contact: null, success: false };
-  }
-  
-  const language = paymentData.language || 'en';
-  const isSpanish = language === 'es';
-  
-  const tags = [
-    'payment-completed',
-    isSpanish ? 'payment-completed-es' : 'payment-completed-en',
-    isSpanish ? 'spanish' : 'english',
-    'eonmeds', 'paid',
-  ];
-  
-  if (paymentData.medication) tags.push(paymentData.medication.toLowerCase().replace(/\s+/g, '-'));
-  if (paymentData.plan) tags.push(`plan-${paymentData.plan.toLowerCase().replace(/\s+/g, '-')}`);
-  tags.push(paymentData.isSubscription ? 'subscription' : 'one-time-purchase');
-  
-  // Custom fields matching GHL field keys (without 'contact.' prefix)
-  const customFields: Record<string, string> = {
-    'last_payment_amount': `$${(paymentData.amount / 100).toFixed(2)}`,
-    'last_payment_date': new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
-    'medication': paymentData.medication || '',
-    'plan_name': paymentData.plan || '',
-  };
-  
-  try {
-    // Format phone number correctly - remove all non-digits and add +1
-    let formattedPhone = '';
-    if (contactData.phone) {
-      const digits = contactData.phone.replace(/\D/g, ''); // Remove all non-digits
-      const last10 = digits.slice(-10); // Get last 10 digits
-      if (last10.length === 10) {
-        formattedPhone = `+1${last10}`;
-      }
-    }
-    
-    console.log('[GHL] Creating contact with phone:', formattedPhone);
-    console.log('[GHL] Address:', contactData.address1, contactData.city, contactData.state, contactData.postalCode);
-    
-    const result = await ghlRequest('/contacts/', 'POST', {
-      firstName: contactData.firstName || '',
-      lastName: contactData.lastName || '',
-      email: contactData.email,
-      phone: formattedPhone || undefined,
-      address1: contactData.address1 || '',
-      city: contactData.city || '',
-      state: contactData.state || '',
-      postalCode: contactData.postalCode || '',
-      country: 'US',
-      source: 'EONMeds Checkout',
-      tags,
-      customField: customFields,
-    });
-    
-    const contact = result.contact || result;
-    console.log(`[GHL] Created/updated contact: ${contact.id}`);
-    return { contact, success: true };
-  } catch (error) {
-    console.error('[GHL] Error:', error);
-    return { contact: null, success: false };
   }
 }
 // ============================================================================
@@ -683,51 +591,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // =========================================================
         
         // =========================================================
-        // GoHighLevel Integration - Create/Update Contact
+        // GoHighLevel Integration - Create/Update Contact with Full Tracking
         // =========================================================
         console.log('[webhook] Checking GHL integration...');
-        if (isGHLConfigured()) {
-          console.log('[webhook] GHL is configured, proceeding with contact creation...');
+        if (isGhlConfigured()) {
+          console.log('[webhook] GHL is configured, proceeding with contact upsert...');
           try {
-            const shippingAddress = paymentIntent.shipping?.address || {};
-
-            // Extract customer info from metadata
-            const contactData = {
-              firstName: metadata.customer_first_name || '',
-              lastName: metadata.customer_last_name || '',
-              email: metadata.customer_email || paymentIntent.receipt_email || '',
-              phone: metadata.customer_phone || paymentIntent.shipping?.phone || '',
-              address1: metadata.shipping_line1 || shippingAddress.line1 || '',
-              city: metadata.shipping_city || shippingAddress.city || '',
-              state: metadata.shipping_state || shippingAddress.state || '',
-              postalCode: metadata.shipping_zip || shippingAddress.postal_code || '',
-              source: 'EONMeds Checkout',
-            };
+            // Build GHL payload with all tracking data from Stripe metadata
+            const ghlPayload = buildGhlPayloadFromStripe(paymentIntent, metadata, subscriptionId);
             
-            console.log('[webhook] Contact data:', JSON.stringify(contactData, null, 2));
-            
-            // Payment data for GHL
-            const paymentData = {
-              paymentIntentId: paymentIntent.id,
-              amount: paymentIntent.amount,
-              currency: paymentIntent.currency || 'usd',
-              medication: metadata.medication,
-              plan: metadata.plan,
-              isSubscription: metadata.is_subscription === 'true',
-              subscriptionId,
-              language: (metadata.language || metadata.lang || 'en') as 'en' | 'es',
-            };
-            
-            console.log('[webhook] Payment data:', JSON.stringify(paymentData, null, 2));
+            console.log('[webhook] GHL payload:', JSON.stringify({
+              email: ghlPayload.email,
+              firstName: ghlPayload.firstName,
+              medication: ghlPayload.medication,
+              plan: ghlPayload.plan,
+              hasLeadId: !!ghlPayload.leadId,
+              hasMetaEventId: !!ghlPayload.metaEventId,
+              hasFbp: !!ghlPayload.fbp,
+              hasFbc: !!ghlPayload.fbc,
+              tags: ghlPayload.tags?.length,
+            }, null, 2));
             
             // Only send to GHL if we have at least an email
-            if (contactData.email) {
-              console.log('[webhook] Email found, calling GHL...');
-              const ghlResult = await handlePaymentForGHL(contactData, paymentData);
-              if (ghlResult.success) {
-                console.log(`[webhook] [OK] GHL contact created/updated for payment ${paymentIntent.id}`);
-              } else {
-                console.warn(`[webhook] [WARN] GHL returned success=false for payment ${paymentIntent.id}`);
+            if (ghlPayload.email) {
+              console.log('[webhook] Email found, upserting to GHL...');
+              const ghlResult = await upsertGhlContact(ghlPayload);
+              
+              if (ghlResult.skipped) {
+                console.log(`[webhook] [WARN] GHL skipped: ${ghlResult.reason}`);
+              } else if (ghlResult.success) {
+                console.log(`[webhook] [OK] GHL contact upserted: ${ghlResult.contact?.id}`);
               }
             } else {
               console.warn('[webhook] [WARN] No email found in payment metadata, skipping GHL');
