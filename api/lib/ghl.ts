@@ -79,9 +79,9 @@ export async function upsertGhlContact(input: GhlUpsertInput): Promise<any> {
   
   // Ensure language tag is present
   if (input.language === 'es') {
-    if (!tags.includes('LANG-ES')) tags.push('LANG-ES');
+    if (!tags.includes('lang-es')) tags.push('lang-es');
   } else {
-    if (!tags.includes('LANG-EN')) tags.push('LANG-EN');
+    if (!tags.includes('lang-en')) tags.push('lang-en');
   }
   
   // Ensure source tag is present
@@ -179,7 +179,7 @@ function buildPurchaseTags(metadata: Record<string, string>): string[] {
   // =============================================
   // 1. Purchase Status (always add for purchases)
   // =============================================
-  tags.push('WL-PURCHASED');
+  tags.push('wl-purchased');
   
   // =============================================
   // 2. Source Attribution
@@ -187,9 +187,9 @@ function buildPurchaseTags(metadata: Record<string, string>): string[] {
   // If any Meta pixel data exists, it's a Meta click
   const hasMetaAttribution = metadata.fbp || metadata.fbc || metadata.fbclid;
   if (hasMetaAttribution) {
-    tags.push('SRC-META');
+    tags.push('src-meta');
   } else {
-    tags.push('SRC-ORGANIC');
+    tags.push('src-organic');
   }
   
   // =============================================
@@ -197,9 +197,9 @@ function buildPurchaseTags(metadata: Record<string, string>): string[] {
   // =============================================
   const language = (metadata.language || metadata.lang || 'en').toLowerCase().trim();
   if (language === 'es') {
-    tags.push('LANG-ES');
+    tags.push('lang-es');
   } else {
-    tags.push('LANG-EN');
+    tags.push('lang-en');
   }
   
   // =============================================
@@ -207,9 +207,9 @@ function buildPurchaseTags(metadata: Record<string, string>): string[] {
   // =============================================
   const medication = (metadata.medication || '').toLowerCase();
   if (medication.includes('semaglutide')) {
-    tags.push('MED-SEMAGLUTIDE');
+    tags.push('med-semaglutide');
   } else if (medication.includes('tirzepatide')) {
-    tags.push('MED-TIRZEPATIDE');
+    tags.push('med-tirzepatide');
   }
   
   // =============================================
@@ -217,22 +217,22 @@ function buildPurchaseTags(metadata: Record<string, string>): string[] {
   // =============================================
   const plan = (metadata.plan || '').toLowerCase();
   if (plan.includes('monthly') && !plan.includes('3') && !plan.includes('6')) {
-    tags.push('PLAN-MONTHLY');
+    tags.push('plan-monthly');
   } else if (plan.includes('3')) {
-    tags.push('PLAN-3MONTH');
+    tags.push('plan-3month');
   } else if (plan.includes('6')) {
-    tags.push('PLAN-6MONTH');
+    tags.push('plan-6month');
   } else if (plan.includes('one') || plan.includes('single')) {
-    tags.push('PLAN-ONETIME');
+    tags.push('plan-onetime');
   }
   
   // =============================================
   // 6. Subscription vs One-Time
   // =============================================
   if (metadata.is_subscription === 'true') {
-    tags.push('TYPE-SUBSCRIPTION');
+    tags.push('type-subscription');
   } else {
-    tags.push('TYPE-ONETIME');
+    tags.push('type-onetime');
   }
   
   return tags;

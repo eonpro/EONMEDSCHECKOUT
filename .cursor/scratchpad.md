@@ -18,7 +18,7 @@
 ## Project Status Board
 - [x] Checkout loads in production and Stripe intents work
 - [x] Stripe webhook endpoint stable and processes `payment_intent.succeeded`
-- [x] GoHighLevel contacts created/updated with tags: `payment-completed`, `payment-completed-en`, `payment-completed-es`
+- [x] GoHighLevel contacts created/updated with standardized lowercase tags: `wl-purchased`, `src-meta`/`src-organic`, `lang-es`/`lang-en`, `med-*`, `plan-*`, `type-*`
 - [x] Custom fields populated: `contact.last_payment_amount`, `contact.medication`, `contact.plan_name`, `contact.last_payment_date`
 - [x] EN/ES SMS workflows triggered correctly via tags
 - [x] PaymentIntent creation keyed by request fingerprint (amount + customer + shipping + order) to avoid stale metadata
