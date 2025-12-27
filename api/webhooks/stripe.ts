@@ -241,6 +241,10 @@ async function createSubscriptionForPayment(paymentIntent: any) {
     
     // Create the subscription with billing starting in the NEXT cycle
     // This prevents double-charging since the initial payment was already collected
+    // IMPORTANT: Use idempotency key to prevent duplicate subscriptions from webhook retries
+    const idempotencyKey = `subscription_for_pi_${paymentIntent.id}`;
+    console.log(`[webhook] Creating subscription with idempotency key: ${idempotencyKey}`);
+    
     const subscription = await stripe.subscriptions.create({
       customer: customerId,
       items: [
@@ -258,6 +262,8 @@ async function createSubscriptionForPayment(paymentIntent: any) {
         initial_payment_intent_id: paymentIntent.id,
         initial_payment_amount: paymentIntent.amount,
       },
+    }, {
+      idempotencyKey, // Stripe will return the same subscription if called with same key
     });
     
     console.log(`[webhook] Created subscription ${subscription.id} for customer ${customerId}`);
@@ -360,14 +366,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // Create subscription if this was a subscription payment
         if (metadata.is_subscription === 'true') {
           console.log('[webhook] Creating subscription for recurring payment...');
+          
+          // Use KV lock to prevent race conditions from parallel webhook calls
+          const lockKey = `stripe:sub:lock:${paymentIntent.id}`;
+          let lockAcquired = false;
+          
           try {
-            const subscription = await createSubscriptionForPayment(paymentIntent);
-            if (subscription) {
-              subscriptionId = subscription.id;
-              console.log(`[webhook] [OK] Successfully created subscription: ${subscriptionId}`);
+            const kvClient = await getKV();
+            if (kvClient) {
+              // Try to acquire lock - NX means "only set if not exists"
+              const lockResult = await kvClient.set(lockKey, { lockedAt: Date.now() }, { ex: 60, nx: true });
+              lockAcquired = lockResult === 'OK';
+              
+              if (!lockAcquired) {
+                console.log(`[webhook] [SKIP] Lock already held for ${paymentIntent.id} - another process is handling subscription creation`);
+              }
+            } else {
+              // No KV, proceed anyway (idempotency key in Stripe will protect us)
+              lockAcquired = true;
             }
-          } catch (error) {
-            console.error(`[webhook] [ERROR] Failed to create subscription:`, error);
+          } catch (lockErr) {
+            console.warn('[webhook] KV lock check failed, proceeding anyway:', lockErr);
+            lockAcquired = true;
+          }
+          
+          if (lockAcquired) {
+            try {
+              const subscription = await createSubscriptionForPayment(paymentIntent);
+              if (subscription) {
+                subscriptionId = subscription.id;
+                console.log(`[webhook] [OK] Successfully created subscription: ${subscriptionId}`);
+              }
+            } catch (error: any) {
+              // Check if this is an idempotency error (subscription already exists)
+              if (error?.message?.includes('Keys for idempotent requests')) {
+                console.log(`[webhook] [SKIP] Subscription already created (idempotency key hit)`);
+              } else {
+                console.error(`[webhook] [ERROR] Failed to create subscription:`, error);
+              }
+            }
           }
         } else {
           console.log('[webhook] Not a subscription payment (is_subscription !== true)');
