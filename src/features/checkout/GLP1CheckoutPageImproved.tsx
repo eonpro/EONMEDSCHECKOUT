@@ -162,6 +162,9 @@ export function GLP1CheckoutPageImproved() {
     medication_preference: '',
     state: '',
   });
+  
+  // Track if this is a direct checkout (no prefill data) - set once after prefill check
+  const [isDirectCheckout, setIsDirectCheckout] = useState<boolean | null>(null);
 
   // =========================================================================
   // Heyflow Intake Prefill Integration
@@ -172,6 +175,15 @@ export function GLP1CheckoutPageImproved() {
     isLoading: isPrefillLoading,
     clearPrefill: _clearPrefill, // Available for manual clear if needed
   } = useIntakePrefill({ debug: true });
+  
+  // Determine if this is a direct checkout (no prefill) after prefill check completes
+  useEffect(() => {
+    if (!isPrefillLoading && isDirectCheckout === null) {
+      const hasPrefillContactInfo = prefillData?.firstName || prefillData?.email;
+      setIsDirectCheckout(!hasPrefillContactInfo);
+      console.log('[Checkout] Mode:', hasPrefillContactInfo ? 'Prefill from Heyflow' : 'Direct checkout');
+    }
+  }, [isPrefillLoading, prefillData, isDirectCheckout]);
 
   // =========================================================================
   // Meta CAPI Identity - Capture and persist tracking params on mount
@@ -1527,8 +1539,8 @@ export function GLP1CheckoutPageImproved() {
                   <p className="text-gray-600">{t.shippingSubtitle}</p>
                 </div>
 
-                {/* Contact Info - Show input fields if no prefill, otherwise show display */}
-                {(!patientData.firstName && !patientData.email) ? (
+                {/* Contact Info - Show input fields if direct checkout, otherwise show prefill display */}
+                {isDirectCheckout ? (
                   /* Contact Info Input Form (Direct Checkout Mode) */
                   <div className="mb-6">
                     <h3 className="text-lg font-medium mb-4">{t.contactInfo}</h3>
