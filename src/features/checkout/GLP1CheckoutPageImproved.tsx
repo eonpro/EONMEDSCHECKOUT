@@ -236,6 +236,11 @@ export function GLP1CheckoutPageImproved() {
         zipCode: addressPrefill.zipCode || prev.zipCode,
         country: addressPrefill.country || prev.country,
       }));
+      
+      // Show address confirmation if we have a prefilled address
+      if (addressPrefill.addressLine1) {
+        setShowAddressConfirmation(true);
+      }
 
       // Pre-select medication if provided
       const medication = prefillToMedication(prefillData);
@@ -256,9 +261,10 @@ export function GLP1CheckoutPageImproved() {
         }
       }
 
-      // Set language preference
+      // Set language preference (sanitize: trim and validate)
       if (prefillData.language) {
-        setLanguage(prefillData.language);
+        const lang = prefillData.language.trim().toLowerCase();
+        setLanguage(lang === 'es' ? 'es' : 'en');
       }
 
       // Log intake ID for tracking
@@ -345,9 +351,10 @@ export function GLP1CheckoutPageImproved() {
           state: data.state || '',
         });
 
-        // Set language preference
+        // Set language preference (sanitize: trim and validate)
         if (languagePref) {
-          setLanguage(languagePref as 'en' | 'es');
+          const lang = String(languagePref).trim().toLowerCase();
+          setLanguage(lang === 'es' ? 'es' : 'en');
         }
 
         // Parse enhanced data (NEW: Full data from consolidated intake!)
@@ -560,12 +567,21 @@ export function GLP1CheckoutPageImproved() {
     promoApplied,
   });
 
-  // Check if contact info is complete (name + email required)
+  // Check if contact info is complete
+  // - Always require: name + email
+  // - Direct checkout mode: also require phone
   const isContactInfoComplete = useMemo(() => {
     const hasName = patientData.firstName?.trim() && patientData.lastName?.trim();
     const hasEmail = patientData.email?.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(patientData.email.trim());
+    
+    // For direct checkout (no prefill), also require phone
+    if (isDirectCheckout) {
+      const hasPhone = patientData.phone?.trim() && patientData.phone.replace(/\D/g, '').length >= 10;
+      return Boolean(hasName && hasEmail && hasPhone);
+    }
+    
     return Boolean(hasName && hasEmail);
-  }, [patientData.firstName, patientData.lastName, patientData.email]);
+  }, [patientData.firstName, patientData.lastName, patientData.email, patientData.phone, isDirectCheckout]);
 
   const isShippingComplete = useMemo(() => {
     const hasAddress = Boolean(
@@ -1586,10 +1602,10 @@ export function GLP1CheckoutPageImproved() {
                           placeholder={language === 'es' ? 'correo@ejemplo.com' : 'email@example.com'}
                         />
                       </div>
-                      {/* Phone (Optional) */}
+                      {/* Phone (Required for direct checkout) */}
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          {t.phoneOptional}
+                          {t.phone} <span className="text-red-500">*</span>
                         </label>
                         <input
                           type="tel"
