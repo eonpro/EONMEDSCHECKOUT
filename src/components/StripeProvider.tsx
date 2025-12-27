@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import { getApiUrl } from '../config/api';
+import { getOrCreateCheckoutIdentity } from '../lib/checkoutIdentity';
 
 interface ShippingAddress {
   addressLine1: string;
@@ -179,6 +180,9 @@ export function StripeProvider({ children, amount, appearance, customerEmail, cu
 
     const controller = new AbortController();
 
+    // Get Meta CAPI identity (fbp, fbc, lead_id, meta_event_id, etc.)
+    const identity = getOrCreateCheckoutIdentity();
+
     const payload = {
       amount: amountInCents,
       currency: 'usd',
@@ -188,6 +192,14 @@ export function StripeProvider({ children, amount, appearance, customerEmail, cu
       shipping_address: normalizedShippingAddress,
       order_data: normalizedOrderData && Object.keys(normalizedOrderData).length > 0 ? normalizedOrderData : undefined,
       language,
+      // Meta CAPI tracking fields
+      lead_id: identity.lead_id || undefined,
+      fbp: identity.fbp || undefined,
+      fbc: identity.fbc || undefined,
+      fbclid: identity.fbclid || undefined,
+      meta_event_id: identity.meta_event_id,
+      page_url: typeof window !== 'undefined' ? window.location.href : undefined,
+      user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
       metadata: {
         source: 'eonmeds_checkout',
         intakeId: (intakeId || '').trim() || undefined,

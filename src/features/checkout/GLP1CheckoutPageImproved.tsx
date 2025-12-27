@@ -13,6 +13,7 @@ import {
   prefillToPlan,
 } from '../../hooks/useIntakePrefill';
 import { clearAllPrefillData } from '../../utils/cookies';
+import { getOrCreateCheckoutIdentity } from '../../lib/checkoutIdentity';
 
 export type ShippingAddress = {
   addressLine1: string;
@@ -153,6 +154,19 @@ export function GLP1CheckoutPageImproved() {
     isLoading: isPrefillLoading,
     clearPrefill: _clearPrefill, // Available for manual clear if needed
   } = useIntakePrefill({ debug: true });
+
+  // =========================================================================
+  // Meta CAPI Identity - Capture and persist tracking params on mount
+  // =========================================================================
+  useEffect(() => {
+    const identity = getOrCreateCheckoutIdentity();
+    console.log('[Checkout] Meta CAPI identity initialized:', {
+      meta_event_id: identity.meta_event_id,
+      lead_id: identity.lead_id,
+      fbp: identity.fbp ? '***' : undefined,
+      fbc: identity.fbc ? '***' : undefined,
+    });
+  }, []);
 
   // Apply prefill data when available
   useEffect(() => {

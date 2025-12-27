@@ -227,7 +227,20 @@ export default async function handler(
       order_data, 
       metadata,
       language, // 'en' or 'es'
+      // Meta CAPI tracking fields
+      lead_id,
+      fbp,
+      fbc,
+      fbclid,
+      meta_event_id,
+      page_url,
+      user_agent,
     } = req.body;
+
+    // Validate Meta CAPI event ID (required for conversion tracking)
+    if (!meta_event_id) {
+      console.warn('[create-intent] Missing meta_event_id - Meta CAPI tracking will be incomplete');
+    }
 
     // Validate amount
     if (!amount || amount < 50) {
@@ -338,16 +351,28 @@ export default async function handler(
     const lastName = nameParts.slice(1).join(' ') || '';
 
     // Build metadata with order details and product IDs (all in English for consistency)
-    const orderMetadata = {
+    const orderMetadata: Record<string, string> = {
       ...metadata,
       // Customer info for GHL integration
-      customer_email,
+      customer_email: String(customer_email || ''),
       customer_first_name: firstName,
       customer_last_name: lastName,
-      customer_phone: customer_phone || '',
+      customer_phone: String(customer_phone || ''),
       customer_id: customer.id,
       // Language preference for GHL SMS automations
-      language: language || 'en',
+      language: String(language || 'en'),
+      // ==========================================================
+      // Meta CAPI tracking fields (for Purchase event via webhook)
+      // ==========================================================
+      lead_id: String(lead_id ?? ''),
+      fbp: String(fbp ?? ''),
+      fbc: String(fbc ?? ''),
+      fbclid: String(fbclid ?? ''),
+      meta_event_id: String(meta_event_id ?? ''),
+      page_url: String(page_url ?? ''),
+      user_agent: String(user_agent ?? ''),
+      source: 'checkout.eonmeds.com',
+      // ==========================================================
       // Shipping address fields (flat for easier access in webhook)
       shipping_line1: normalizedShippingAddress.addressLine1,
       shipping_city: normalizedShippingAddress.city,
