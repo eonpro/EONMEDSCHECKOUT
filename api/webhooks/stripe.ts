@@ -4,6 +4,7 @@ import { buffer } from 'micro';
 import { findClientByEmail, uploadClientPdf } from '../integrations/intakeq.js';
 import { generateInvoicePdf } from '../utils/pdf-generator.js';
 import { findAirtableRecordByEmail, updateAirtablePaymentStatus } from '../integrations/airtable.js';
+import { sendMetaPurchase } from '../lib/metaCapi.js';
 
 // ============================================================================
 // Inline GHL Integration (to avoid import path issues in Vercel)
@@ -737,6 +738,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           }
         } else {
           console.log('[webhook] [WARN] GHL not configured (missing API key or Location ID)');
+        }
+        // =========================================================
+        
+        // =========================================================
+        // Meta CAPI Integration - Send Purchase Event
+        // =========================================================
+        console.log('[webhook] Sending Meta CAPI Purchase event...');
+        try {
+          // Get client IP from request headers (for better matching)
+          const clientIp = req.headers['x-forwarded-for'] 
+            ? String(req.headers['x-forwarded-for']).split(',')[0].trim()
+            : req.headers['x-real-ip'] as string || undefined;
+          
+          const metaResult = await sendMetaPurchase({
+            event_source_url: metadata.page_url || 'https://checkout.eonmeds.com',
+            event_id: metadata.meta_event_id || paymentIntent.id, // Use meta_event_id for deduplication
+            fbp: metadata.fbp || undefined,
+            fbc: metadata.fbc || undefined,
+            lead_id: metadata.lead_id || undefined,
+            email: metadata.customer_email || paymentIntent.receipt_email || undefined,
+            phone: metadata.customer_phone || undefined,
+            user_agent: metadata.user_agent || undefined,
+            client_ip_address: clientIp,
+            value: Number(paymentIntent.amount) / 100, // Convert cents to dollars
+            currency: (paymentIntent.currency || 'usd').toUpperCase(),
+            // Uncomment the line below and add your test code from Meta Events Manager for testing:
+            // test_event_code: 'TEST12345',
+          });
+          
+          if (metaResult.skipped) {
+            console.log('[webhook] [WARN] Meta CAPI skipped:', metaResult.reason);
+          } else {
+            console.log('[webhook] [OK] Meta CAPI Purchase event sent successfully');
+          }
+        } catch (metaError) {
+          // Don't fail the webhook if Meta CAPI fails
+          console.error('[webhook] [ERROR] Meta CAPI integration error:', metaError);
         }
         // =========================================================
         
