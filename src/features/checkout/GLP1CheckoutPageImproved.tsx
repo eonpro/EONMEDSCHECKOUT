@@ -8,7 +8,6 @@ import { AddressAutocomplete } from '../../components/AddressAutocomplete';
 import {
   useIntakePrefill,
   prefillToPatientData,
-  prefillToShippingAddress,
   prefillToMedication,
   prefillToPlan,
 } from '../../hooks/useIntakePrefill';
@@ -225,23 +224,8 @@ export function GLP1CheckoutPageImproved() {
         phone: patientPrefill.phone || prev.phone,
       }));
 
-      // Update shipping address
-      const addressPrefill = prefillToShippingAddress(prefillData);
-      setShippingAddress(prev => ({
-        ...prev,
-        addressLine1: addressPrefill.addressLine1 || prev.addressLine1,
-        addressLine2: addressPrefill.addressLine2 || prev.addressLine2,
-        city: addressPrefill.city || prev.city,
-        state: addressPrefill.state || prev.state,
-        zipCode: addressPrefill.zipCode || prev.zipCode,
-        country: addressPrefill.country || prev.country,
-      }));
+      // Note: Address is not prefilled from Heyflow - user enters on checkout
       
-      // Show address confirmation if we have a prefilled address
-      if (addressPrefill.addressLine1) {
-        setShowAddressConfirmation(true);
-      }
-
       // Pre-select medication if provided
       const medication = prefillToMedication(prefillData);
       if (medication) {

@@ -69,75 +69,7 @@ function sanitizeLang(lang: string | null | undefined): 'en' | 'es' {
   return trimmed === 'es' ? 'es' : 'en';
 }
 
-/**
- * Sanitize state code (uppercase, 2 chars)
- */
-function sanitizeState(state: string | null | undefined): string {
-  if (!state) return '';
-  return state.toUpperCase().replace(/[^A-Z]/g, '').substring(0, 2);
-}
-
-/**
- * Sanitize ZIP code
- */
-function sanitizeZip(zip: string | null | undefined): string {
-  if (!zip) return '';
-  // Allow digits and hyphen only
-  return zip.replace(/[^\d-]/g, '').substring(0, 10);
-}
-
-/**
- * Parse a full Google-verified address into components
- * Example: "1801 N Morgan St, Tampa, FL 33602" or "1801 N Morgan St, Tampa, FL 33602, USA"
- */
-function parseFullAddress(fullAddress: string | null | undefined): {
-  line1: string;
-  city: string;
-  state: string;
-  zip: string;
-} {
-  if (!fullAddress) return { line1: '', city: '', state: '', zip: '' };
-  
-  const cleaned = fullAddress.trim();
-  
-  // Try to match: "Street, City, State ZIP" or "Street, City, State ZIP, Country"
-  // Pattern: (street), (city), (STATE) (ZIP)
-  const match = cleaned.match(/^(.+?),\s*(.+?),\s*([A-Z]{2})\s*(\d{5}(?:-\d{4})?)/i);
-  
-  if (match) {
-    return {
-      line1: sanitizeString(match[1]),
-      city: sanitizeString(match[2]),
-      state: sanitizeState(match[3]),
-      zip: sanitizeZip(match[4]),
-    };
-  }
-  
-  // Fallback: Try simpler pattern without strict formatting
-  // Split by commas and try to extract
-  const parts = cleaned.split(',').map(p => p.trim());
-  
-  if (parts.length >= 3) {
-    // Assume: Street, City, State ZIP [, Country]
-    const line1 = parts[0];
-    const city = parts[1];
-    const stateZipPart = parts[2];
-    
-    // Extract state and zip from "FL 33602" or "Florida 33602"
-    const stateZipMatch = stateZipPart.match(/([A-Za-z]+)\s*(\d{5}(?:-\d{4})?)/);
-    if (stateZipMatch) {
-      return {
-        line1: sanitizeString(line1),
-        city: sanitizeString(city),
-        state: sanitizeState(stateZipMatch[1]),
-        zip: sanitizeZip(stateZipMatch[2]),
-      };
-    }
-  }
-  
-  // Last resort: just use the whole thing as line1
-  return { line1: sanitizeString(cleaned), city: '', state: '', zip: '' };
-}
+// Note: sanitizeState and sanitizeZip removed - address entry is manual on checkout
 
 /**
  * Sanitize date of birth (YYYY-MM-DD format)
@@ -171,49 +103,20 @@ function sanitizeDob(dob: string | null | undefined): string {
  * Format: ?firstName=John&lastName=Doe&email=...
  */
 function parseSimpleParams(params: URLSearchParams): PartialIntakePrefillData {
-  // Check if we have a full Google address or separate fields
-  const fullAddress = params.get('address');
-  const hasSeperateFields = params.get('address1') || params.get('city') || params.get('state');
-  
-  let addressData: {
-    line1: string;
-    line2: string;
-    city: string;
-    state: string;
-    zip: string;
-    country: string;
-  };
-  
-  if (fullAddress && !hasSeperateFields) {
-    // Parse the full Google-verified address
-    const parsed = parseFullAddress(fullAddress);
-    addressData = {
-      line1: parsed.line1,
-      line2: sanitizeString(params.get('address2') || params.get('apt') || params.get('apartment')),
-      city: parsed.city,
-      state: parsed.state,
-      zip: parsed.zip || sanitizeZip(params.get('zip') || params.get('zipCode') || params.get('postal')),
-      country: sanitizeString(params.get('country')) || 'US',
-    };
-  } else {
-    // Use separate address fields
-    addressData = {
-      line1: sanitizeString(params.get('address1') || params.get('address') || params.get('street')),
-      line2: sanitizeString(params.get('address2') || params.get('apt') || params.get('apartment')),
-      city: sanitizeString(params.get('city')),
-      state: sanitizeState(params.get('state')),
-      zip: sanitizeZip(params.get('zip') || params.get('zipCode') || params.get('postal')),
-      country: sanitizeString(params.get('country')) || 'US',
-    };
-  }
-  
   return {
     firstName: sanitizeString(params.get('firstName') || params.get('first_name')),
     lastName: sanitizeString(params.get('lastName') || params.get('last_name')),
     email: sanitizeEmail(params.get('email')),
     phone: sanitizePhone(params.get('phone') || params.get('tel') || params.get('phonenumber')),
     dob: sanitizeDob(params.get('dob') || params.get('dateOfBirth') || params.get('date_of_birth')),
-    address: addressData,
+    address: {
+      line1: '',  // User will enter address on checkout
+      line2: '',
+      city: '',
+      state: '',
+      zip: '',
+      country: 'US',
+    },
     medication: params.get('medication') as 'semaglutide' | 'tirzepatide' | undefined,
     plan: params.get('plan') as 'monthly' | '3month' | '6month' | undefined,
     language: (sanitizeLang(params.get('lang') || params.get('language'))) as 'en' | 'es',
