@@ -58,13 +58,13 @@ export async function sendMetaPurchase(input: MetaPurchaseInput): Promise<any> {
   if (input.user_agent) user_data.client_user_agent = input.user_agent;
   if (input.client_ip_address) user_data.client_ip_address = input.client_ip_address;
 
-  // Build event payload
+  // Build event payload (per Meta CAPI spec)
   const eventData: Record<string, any> = {
     event_name: "Purchase",
     event_time: Math.floor(Date.now() / 1000),
-    event_source_url: input.event_source_url,
-    action_source: "website",
-    event_id: input.event_id,
+    event_source_url: input.event_source_url,  // REQUIRED: page where event happened
+    action_source: "website",                   // REQUIRED: must be "website"
+    event_id: input.event_id,                   // For deduplication with Pixel
     user_data,
     custom_data: {
       value: input.value,
@@ -72,17 +72,22 @@ export async function sendMetaPurchase(input: MetaPurchaseInput): Promise<any> {
     },
   };
 
-  // Add test event code if provided (for Meta Events Manager testing)
-  if (input.test_event_code) {
-    eventData.test_event_code = input.test_event_code;
-  }
-
-  const payload = {
+  // Build final payload - test_event_code goes at ROOT level, NOT inside event
+  const testCode = input.test_event_code || process.env.META_TEST_EVENT_CODE;
+  const payload: Record<string, any> = {
     data: [eventData],
   };
+  
+  // Add test_event_code at root level if provided (for Meta Events Manager testing)
+  if (testCode) {
+    payload.test_event_code = testCode;
+  }
 
   console.log('[Meta CAPI] Sending Purchase event:', {
     event_id: input.event_id,
+    event_source_url: input.event_source_url,
+    action_source: 'website',
+    event_time: eventData.event_time,
     value: input.value,
     currency: input.currency,
     has_fbp: !!input.fbp,
@@ -90,6 +95,9 @@ export async function sendMetaPurchase(input: MetaPurchaseInput): Promise<any> {
     has_email: !!input.email,
     has_phone: !!input.phone,
     has_lead_id: !!input.lead_id,
+    has_user_agent: !!input.user_agent,
+    has_client_ip: !!input.client_ip_address,
+    test_mode: !!testCode,
   });
 
   try {
