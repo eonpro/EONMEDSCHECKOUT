@@ -74,21 +74,18 @@ export async function upsertGhlContact(input: GhlUpsertInput): Promise<any> {
     }
   }
 
-  // Build tags array
-  const tags: string[] = input.tags || [];
+  // Build tags array from input (already contains standardized tags from buildPurchaseTags)
+  const tags: string[] = [...(input.tags || [])];
   
-  // Add language tag
+  // Ensure language tag is present
   if (input.language === 'es') {
-    if (!tags.includes('spanish')) tags.push('spanish');
     if (!tags.includes('LANG-ES')) tags.push('LANG-ES');
   } else {
-    if (!tags.includes('english')) tags.push('english');
     if (!tags.includes('LANG-EN')) tags.push('LANG-EN');
   }
-
-  // Add source tags
+  
+  // Ensure source tag is present
   if (!tags.includes('eonmeds')) tags.push('eonmeds');
-  if (!tags.includes('payment-completed')) tags.push('payment-completed');
 
   // Build custom fields array
   // NOTE: Replace these env var names with your actual GHL custom field IDs
@@ -173,6 +170,75 @@ export async function upsertGhlContact(input: GhlUpsertInput): Promise<any> {
 }
 
 /**
+ * Build standardized tags based on Stripe metadata
+ * These tags enable reliable GHL workflow automation
+ */
+function buildPurchaseTags(metadata: Record<string, string>): string[] {
+  const tags: string[] = [];
+  
+  // =============================================
+  // 1. Purchase Status (always add for purchases)
+  // =============================================
+  tags.push('WL-PURCHASED');
+  
+  // =============================================
+  // 2. Source Attribution
+  // =============================================
+  // If any Meta pixel data exists, it's a Meta click
+  const hasMetaAttribution = metadata.fbp || metadata.fbc || metadata.fbclid;
+  if (hasMetaAttribution) {
+    tags.push('SRC-META');
+  } else {
+    tags.push('SRC-ORGANIC');
+  }
+  
+  // =============================================
+  // 3. Language
+  // =============================================
+  const language = (metadata.language || metadata.lang || 'en').toLowerCase().trim();
+  if (language === 'es') {
+    tags.push('LANG-ES');
+  } else {
+    tags.push('LANG-EN');
+  }
+  
+  // =============================================
+  // 4. Medication Type
+  // =============================================
+  const medication = (metadata.medication || '').toLowerCase();
+  if (medication.includes('semaglutide')) {
+    tags.push('MED-SEMAGLUTIDE');
+  } else if (medication.includes('tirzepatide')) {
+    tags.push('MED-TIRZEPATIDE');
+  }
+  
+  // =============================================
+  // 5. Plan Type
+  // =============================================
+  const plan = (metadata.plan || '').toLowerCase();
+  if (plan.includes('monthly') && !plan.includes('3') && !plan.includes('6')) {
+    tags.push('PLAN-MONTHLY');
+  } else if (plan.includes('3')) {
+    tags.push('PLAN-3MONTH');
+  } else if (plan.includes('6')) {
+    tags.push('PLAN-6MONTH');
+  } else if (plan.includes('one') || plan.includes('single')) {
+    tags.push('PLAN-ONETIME');
+  }
+  
+  // =============================================
+  // 6. Subscription vs One-Time
+  // =============================================
+  if (metadata.is_subscription === 'true') {
+    tags.push('TYPE-SUBSCRIPTION');
+  } else {
+    tags.push('TYPE-ONETIME');
+  }
+  
+  return tags;
+}
+
+/**
  * Build GHL payload from Stripe PaymentIntent metadata
  */
 export function buildGhlPayloadFromStripe(
@@ -182,31 +248,9 @@ export function buildGhlPayloadFromStripe(
 ): GhlUpsertInput {
   const shippingAddress = paymentIntent.shipping?.address || {};
   const language = (metadata.language || metadata.lang || 'en') as 'en' | 'es';
-  const isSpanish = language === 'es';
 
-  // Build tags based on payment
-  const tags: string[] = [
-    'WL-PURCHASED',
-    isSpanish ? 'SOURCE-META-ES' : 'SOURCE-META-EN',
-    isSpanish ? 'LANG-ES' : 'LANG-EN',
-  ];
-
-  // Add medication tag
-  if (metadata.medication) {
-    tags.push(metadata.medication.toLowerCase().replace(/\s+/g, '-'));
-  }
-
-  // Add plan tag
-  if (metadata.plan) {
-    tags.push(`plan-${metadata.plan.toLowerCase().replace(/\s+/g, '-')}`);
-  }
-
-  // Add subscription vs one-time tag
-  if (metadata.is_subscription === 'true') {
-    tags.push('subscription');
-  } else {
-    tags.push('one-time-purchase');
-  }
+  // Build standardized tags for workflow automation
+  const tags = buildPurchaseTags(metadata);
 
   return {
     email: metadata.customer_email || paymentIntent.receipt_email,
