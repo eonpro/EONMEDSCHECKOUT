@@ -362,7 +362,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.log(`[webhook] Receipt Email: ${paymentIntent.receipt_email}`);
         console.log(`[webhook] Metadata:`, JSON.stringify(metadata, null, 2));
         console.log(`[webhook] is_subscription: ${metadata.is_subscription}`);
-        console.log(`[webhook] GHL configured: ${isGHLConfigured()}`);
+        console.log(`[webhook] GHL configured: ${isGhlConfigured()}`);
         
         let subscriptionId: string | undefined;
         
