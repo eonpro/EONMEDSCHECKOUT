@@ -13,7 +13,7 @@ import {
   prefillToPlan,
 } from '../../hooks/useIntakePrefill';
 import { clearAllPrefillData } from '../../utils/cookies';
-import { getOrCreateCheckoutIdentity } from '../../lib/checkoutIdentity';
+import { getOrCreateCheckoutIdentity, updateCheckoutIdentity } from '../../lib/checkoutIdentity';
 
 export type ShippingAddress = {
   addressLine1: string;
@@ -69,7 +69,16 @@ const translations = {
     freeShipping: "Free shipping",
     startingAt: "Starting at",
     selected: "Selected! Continuing to plans...",
-    choosePlan: "Choose Your Plan"
+    choosePlan: "Choose Your Plan",
+    // Contact info fields
+    contactInfo: "Contact Information",
+    firstName: "First Name",
+    lastName: "Last Name",
+    email: "Email Address",
+    phone: "Phone Number",
+    phoneOptional: "Phone (Optional)",
+    requiredField: "This field is required",
+    invalidEmail: "Please enter a valid email address",
   },
   es: {
     congratulations: "¡Felicitaciones! Califica para el tratamiento GLP-1",
@@ -102,7 +111,16 @@ const translations = {
     freeShipping: "Envío gratis",
     startingAt: "Desde",
     selected: "¡Seleccionado! Continuando a planes...",
-    choosePlan: "Elija Su Plan"
+    choosePlan: "Elija Su Plan",
+    // Contact info fields
+    contactInfo: "Información de Contacto",
+    firstName: "Nombre",
+    lastName: "Apellido",
+    email: "Correo Electrónico",
+    phone: "Número de Teléfono",
+    phoneOptional: "Teléfono (Opcional)",
+    requiredField: "Este campo es requerido",
+    invalidEmail: "Por favor ingrese un correo electrónico válido",
   }
 };
 
@@ -167,6 +185,18 @@ export function GLP1CheckoutPageImproved() {
       fbc: identity.fbc ? '***' : undefined,
     });
   }, []);
+
+  // Sync patient data to checkout identity for Meta CAPI tracking
+  useEffect(() => {
+    if (patientData.email || patientData.phone || patientData.firstName) {
+      updateCheckoutIdentity({
+        email: patientData.email || undefined,
+        phone: patientData.phone || undefined,
+        firstName: patientData.firstName || undefined,
+        lastName: patientData.lastName || undefined,
+      });
+    }
+  }, [patientData.email, patientData.phone, patientData.firstName, patientData.lastName]);
 
   // Apply prefill data when available
   useEffect(() => {
@@ -517,14 +547,23 @@ export function GLP1CheckoutPageImproved() {
     promoApplied,
   });
 
+  // Check if contact info is complete (name + email required)
+  const isContactInfoComplete = useMemo(() => {
+    const hasName = patientData.firstName?.trim() && patientData.lastName?.trim();
+    const hasEmail = patientData.email?.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(patientData.email.trim());
+    return Boolean(hasName && hasEmail);
+  }, [patientData.firstName, patientData.lastName, patientData.email]);
+
   const isShippingComplete = useMemo(() => {
-    return Boolean(
+    const hasAddress = Boolean(
       shippingAddress.addressLine1?.trim() &&
         shippingAddress.city?.trim() &&
         shippingAddress.state?.trim() &&
         shippingAddress.zipCode?.trim()
     );
-  }, [shippingAddress.addressLine1, shippingAddress.city, shippingAddress.state, shippingAddress.zipCode]);
+    // Must have both contact info and shipping address
+    return hasAddress && isContactInfoComplete;
+  }, [shippingAddress.addressLine1, shippingAddress.city, shippingAddress.state, shippingAddress.zipCode, isContactInfoComplete]);
 
   const allowedPromoCodes = useMemo(() => {
     const raw = (import.meta.env.VITE_PROMO_CODES as string | undefined) || '';
@@ -1488,19 +1527,82 @@ export function GLP1CheckoutPageImproved() {
                   <p className="text-gray-600">{t.shippingSubtitle}</p>
                 </div>
 
-                {/* Customer Info Display (from prefill) */}
-                {(patientData.firstName || patientData.email || patientData.phone) && (
+                {/* Contact Info - Show input fields if no prefill, otherwise show display */}
+                {(!patientData.firstName && !patientData.email) ? (
+                  /* Contact Info Input Form (Direct Checkout Mode) */
+                  <div className="mb-6">
+                    <h3 className="text-lg font-medium mb-4">{t.contactInfo}</h3>
+                    <div className="space-y-4">
+                      {/* Name Row */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            {t.firstName} <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={patientData.firstName}
+                            onChange={(e) => setPatientData(prev => ({ ...prev, firstName: e.target.value }))}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#13a97b] focus:border-[#13a97b] transition-colors"
+                            placeholder={language === 'es' ? 'Juan' : 'John'}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            {t.lastName} <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={patientData.lastName}
+                            onChange={(e) => setPatientData(prev => ({ ...prev, lastName: e.target.value }))}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#13a97b] focus:border-[#13a97b] transition-colors"
+                            placeholder={language === 'es' ? 'García' : 'Doe'}
+                          />
+                        </div>
+                      </div>
+                      {/* Email */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          {t.email} <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="email"
+                          value={patientData.email}
+                          onChange={(e) => setPatientData(prev => ({ ...prev, email: e.target.value }))}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#13a97b] focus:border-[#13a97b] transition-colors"
+                          placeholder={language === 'es' ? 'correo@ejemplo.com' : 'email@example.com'}
+                        />
+                      </div>
+                      {/* Phone (Optional) */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          {t.phoneOptional}
+                        </label>
+                        <input
+                          type="tel"
+                          value={patientData.phone}
+                          onChange={(e) => setPatientData(prev => ({ ...prev, phone: e.target.value }))}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#13a97b] focus:border-[#13a97b] transition-colors"
+                          placeholder="(555) 123-4567"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* Customer Info Display (from prefill) */
                   <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
                     <div className="flex items-start gap-3">
                       <div className="w-10 h-10 rounded-full bg-[#13a97b] flex items-center justify-center flex-shrink-0">
                         <span className="text-white text-lg font-semibold">
-                          {patientData.firstName.charAt(0).toUpperCase()}
+                          {(patientData.firstName || patientData.email || '?').charAt(0).toUpperCase()}
                         </span>
                       </div>
                       <div className="flex-1">
-                        <p className="text-base font-medium text-gray-900">
-                          {patientData.firstName} {patientData.lastName}
-                        </p>
+                        {patientData.firstName && (
+                          <p className="text-base font-medium text-gray-900">
+                            {patientData.firstName} {patientData.lastName}
+                          </p>
+                        )}
                         {patientData.email && (
                           <p className="text-sm text-gray-600 mt-0.5">{patientData.email}</p>
                         )}
