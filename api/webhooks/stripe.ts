@@ -411,9 +411,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           }
           
           if (lockAcquired) {
-            try {
-              const subscription = await createSubscriptionForPayment(paymentIntent);
-              if (subscription) {
+          try {
+            const subscription = await createSubscriptionForPayment(paymentIntent);
+            if (subscription) {
                 subscriptionId = subscription.id;
                 console.log(`[webhook] [OK] Successfully created subscription: ${subscriptionId}`);
               }
@@ -534,7 +534,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               if (kvClient) {
                 if (linkedIntakeId) await kvClient.del(`intakeq:intake:${linkedIntakeId}`);
                 if (email) await kvClient.del(`intakeq:email:${email}`);
-              }
+            }
             } catch {
               // ignore
             }

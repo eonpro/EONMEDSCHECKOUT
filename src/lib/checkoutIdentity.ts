@@ -27,6 +27,26 @@ export type CheckoutIdentity = {
 const LS_KEY = "eon_checkout_identity_v1";
 
 /**
+ * Normalize lead_id - ensures we always have a valid identifier
+ * If lead_id is missing or is a literal Heyflow placeholder (starts with @),
+ * fall back to meta_event_id as a stable identifier
+ */
+export function normalizeLeadId(lead_id: string | null | undefined, meta_event_id: string): string {
+  if (!lead_id) return meta_event_id;
+  if (lead_id.startsWith("@")) return meta_event_id;  // Heyflow didn't replace the variable
+  return lead_id;
+}
+
+/**
+ * Normalize Facebook parameters - remove literal placeholders
+ */
+function normalizeMetaParam(value: string | null | undefined): string | undefined {
+  if (!value) return undefined;
+  if (value.startsWith("@")) return undefined;  // Heyflow didn't replace the variable
+  return value;
+}
+
+/**
  * Read tracking parameters from URL query string
  * These are typically passed from Heyflow intake form
  */
@@ -54,11 +74,12 @@ export function readCheckoutIdentityFromUrl(): Partial<CheckoutIdentity> {
     }
   }
   
+  // Normalize all values - remove Heyflow placeholders that weren't replaced
   return {
-    lead_id: params.get("lead_id") || undefined,
-    fbp: fbp,
-    fbc: fbc,
-    fbclid: params.get("fbclid") || undefined,
+    lead_id: normalizeMetaParam(params.get("lead_id")),
+    fbp: normalizeMetaParam(fbp),
+    fbc: normalizeMetaParam(fbc),
+    fbclid: normalizeMetaParam(params.get("fbclid")),
     email: params.get("email") || undefined,
     phone: params.get("phone") || undefined,
     firstName: params.get("firstName") || params.get("first_name") || undefined,
@@ -103,6 +124,9 @@ export function getOrCreateCheckoutIdentity(): CheckoutIdentity {
     ),
     meta_event_id,
   };
+  
+  // Normalize lead_id: if missing or a placeholder, use meta_event_id
+  merged.lead_id = normalizeLeadId(merged.lead_id, meta_event_id);
 
   // Persist to localStorage
   try {

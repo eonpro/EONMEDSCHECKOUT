@@ -225,7 +225,7 @@ export function GLP1CheckoutPageImproved() {
       }));
 
       // Note: Address is not prefilled from Heyflow - user enters on checkout
-      
+
       // Pre-select medication if provided
       const medication = prefillToMedication(prefillData);
       if (medication) {
@@ -1612,9 +1612,9 @@ export function GLP1CheckoutPageImproved() {
                       </div>
                       <div className="flex-1">
                         {patientData.firstName && (
-                          <p className="text-base font-medium text-gray-900">
-                            {patientData.firstName} {patientData.lastName}
-                          </p>
+                        <p className="text-base font-medium text-gray-900">
+                          {patientData.firstName} {patientData.lastName}
+                        </p>
                         )}
                         {patientData.email && (
                           <p className="text-sm text-gray-600 mt-0.5">{patientData.email}</p>

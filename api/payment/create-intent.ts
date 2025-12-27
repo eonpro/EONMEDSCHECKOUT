@@ -96,6 +96,32 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2024-06-20' as any,
 });
 
+// ============================================================================
+// Meta CAPI Parameter Normalization
+// ============================================================================
+
+/**
+ * Normalize lead_id - ensures we always have a valid identifier
+ * If lead_id is missing or is a literal Heyflow placeholder (starts with @),
+ * fall back to meta_event_id as a stable identifier
+ */
+function normalizeLeadId(lead_id: string | null | undefined, meta_event_id: string): string {
+  if (!lead_id) return meta_event_id;
+  if (lead_id.startsWith('@')) return meta_event_id;  // Heyflow didn't replace the variable
+  return lead_id;
+}
+
+/**
+ * Normalize Meta parameter - remove literal placeholders that Heyflow didn't replace
+ */
+function normalizeMetaParam(value: string | null | undefined): string {
+  if (!value) return '';
+  if (value.startsWith('@')) return '';  // Heyflow didn't replace the variable
+  return value;
+}
+
+// ============================================================================
+
 // Helper function to create or retrieve customer
 async function getOrCreateCustomer(
   email: string | undefined,
@@ -363,11 +389,13 @@ export default async function handler(
       language: String(language || 'en'),
       // ==========================================================
       // Meta CAPI tracking fields (for Purchase event via webhook)
+      // Normalized: placeholders like @fbp are converted to empty strings
+      // lead_id falls back to meta_event_id if missing/invalid
       // ==========================================================
-      lead_id: String(lead_id ?? ''),
-      fbp: String(fbp ?? ''),
-      fbc: String(fbc ?? ''),
-      fbclid: String(fbclid ?? ''),
+      lead_id: normalizeLeadId(lead_id, meta_event_id || ''),
+      fbp: normalizeMetaParam(fbp),
+      fbc: normalizeMetaParam(fbc),
+      fbclid: normalizeMetaParam(fbclid),
       meta_event_id: String(meta_event_id ?? ''),
       page_url: String(page_url ?? ''),
       user_agent: String(user_agent ?? ''),
