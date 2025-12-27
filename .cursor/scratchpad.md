@@ -28,6 +28,11 @@
 ## Executor's Feedback or Assistance Requests
 - **Production flow is healthy and fully functional (EN/ES).**
 - If any remaining “undefined address” appears in internal notifications, it was from older test contacts or intents created before shipping was required.
+- Smoke checks run (2025-12-27):
+  - `npm run typecheck` and `npm run build` pass
+  - Production endpoints respond: `/` (200), `/api/ping` (200), `/api/hello` (200)
+  - `/api/payment/create-intent` correctly rejects invalid payloads (e.g., amount < 50) without contacting Stripe
+  - `/api/webhooks/stripe` rejects non-POST methods (405 on GET)
 - To enable local API development, recommend moving the project to a path without spaces:
   ```bash
   mv "/Users/italo/Desktop/checkout page eonmeds" /Users/italo/Desktop/checkout-eonmeds

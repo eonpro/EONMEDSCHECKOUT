@@ -55,9 +55,11 @@ export function readCheckoutIdentityFromUrl(): Partial<CheckoutIdentity> {
   
   const params = new URLSearchParams(window.location.search);
   
-  // Also try to read _fbp and _fbc from cookies if not in URL
-  let fbp = params.get("fbp") || undefined;
-  let fbc = params.get("fbc") || undefined;
+  // Read params and normalize any Heyflow placeholders (e.g. "@fbp")
+  const lead_id = normalizeMetaParam(params.get("lead_id"));
+  const fbclid = normalizeMetaParam(params.get("fbclid"));
+  let fbp = normalizeMetaParam(params.get("fbp"));
+  let fbc = normalizeMetaParam(params.get("fbc"));
   
   if (!fbp || !fbc) {
     try {
@@ -76,10 +78,10 @@ export function readCheckoutIdentityFromUrl(): Partial<CheckoutIdentity> {
   
   // Normalize all values - remove Heyflow placeholders that weren't replaced
   return {
-    lead_id: normalizeMetaParam(params.get("lead_id")),
+    lead_id,
     fbp: normalizeMetaParam(fbp),
     fbc: normalizeMetaParam(fbc),
-    fbclid: normalizeMetaParam(params.get("fbclid")),
+    fbclid,
     email: params.get("email") || undefined,
     phone: params.get("phone") || undefined,
     firstName: params.get("firstName") || params.get("first_name") || undefined,
@@ -125,6 +127,17 @@ export function getOrCreateCheckoutIdentity(): CheckoutIdentity {
     meta_event_id,
   };
   
+  // Normalize any stale placeholders that may already exist in localStorage (e.g. "@fbp")
+  merged.fbp = normalizeMetaParam(merged.fbp);
+  merged.fbc = normalizeMetaParam(merged.fbc);
+  merged.fbclid = normalizeMetaParam(merged.fbclid);
+
+  // If fbclid exists but fbc is missing, auto-generate fbc for better match quality.
+  // (This mirrors Meta's typical _fbc format: "fb.1.<timestamp>.<fbclid>")
+  if (!merged.fbc && merged.fbclid) {
+    merged.fbc = `fb.1.${Math.floor(Date.now() / 1000)}.${merged.fbclid}`;
+  }
+
   // Normalize lead_id: if missing or a placeholder, use meta_event_id
   merged.lead_id = normalizeLeadId(merged.lead_id, meta_event_id);
 
