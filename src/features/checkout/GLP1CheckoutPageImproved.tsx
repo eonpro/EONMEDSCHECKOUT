@@ -32,6 +32,8 @@ type Medication = {
   description: string;
   efficacy: string;
   isAdvanced?: boolean;
+  tag?: string;
+  lowestMonthlyPrice?: number;
   plans: Plan[];
 };
 
@@ -67,6 +69,9 @@ const translations = {
     medicalConsultation: "Medical consultation",
     freeShipping: "Free shipping",
     startingAt: "Starting at",
+    asLowAs: "As low as",
+    mostPopular: "Most Popular",
+    mostEffective: "Most Effective",
     selected: "Selected! Continuing to plans...",
     choosePlan: "Choose Your Plan",
     // Contact info fields
@@ -109,6 +114,9 @@ const translations = {
     medicalConsultation: "Consulta médica",
     freeShipping: "Envío gratis",
     startingAt: "Desde",
+    asLowAs: "Desde solo",
+    mostPopular: "Más Popular",
+    mostEffective: "Más Efectivo",
     selected: "¡Seleccionado! Continuando a planes...",
     choosePlan: "Elija Su Plan",
     // Contact info fields
@@ -476,6 +484,8 @@ export function GLP1CheckoutPageImproved() {
       strength: '2.5-5mg',
       description: language === 'es' ? 'Inyección semanal GLP-1 para control de peso' : 'Weekly GLP-1 injection for weight management',
       efficacy: '15-20% weight loss',
+      tag: t.mostPopular,
+      lowestMonthlyPrice: 169, // 6-month package: $1014 / 6 = $169
       plans: [
         { id: 'sema_monthly', type: t.monthlyRecurring, price: 229, billing: 'monthly' },
         { id: 'sema_3month', type: t.package3Month, price: 567, billing: 'total', savings: 120, badge: t.save + ' $120' }, // $189 x 3 months
@@ -490,6 +500,8 @@ export function GLP1CheckoutPageImproved() {
       description: language === 'es' ? 'Inyección GLP-1/GIP de doble acción para resultados superiores' : 'Dual-action GLP-1/GIP injection for superior results',
       efficacy: '20-25% weight loss',
       isAdvanced: true,
+      tag: t.mostEffective,
+      lowestMonthlyPrice: 279, // 6-month package: $1674 / 6 = $279
       plans: [
         { id: 'tirz_monthly', type: t.monthlyRecurring, price: 329, billing: 'monthly' },
         { id: 'tirz_3month', type: t.package3Month, price: 891, billing: 'total', savings: 96, badge: t.save + ' $96' }, // $297 x 3 months
@@ -1225,6 +1237,14 @@ export function GLP1CheckoutPageImproved() {
                             : 'border-gray-200 hover:border-gray-300'
                         }`}
                       >
+                        {/* Tag Badge */}
+                        {med.tag && (
+                          <div className={`absolute top-0 right-0 px-3 py-1 text-xs font-semibold text-white rounded-bl-lg ${
+                            med.id === 'semaglutide' ? 'bg-[#13a97b]' : 'bg-[#f97316]'
+                          }`}>
+                            {med.tag}
+                          </div>
+                        )}
                         {selectedMedication === med.id && (
                           <div className="absolute inset-0 bg-gradient-to-br from-green-50/50 to-transparent pointer-events-none" />
                         )}
@@ -1240,10 +1260,10 @@ export function GLP1CheckoutPageImproved() {
                             />
                           </div>
                           <div className="flex-1">
-                            <h3 className="text-base font-medium text-gray-900">{med.name}</h3>
+                            <h3 className="text-lg font-semibold text-gray-900">{med.name}</h3>
                             <p className="text-sm text-gray-600 mb-2">{med.strength} • {med.description}</p>
-                            <div className="text-base font-medium text-gray-900">
-                              {t.startingAt} ${med.plans[0].price}/month
+                            <div className="text-lg font-bold text-[#13a97b]">
+                              {t.asLowAs} ${med.lowestMonthlyPrice || med.plans[0].price}/{language === 'es' ? 'mes' : 'month'}
                             </div>
                             <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs text-gray-600 mt-2">
                               <span className="flex items-center gap-1">
