@@ -238,17 +238,23 @@ export function GLP1CheckoutPageImproved() {
       const medication = prefillToMedication(prefillData);
       if (medication) {
         setSelectedMedication(medication);
-      }
-
-      // Pre-select plan if provided
-      const plan = prefillToPlan(prefillData);
-      if (plan) {
-        // Find matching plan ID from medications data
-        const med = medications.find(m => m.id === (medication || selectedMedication));
-        if (med) {
-          const matchingPlan = med.plans.find(p => p.type === plan);
-          if (matchingPlan) {
-            setSelectedPlan(matchingPlan.id);
+        
+        // Also set default plan if not provided in prefill data
+        const plan = prefillToPlan(prefillData);
+        const med = medications.find(m => m.id === medication);
+        if (med && med.plans.length > 0) {
+          if (plan) {
+            // Find matching plan ID from medications data
+            const matchingPlan = med.plans.find(p => p.type === plan);
+            if (matchingPlan) {
+              setSelectedPlan(matchingPlan.id);
+            } else {
+              // Fallback to first plan if specified plan not found
+              setSelectedPlan(med.plans[0].id);
+            }
+          } else {
+            // Default to first plan (monthly recurring)
+            setSelectedPlan(med.plans[0].id);
           }
         }
       }
@@ -395,9 +401,13 @@ export function GLP1CheckoutPageImproved() {
           }
         }
 
-        // Set the recommended medication
+        // Set the recommended medication AND default plan
         if (recommendedMedication && recommendedMedication !== 'recommendation') {
           setSelectedMedication(recommendedMedication);
+          // Also set default plan (first plan = monthly recurring)
+          // Use hardcoded plan IDs since medications array may not be ready
+          const defaultPlanId = recommendedMedication === 'semaglutide' ? 'sema_monthly' : 'tirz_monthly';
+          setSelectedPlan(defaultPlanId);
         }
 
         // Enhanced smart add-on recommendations using all data

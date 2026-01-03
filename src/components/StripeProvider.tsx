@@ -128,8 +128,11 @@ export function StripeProvider({ children, amount, appearance, customerEmail, cu
     return Boolean(normalizedCustomerEmail);
   }, [normalizedCustomerEmail]);
 
+  // Minimum amount in cents (Stripe requires at least $0.50)
+  const MIN_AMOUNT_CENTS = 50;
+  
   const isReadyToCreateIntent = useMemo(() => {
-    return amountInCents > 0 && isCustomerInfoComplete && isShippingAddressComplete;
+    return amountInCents >= MIN_AMOUNT_CENTS && isCustomerInfoComplete && isShippingAddressComplete;
   }, [amountInCents, isCustomerInfoComplete, isShippingAddressComplete]);
 
   // BUGFIX: Key intents by the full request fingerprint (not only amount),
@@ -333,7 +336,11 @@ export function StripeProvider({ children, amount, appearance, customerEmail, cu
   if (!isReadyToCreateIntent) {
     // Determine what's missing for a more helpful message
     let helperText: string;
-    if (!normalizedCustomerEmail) {
+    if (amountInCents < MIN_AMOUNT_CENTS) {
+      helperText = language === 'es'
+        ? 'Seleccione un plan para continuar con el pago.'
+        : 'Please select a plan to continue with payment.';
+    } else if (!normalizedCustomerEmail) {
       helperText = language === 'es'
         ? 'Se requiere un correo electrónico para procesar el pago.'
         : 'An email address is required to process payment.';
