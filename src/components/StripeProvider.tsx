@@ -209,6 +209,16 @@ export function StripeProvider({ children, amount, appearance, customerEmail, cu
     // Debounce to avoid creating multiple intents while user is typing
     const debounceMs = 350;
     const timeoutId = setTimeout(() => {
+    console.log('[StripeProvider] Creating PaymentIntent with:', {
+      amount: amountInCents,
+      email: normalizedCustomerEmail,
+      hasName: !!normalizedCustomerName,
+      hasPhone: !!normalizedCustomerPhoneE164,
+      hasShipping: !!normalizedShippingAddress,
+      shippingAddress: normalizedShippingAddress,
+      hasOrderData: !!normalizedOrderData,
+      meta_event_id: identity.meta_event_id,
+    });
     fetch(getApiUrl('createPaymentIntent'), {
       method: 'POST',
       headers: {
@@ -217,9 +227,16 @@ export function StripeProvider({ children, amount, appearance, customerEmail, cu
         body: JSON.stringify(payload),
       signal: controller.signal,
     })
-      .then((res) => {
+      .then(async (res) => {
         if (!res.ok) {
-          throw new Error(`Failed to create payment intent: ${res.status}`);
+          // Try to get error details from response
+          const errorData = await res.json().catch(() => ({}));
+          console.error('[StripeProvider] API error:', {
+            status: res.status,
+            error: errorData.error,
+            message: errorData.message,
+          });
+          throw new Error(errorData.message || errorData.error || `Failed to create payment intent: ${res.status}`);
         }
         return res.json();
       })
@@ -234,8 +251,14 @@ export function StripeProvider({ children, amount, appearance, customerEmail, cu
       })
       .catch((err) => {
         if (err.name === 'AbortError') return;
-          console.error('[StripeProvider] Error creating payment intent:', err);
-        setError('Failed to initialize payment. Please refresh and try again.');
+        console.error('[StripeProvider] Error creating payment intent:', err);
+        // Show more specific error message to user
+        const userMessage = err.message?.includes('Shipping address')
+          ? 'Please complete your shipping address and try again.'
+          : err.message?.includes('Invalid amount')
+          ? 'Invalid order total. Please refresh and try again.'
+          : 'Failed to initialize payment. Please refresh and try again.';
+        setError(userMessage);
         setLoading(false);
       });
     }, debounceMs);
