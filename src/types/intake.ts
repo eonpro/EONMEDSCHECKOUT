@@ -108,7 +108,7 @@ export interface PrefillCookieData {
  */
 export interface PrefillResult {
   data: IntakePrefillData | null;
-  source: 'url' | 'cookie' | null;
+  source: 'url' | 'cookie' | 'airtable' | null;
   intakeId: string | null;
   error: string | null;
   isLoading: boolean;

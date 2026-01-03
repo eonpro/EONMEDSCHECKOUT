@@ -1,5 +1,6 @@
 ## Background and Motivation
 - Ensure the checkout flow is production-ready end-to-end (Heyflow → checkout → Stripe → webhook → GoHighLevel), with bilingual (EN/ES) automations for payment confirmations and internal notifications.
+- **NEW**: Add support for custom intake form data transfer via Airtable. The new form passes `?ref=recXXX` parameter to the checkout page, which fetches prefill data from `https://weightlossintake.vercel.app/api/airtable?ref=recXXX`.
 - Local development has a known issue with `vercel dev` due to spaces in the project path.
 
 ## Key Challenges and Analysis
@@ -7,6 +8,7 @@
 - **Webhook security**: Stripe webhook must fail-closed if `STRIPE_WEBHOOK_SECRET` / `STRIPE_SECRET_KEY` are missing; never accept requests with empty secrets.
 - **Data quality for automations**: GHL workflows depend on consistent tags + custom fields; customer phone/address must be present on the contact to send SMS.
 - **LOCAL DEV ISSUE**: `vercel dev` fails to execute serverless functions when the project path contains spaces (e.g., `/Users/italo/Desktop/checkout page eonmeds/`). This is a Vercel CLI bug where it splits the path at the space character.
+- **NEW - Airtable Integration**: Must handle the `ref` parameter gracefully, fetch from external API, and map the response fields (firstName, lastName, email, phone, state, address, medicationPreference) to the existing IntakePrefillData format. Must not break existing Heyflow integration.
 
 ## High-level Task Breakdown
 1. Implement Heyflow redirect intake handoff to checkout with safe parsing and manual shipping entry.
@@ -14,6 +16,13 @@
 3. Add GHL custom fields for SMS templates and validate end-to-end delivery.
 4. Fix PaymentIntent creation to prevent duplicates while ensuring metadata is not stale when customer/shipping changes.
 5. Harden webhook security to fail-closed when Stripe env vars are missing.
+6. **NEW**: Add Airtable prefill source support for `?ref=recXXX` parameter:
+   - Add `parseAirtableRefParams()` function in `intakeParser.ts`
+   - Update `parseIntakeUrlParams()` to check for `ref` parameter first
+   - Fetch data from `https://weightlossintake.vercel.app/api/airtable?ref=recXXX`
+   - Map response fields to IntakePrefillData format
+   - Handle address parsing (may be a single string that needs splitting)
+   - Keep existing Heyflow integration working
 
 ## Project Status Board
 - [x] Checkout loads in production and Stripe intents work
@@ -24,10 +33,11 @@
 - [x] PaymentIntent creation keyed by request fingerprint (amount + customer + shipping + order) to avoid stale metadata
 - [x] Webhook security: fail-closed if Stripe env vars missing; requires signature header
 - [ ] Local development with `vercel dev` — **BLOCKED** (path-with-spaces bug in Vercel CLI)
+- [x] **DONE**: Airtable prefill support for `?ref=recXXX` parameter
 
 ## Executor's Feedback or Assistance Requests
 - **Production flow is healthy and fully functional (EN/ES).**
-- If any remaining “undefined address” appears in internal notifications, it was from older test contacts or intents created before shipping was required.
+- If any remaining "undefined address" appears in internal notifications, it was from older test contacts or intents created before shipping was required.
 - Smoke checks run (2025-12-27):
   - `npm run typecheck` and `npm run build` pass
   - Production endpoints respond: `/` (200), `/api/ping` (200), `/api/hello` (200)

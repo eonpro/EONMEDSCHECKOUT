@@ -103,9 +103,12 @@ export function useIntakePrefill(options: UseIntakePrefillOptions = {}): Prefill
           cleanUrl();
         }
         
+        // Map source: airtable stays as airtable, others become 'url'
+        const mappedSource = urlResult.source === 'airtable' ? 'airtable' : 'url';
+        
         setResult({
           data: urlResult.data,
-          source: urlResult.source === 'signed' ? 'url' : 'url',
+          source: mappedSource,
           intakeId: urlResult.intakeId,
           error: null,
           isLoading: false,
