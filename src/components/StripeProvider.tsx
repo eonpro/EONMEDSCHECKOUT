@@ -252,12 +252,23 @@ export function StripeProvider({ children, amount, appearance, customerEmail, cu
       .catch((err) => {
         if (err.name === 'AbortError') return;
         console.error('[StripeProvider] Error creating payment intent:', err);
-        // Show more specific error message to user
-        const userMessage = err.message?.includes('Shipping address')
-          ? 'Please complete your shipping address and try again.'
-          : err.message?.includes('Invalid amount')
-          ? 'Invalid order total. Please refresh and try again.'
-          : 'Failed to initialize payment. Please refresh and try again.';
+        // Show more specific error message to user based on API response
+        const msg = (err.message || '').toLowerCase();
+        let userMessage: string;
+        if (msg.includes('shipping') || msg.includes('address')) {
+          userMessage = language === 'es' 
+            ? 'Por favor complete su dirección de envío e intente de nuevo.'
+            : 'Please complete your shipping address and try again.';
+        } else if (msg.includes('amount') || msg.includes('invalid')) {
+          userMessage = language === 'es'
+            ? 'Total del pedido inválido. Por favor actualice la página e intente de nuevo.'
+            : 'Invalid order total. Please refresh and try again.';
+        } else {
+          // Show the actual error message for debugging, or a generic fallback
+          userMessage = err.message || (language === 'es' 
+            ? 'Error al inicializar el pago. Por favor actualice la página e intente de nuevo.'
+            : 'Failed to initialize payment. Please refresh and try again.');
+        }
         setError(userMessage);
         setLoading(false);
       });
