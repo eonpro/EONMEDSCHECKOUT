@@ -179,7 +179,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     // Heyflow phone format: "phone-input-id-cc54007b"
     const phone = pickString(normalizedPayload, ['phone', 'phonenumber', 'phone_number', 'phone-input-id-cc54007b', 'tel', 'Phone']);
-    const dob = pickString(normalizedPayload, ['dob', 'dateOfBirth', 'date_of_birth', 'DateOfBirth']);
+    const dob = pickString(normalizedPayload, [
+      'dob', 'dateOfBirth', 'date_of_birth', 'DateOfBirth', 'DOB',
+      'birthdate', 'birth_date', 'Birthdate', 'birthday', 'Birthday',
+      'date-of-birth', 'Date of Birth', 'dateofbirth'
+    ]);
+    console.log(`[intake-webhook] DOB extracted: "${dob}" (from payload keys: ${Object.keys(normalizedPayload).filter(k => k.toLowerCase().includes('date') || k.toLowerCase().includes('birth') || k.toLowerCase().includes('dob')).join(', ')})`);
     const gender = pickString(normalizedPayload, ['gender', 'Gender', 'sex', 'Sex']);
 
     // Heyflow address can be nested object
@@ -225,6 +230,96 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Fallback: extract gender from answers if not found in top-level payload
     const finalGender = gender || answerIndex.get('gender') || answerIndex.get('sex') || '';
 
+    // DEBUG: Log all payload keys to help identify field names
+    console.log('[intake-webhook] Top-level keys:', Object.keys(payload).join(', '));
+    console.log('[intake-webhook] Fields object keys:', payload.fields ? Object.keys(payload.fields).join(', ') : 'no fields object');
+    console.log('[intake-webhook] Normalized payload keys:', Object.keys(normalizedPayload).join(', '));
+    
+    // Log specific field values (for debugging - non-PHI identifiers only)
+    console.log('[intake-webhook] Raw field values check:', {
+      hasFeet: !!(normalizedPayload.feet || payload.fields?.feet),
+      hasInches: !!(normalizedPayload.inches || payload.fields?.inches),
+      hasStartingWeight: !!(normalizedPayload.starting_weight || payload.fields?.starting_weight),
+      hasBMI: !!(normalizedPayload.BMI || payload.fields?.BMI),
+      hasIdealWeight: !!(normalizedPayload.idealweight || payload.fields?.idealweight),
+      hasActivityLevel: !!(normalizedPayload['activity-level'] || payload.fields?.['activity-level']),
+      hasDOB: !!(normalizedPayload.dob || payload.fields?.dob),
+      hasGender: !!(normalizedPayload.gender || normalizedPayload.sex || payload.fields?.gender || payload.fields?.sex),
+    });
+
+    // ========================================================================
+    // EXTRACT PROFILE FIELDS BEFORE CLIENT CREATION
+    // ========================================================================
+    
+    // Extract height (multiple formats)
+    let height = firstNonEmpty(
+      pickString(normalizedPayload, ['height', 'Height']),
+      answerIndex.get('height')
+    );
+    if (!height) {
+      const feet = firstNonEmpty(
+        pickString(normalizedPayload, ['feet', 'Feet', 'heightFeet', 'height_feet', 'height-feet']),
+        answerIndex.get('feet'),
+        answerIndex.get('heightfeet')
+      );
+      const inches = firstNonEmpty(
+        pickString(normalizedPayload, ['inches', 'Inches', 'heightInches', 'height_inches', 'height-inches']),
+        answerIndex.get('inches'),
+        answerIndex.get('heightinches')
+      );
+      if (feet || inches) {
+        const left = feet ? `${feet}'` : '';
+        const right = inches ? `${inches}"` : '';
+        height = `${left}${right}`.trim();
+      }
+    }
+    
+    // Extract weight
+    const startingWeight = firstNonEmpty(
+      pickString(normalizedPayload, [
+        'startingWeight', 'starting_weight', 'starting-weight', 'starting weight',
+        'weight', 'Weight', 'currentWeight', 'current_weight', 'current-weight'
+      ]),
+      answerIndex.get('startingweight'),
+      answerIndex.get('weight'),
+      answerIndex.get('startinglbs'),
+      answerIndex.get('currentweight')
+    );
+    
+    // Extract BMI
+    const bmi = firstNonEmpty(
+      pickString(normalizedPayload, ['bmi', 'BMI', 'startingBmi', 'starting_bmi', 'starting-bmi']),
+      answerIndex.get('bmi'),
+      answerIndex.get('startingbmi')
+    );
+    
+    // Extract ideal weight
+    const idealWeight = firstNonEmpty(
+      pickString(normalizedPayload, ['idealWeight', 'ideal_weight', 'ideal-weight', 'idealweight', 'goal_weight', 'goalWeight']),
+      answerIndex.get('idealweight'),
+      answerIndex.get('goalweight')
+    );
+    
+    // Extract activity level
+    const activityLevel = firstNonEmpty(
+      pickString(normalizedPayload, ['activityLevel', 'activity_level', 'activity-level', 'Activity Level']),
+      answerIndex.get('activitylevel'),
+      answerIndex.get('activity')
+    );
+
+    // Log extracted values for debugging
+    console.log('[intake-webhook] Extracted profile fields:', {
+      height: height ? `"${height}"` : 'EMPTY',
+      startingWeight: startingWeight ? `"${startingWeight}"` : 'EMPTY',
+      bmi: bmi ? `"${bmi}"` : 'EMPTY',
+      idealWeight: idealWeight ? `"${idealWeight}"` : 'EMPTY',
+      activityLevel: activityLevel ? `"${activityLevel}"` : 'EMPTY',
+    });
+
+    // ========================================================================
+    // CREATE/FIND INTAKEQ CLIENT
+    // ========================================================================
+    
     const { client } = await ensureClient({
       firstName,
       lastName,
@@ -240,61 +335,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         zip: zipCode,
       },
     });
+    
+    console.log(`[intake-webhook] IntakeQ client ID: ${client.Id}`);
 
-    // Populate IntakeQ custom fields from Heyflow (if present)
+    // ========================================================================
+    // UPDATE CUSTOM FIELDS (IntakeQ profile fields + any additional fields)
+    // ========================================================================
+    
     try {
-      let height = firstNonEmpty(pickString(payload, ['height', 'Height']), answerIndex.get('height'));
-      if (!height) {
-        const feet = firstNonEmpty(
-          pickString(payload, ['feet', 'Feet', 'heightFeet', 'height_feet']),
-          answerIndex.get('feet'),
-          answerIndex.get('heightfeet')
-        );
-        const inches = firstNonEmpty(
-          pickString(payload, ['inches', 'Inches', 'heightInches', 'height_inches']),
-          answerIndex.get('inches'),
-          answerIndex.get('heightinches')
-        );
-        if (feet || inches) {
-          const left = feet ? `${feet}'` : '';
-          const right = inches ? `${inches}"` : '';
-          height = `${left} ${right}`.trim();
-        }
-      }
-      const startingWeight = firstNonEmpty(
-        pickString(payload, ['startingWeight', 'starting_weight', 'starting weight', 'weight', 'Weight']),
-        answerIndex.get('startingweight'),
-        answerIndex.get('weight'),
-        answerIndex.get('startinglbs'),
-        answerIndex.get('startingweightlbs')
-      );
-      const bmi = firstNonEmpty(
-        pickString(payload, ['bmi', 'BMI', 'startingBmi', 'starting_bmi', 'starting bmi']),
-        answerIndex.get('bmi'),
-        answerIndex.get('startingbmi')
-      );
-      const idealWeight = firstNonEmpty(
-        pickString(payload, ['idealWeight', 'ideal_weight', 'ideal weight']),
-        answerIndex.get('idealweight')
-      );
+      // Extract tracking number (if provided)
       const trackingNumber = firstNonEmpty(
-        pickString(payload, ['tracking', 'trackingNumber', 'tracking_number', 'tracking #']),
+        pickString(normalizedPayload, ['tracking', 'trackingNumber', 'tracking_number', 'tracking #']),
         answerIndex.get('tracking'),
-        answerIndex.get('trackingnumber'),
-        answerIndex.get('tracking')
+        answerIndex.get('trackingnumber')
       );
 
+      // These are IntakeQ custom profile fields - must match EXACTLY
       const updates: Record<string, string | undefined> = {
-        Height: height || undefined,
+        // Profile fields (try multiple variations of field names)
+        'Height': height || undefined,
         'Starting Weight': startingWeight || undefined,
-        BMI: bmi || undefined,
+        'BMI': bmi || undefined,
         'Ideal Weight': idealWeight || undefined,
+        'Activity Level': activityLevel || undefined,
       };
 
-      // Only set Tracking # if Heyflow provided it (do not repurpose)
+      // Only set Tracking # if form provided it
       if (trackingNumber) updates['Tracking #'] = trackingNumber;
 
       const hasAnyUpdate = Object.values(updates).some(Boolean);
+      
+      console.log('[intake-webhook] Custom fields to update:', {
+        fields: Object.entries(updates).filter(([_, v]) => v).map(([k, v]) => `${k}=${v}`),
+        count: Object.values(updates).filter(Boolean).length,
+      });
+      
       if (hasAnyUpdate) {
         const result = await updateClientCustomFieldsByEmail({
           email,
@@ -303,9 +378,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           lastName,
           phone,
           dateOfBirth: dob,
+          gender: finalGender || undefined,
           address: {
             street: addressLine1,
-            line2: addressLine2,  // ← CRITICAL: Include apartment during updates
+            line2: addressLine2,
             city,
             state,
             zip: zipCode,
@@ -313,12 +389,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           updatesByFieldName: updates,
         });
 
-        // Don't log values (PHI). Only log which fields were updated.
-        console.log('[intake-webhook] IntakeQ custom fields updated', {
+        console.log('[intake-webhook] IntakeQ custom fields result', {
           clientId: result.clientId,
           updated: result.updated,
           missing: result.missing,
         });
+        
+        // If fields are missing, they don't exist in IntakeQ - log for debugging
+        if (result.missing.length > 0) {
+          console.warn('[intake-webhook] These IntakeQ custom fields do NOT exist:', result.missing);
+          console.warn('[intake-webhook] Create them in IntakeQ → Settings → Custom Fields');
+        }
       }
     } catch (e: any) {
       console.error('[intake-webhook] Custom field update failed (continuing):', e?.message || e);
@@ -353,8 +434,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       floridaConsent: Boolean(answerIndex.get('floridaconsent')),
     };
 
-    // TEMPORARILY DISABLED - PDF upload not working with IntakeQ API
-    // TODO: Fix IntakeQ file upload or use Google Script PDF generation
+    // PDF upload is handled by Airtable script (PDF.co) - disable here
     const ENABLE_PDF_UPLOAD = false;
     
     if (ENABLE_PDF_UPLOAD) {
@@ -438,7 +518,73 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.error('[intake-webhook] KV store failed (continuing):', e?.message || e);
     }
 
-    return res.status(200).json({ ok: true, intakeId, intakeQClientId: client.Id, kvStored });
+    // ========================================================================
+    // FORWARD TO EONPRO (for EMR integration)
+    // ========================================================================
+    let eonproSent = false;
+    try {
+      const eonproWebhookUrl = process.env.EONPRO_WEBHOOK_URL || 'https://eonpro-kappa.vercel.app/api/webhooks/eonpro-intake';
+      const eonproWebhookSecret = process.env.EONPRO_WEBHOOK_SECRET;
+      
+      if (eonproWebhookSecret) {
+        const eonproPayload = {
+          submissionId: intakeId,
+          submittedAt: submittedAtIso,
+          data: {
+            firstName,
+            lastName,
+            email,
+            phone,
+            dateOfBirth: dob,
+            gender: finalGender,
+            streetAddress: addressLine1,
+            apartment: addressLine2,
+            city,
+            state,
+            zipCode,
+            height,
+            weight: startingWeight,
+            bmi,
+            idealWeight,
+            activityLevel,
+            // Include all answers for comprehensive intake
+            ...Object.fromEntries(answers.map(a => [a.label, a.value])),
+          },
+          source: 'intake.eonmeds.com',
+          intakeQClientId: client.Id,
+        };
+
+        const eonproResponse = await fetch(eonproWebhookUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Webhook-Secret': eonproWebhookSecret,
+          },
+          body: JSON.stringify(eonproPayload),
+        });
+
+        if (eonproResponse.ok) {
+          const eonproResult = await eonproResponse.json();
+          console.log('[intake-webhook] EONPro forwarding successful:', {
+            patientId: eonproResult?.data?.patientId,
+            documentId: eonproResult?.data?.documentId,
+          });
+          eonproSent = true;
+        } else {
+          const errorText = await eonproResponse.text();
+          console.error('[intake-webhook] EONPro forwarding failed:', {
+            status: eonproResponse.status,
+            error: errorText.substring(0, 200),
+          });
+        }
+      } else {
+        console.log('[intake-webhook] EONPro forwarding skipped - no EONPRO_WEBHOOK_SECRET configured');
+      }
+    } catch (eonproErr: any) {
+      console.error('[intake-webhook] EONPro forwarding error (continuing):', eonproErr?.message || eonproErr);
+    }
+
+    return res.status(200).json({ ok: true, intakeId, intakeQClientId: client.Id, kvStored, eonproSent });
   } catch (err: any) {
     // Log detailed error for debugging (avoid PHI in logs)
     const errorMessage = err?.message || String(err);
